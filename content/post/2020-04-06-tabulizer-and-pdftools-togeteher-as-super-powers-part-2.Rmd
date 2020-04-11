@@ -28,7 +28,7 @@ library(DT)
 
 # Introduction
 
-This post will be a continuation of [Parsing of Mass Municipal PDF CAFR's with Tabulizer, pdftools and AWS Textract - Part 1](https://redwallanalytics.com/code_based/parsing-of-mass-municipal-pdf-cafr-s-with-the-center-for-municipal-finance/) dealing with extracting data from PDFs using R. When Redwall discovered pdftools, and its pdf_data function, which maps out every word on a pdf page by x-y coordinate, we thought that was interesting, but didn't really know how to use it. We also didn't have the regular expression skills, and were much more befuddled by the nested list structures than we are now. 
+This post will be a continuation of [Parsing of Mass Municipal PDF CAFR's with Tabulizer, pdftools and AWS Textract - Part 1](https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/) dealing with extracting data from PDFs using R. When Redwall discovered pdftools, and its pdf_data function, which maps out every word on a pdf page by x-y coordinate, we thought that was interesting, but didn't really know how to use it. We also didn't have the regular expression skills, and were much more befuddled by the nested list structures than we are now. 
 
 As for Tabulizer, it took about a year before rJava magically started working properly, but even then we it wasn't possible to consistently read a large number of tables of different sizes without cutting off fields in unexpected ways. Only in this Mass pdf scraping project have we realized that, by combining these two packages, it becomes possible to access data in reliable way, from a large number of varied pdf formats. 
 
