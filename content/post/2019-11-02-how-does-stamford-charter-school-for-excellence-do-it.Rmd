@@ -1,0 +1,420 @@
+---
+title: How Does Stamford Charter School for Excellence do it?
+author: David Lucey
+date: '2019-11-02'
+slug: how-does-stamford-charter-school-for-excellence-do-it
+categories: ["R", "Nutmeg Project"]
+tags: ["connecticut","dataviz","charterschools"]
+---
+
+
+```{r 'setup', message=FALSE, warning=FALSE, include=FALSE}
+require("knitr")
+require("MarkdownReports")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r 'libraries', message=FALSE, warning=FALSE, include=FALSE}
+library(data.table)
+library(ggplot2)
+library(stringr)
+library(knitr)
+library(DT)
+library(plotly)
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+data <-
+  readRDS("/Users/davidlucey/Desktop/David/Projects/ct_schools/ct_school_perf_detail.RDS")
+
+school_dir <-
+  janitor::clean_names(fread(
+    "~/Desktop/David/Projects/ct_schools/Education_Directory.csv"
+  ))
+elems <-
+  school_dir[, 
+    rowSums(
+      school_dir[, kindergarten:grade_5, with = FALSE]) > 3]
+
+elems <-
+  unique(
+    school_dir[
+      organization_type %in% 
+        c("Public Schools", 
+          "Public Charter Schools") &
+        elems])
+
+elem_perf <-
+  data[category == "All Students" &
+         (school_name %in% elems$school_name &
+            district_name %in% elems$district_name)]
+
+elem_perf[, 
+  school_name := 
+    str_c(str_remove(district_name, " School District"),
+          school_name,
+          sep = "_")]
+
+rm(data,school_dir)
+```
+
+
+```{r 'chart-params', message=FALSE, warning=FALSE, include=FALSE}
+# annotations
+a <- list(
+  text = "Primary English",
+  font = list(size = 25),
+  xref = "paper",
+  yref = "paper",
+  yanchor = "bottom",
+  xanchor = "center",
+  align = "center",
+  x = 0.5,
+  y = 1,
+  showarrow = FALSE
+)
+
+b <- list(
+  text = "Primary Math",
+  font = list(size = 25),
+  xref = "paper",
+  yref = "paper",
+  yanchor = "bottom",
+  xanchor = "center",
+  align = "center",
+  x = 0.5,
+  y = 1,
+  showarrow = FALSE
+)
+```
+
+
+```{r 'set-data-table', message=FALSE, warning=FALSE, include=FALSE}
+
+dt <- datatable(
+  elem_perf[,
+       .(
+         `Year` = year,
+         `School` = school_name,
+         `English Test Takers` = ela_count,
+         `English Perf. Index` = ela_performance_index,
+         `Math Test Takers`= math_count,
+         `Math Perf. Index` = math_performance_index
+       )],
+  extensions = c('FixedColumns'),
+  options = list(
+    dom = "ft",
+    scrollX = TRUE,
+    scrollY = TRUE,
+    fixedColumns = list(leftColumns = 3)
+  ),
+  rownames = FALSE
+) %>%
+  formatStyle(columns = c(1:8),
+              fontSize = '75%')
+
+```
+
+
+# Introduction
+
+The State of Connecticut is required to test all of its students over the course of their academic careers. The data by year and school is disclosed as it becomes available at the State Department of Education's [Edsight](http://edsight.ct.gov/SASPortal/main.do) website. In keeping with its explorations of open CT data, one of Redwall Analytics's projects is to look for insight in this kind of disclosure. Recently, 2018 data were disclosed, making for five years of available test scores, demographics and school attributes on Edsight. 
+
+One question which is often discussed is the efficacy of charter schools. Connecticut currently has 23 charters serving ~10,000 students across the state. In total, it has 1,403 public schools with enrollment of ~530,000 students, so charters have hardly been tried compared with some other states, and generally receive scornful treatment from the press and town administrators. As a result, the percentage of charter schools is a fraction of states like Texas, which had 766 charters serving 308,000 students according to [Public Charters](https://data.publiccharters.org/state/). 
+
+In this post, we will look at the specific case of the [Stamford Charter School for Excellence](https://www.excellencecommunityschools.org/stamford-excellence) ("Stamford Excellence"), which launched in 2015 affiliated with by [Excellence Community Schools](https://www.excellencecommunityschools.org)) ("Bronx Excellence"), an operator of five schools in the Bronx. Redwall Analytics has watched the performance of the school over the last year, and found it to be an astounding success with essentially no public comment (as judged by a Google search).
+
+The last available article by the Advocate [Stamford Charter School Faces Mixed Reviews](https://www.stamfordadvocate.com/local/article/Stamford-charter-school-faces-challenges-mixed-11125347.php) seemed to want to pan it before it even got started. There hasn't been another press article since it started producing startlingly good results last year, but here is the more recent discussion of whether Bronx Excellence should be allowed to open in Norwalk [Proposed Charter School Draws Mixed Reaction](https://www.thehour.com/news/article/Proposed-charter-school-draws-mixed-reaction-12755628.php), which eventually got approved. 
+
+Among other things, Norwalk's Superintendent Steven Adamowski stated "decision to (permit Norwalk Excellence) might also possibly threaten the district’s already underfunded Education Cost Sharing grant from the state". He goes on to make a number of other claims about charters which seem will seem at odd's with the evidence which will be presented below. Very similar to Stamford, all of Norwalk's public elementaries underperformed Stamford Excellence then, and have made no improvement to narrow the gap as of 2018.
+
+[State Headed for Another Charter School Showdown](https://ctmirror.org/2018/10/02/state-headed-another-charter-school-showdown/) shows the wariness of political leadership on both the Democrat and Replican sides, mostly down to grumpling about costs which again seem off base when the test case of Stamford Excellence is considered. 
+
+# Searchable Edsight Raw Data
+
+In keeping with past posts, Redwall makes the full dataset available for any reader's perusal. To see the number of test takers, English and Math scores and/or student demographics group of any of Connecticut's 1,400 public elementary schools over the last five years, just type the name in the search field in Figure \@ref(fig:school-perf-dt) below. Although the DOE hosts this on expensive SAS software, the data can be surprisingly inaccessible compared to this free open source application using R.
+
+```{r 'school-perf-dt', echo=FALSE, fig.cap='Test Scores of All 505 CT Elementary Schools from 2014-2018', message=FALSE, warning=FALSE}
+
+dt
+```
+
+# Looking at the Data
+
+Stamford Excellence only has test scores for two years available (compared to five for the other schools), but its outstanding performance in teaching English and Math over other 11 Stamford elementary schools are shown in Figure \@ref(fig:stamford-elementary-scores). This is a busy chart with so many schools but it is possible to see the school name by hovering with the curser over the line for the chosen school.
+
+
+```{r 'stamford-elementary-scores', fig.cap='Stamford Exellence Stands out Among Local Peers', echo=FALSE, message=FALSE, warning=FALSE}
+
+p <-
+  elem_perf[str_detect(
+    district_name, "Stamford"),
+    .(`Mean English` = 
+        mean(as.numeric(ela_performance_index), na.rm = TRUE),
+      `Mean Math` = 
+        mean(as.numeric(math_performance_index), na.rm = TRUE)
+      ),
+    by = .(
+      `School` = school_name,
+      `Year` = as.integer(year)
+      )][, 
+         ggplot(.SD, 
+                aes(`Year`, 
+                    `Mean Math`, 
+                    color = `School`)) +
+           geom_line() +
+           ylab("Mean Test Score by School") +
+           xlab("Year") +
+           ylim(0,100) +
+           theme_bw() +
+           theme(legend.position = 'none')]
+
+p <- plotly::ggplotly(p) %>%
+  layout(annotations = a)
+
+p1 <-
+  elem_perf[
+    str_detect(district_name, "Stamford"), 
+    .(
+      `Mean English` = 
+        mean(as.numeric(ela_performance_index), na.rm = TRUE),
+      `Mean Math` = 
+        mean(as.numeric(math_performance_index), na.rm = TRUE)
+       ),
+       by = .(
+         `School` = school_name,
+         `Year` = as.integer(year)
+       )][, ggplot(.SD, 
+                   aes(`Year`, 
+                       `Mean English`, 
+                       color = `School`)) +
+            geom_line() +
+            ylab("Mean Test Score by School") +
+            xlab("Year") +
+            ylim(0,100) +
+            theme_bw() +
+            theme(legend.position = 'none') ]
+
+p1 <- plotly::ggplotly(p1) %>%
+  layout(annotations = b)
+
+subplot(p,
+        p1,
+        titleX = TRUE,
+        titleY = TRUE,
+        margin = 0.06) %>% 
+  layout(showlegend = FALSE)
+```
+
+
+Now, let's see how Stamford Excellence stacks up against the top performing elementary schools in the across the state. The 50 schools shown in Figure \@ref(fig:top-elems) are the top 10% of all Connecticut schools. They are mostly from affluent towns with high per pupil spending and likely have a high percentage of involved, stay-at-home parents. They also generally have lower percentages of high needs students, so it is probably not a fair comparison for Stamford Excellence with over 60% having high needs. 
+
+
+```{r 'top-elems', fig.cap='Stamford Excellence is Also Stands Out Among CT Elite Schools', echo=FALSE, message=FALSE, warning=FALSE}
+
+# Find vector of top scoring elems
+top_elem <- 
+  elem_perf[, .(
+    agg_ela = 
+      sum(as.numeric(ela_performance_index), na.rm = TRUE),
+    agg_math = 
+      sum(as.numeric(math_performance_index), na.rm = TRUE)
+    ),
+    by = .(school_name)][
+      ][,.(
+        school_name, 
+        agg = agg_ela + agg_math)][
+      ][order(-agg)][
+      ][c(1:49), school_name]
+
+top_elem <-
+  c(
+    top_elem,
+    "Stamford Charter School for Excellence District_Stamford Charter School for Excellence"
+  )
+
+# Set data to be used for plotting
+d <-  
+  elem_perf[
+    school_name %in% top_elem 
+    ,.(
+      `Mean English` = 
+        mean(as.numeric(ela_performance_index), na.rm = TRUE),
+      `Mean Math` =
+        mean(as.numeric(math_performance_index), na.rm = TRUE)
+      ),
+    by = .(`School` = school_name, 
+           `Year` = as.integer(year), 
+           district_name)]
+
+# Plot English
+p <-
+  d[, ggplot(.SD) +
+      geom_line(aes(
+        `Year`,
+        `Mean English`,
+        group = `School`)) +
+      scale_color_manual(
+        values = "red", 
+        name = "") +
+      geom_line(
+        data = 
+          d[`School` == "Stamford Charter School for Excellence District_Stamford Charter School for Excellence"],
+        aes(`Year`,
+            `Mean English`,
+            col = "red",
+            group = `School`),
+        size = 1
+      ) +
+      xlab("Year") +
+      ylab("Mean Test Score by School") +
+      ylim(0,100) +
+      theme_bw() +
+      theme(legend.position = "none")]
+
+p <- plotly::ggplotly(p) %>%
+  layout(annotations = a)
+
+# Plot math
+p1 <-
+  d[, ggplot(.SD) +
+      geom_line(aes(
+        `Year`,
+        `Mean Math`,
+        group = `School`)) +
+    scale_color_manual(values = "red", name = "") +
+      geom_line(
+        data = 
+          d[`School` == "Stamford Charter School for Excellence District_Stamford Charter School for Excellence"],
+        aes(`Year`,
+            `Mean Math`,
+            col = "red",
+            group = `School`),
+        size = 1
+      ) +
+      xlab("Year") +
+      ylab("Mean Test Score by School") +
+      ylim(0,100) +
+      theme_bw() +
+      theme(legend.position = "none")]
+
+p1 <- plotly::ggplotly(p1) %>%
+  layout(annotations = b)
+
+subplot(p,
+        p1,
+        titleX = TRUE,
+        titleY = TRUE,
+        margin = 0.06) %>% 
+  layout(showlegend = FALSE)
+
+
+```
+
+
+In figure \@ref(fig:cost-per-point) will add the dimension of cost to the discussion. The cost to operate Stamford Excellence is less than half the state-wide average per pupil, and one quarter of the costliest school districts (see Figure 3 of [A Through the Cycle Geo-Spatial Analysis of Connecticut Town Finances](https://redwallanalytics.com/2019/02/11/looking-at-ct-towns-through-the-cycle-with-maps/) for further discussion of education spending levels). 
+
+
+```{r 'cost-per-point', fig.cap='Stamford Excellence Does it At a Fraction of the Cost', echo=FALSE, message=FALSE, warning=FALSE}
+
+school_cost <- 
+  readRDS("/Users/davidlucey/Desktop/David/Projects/ct_schools/ct_cost_student.RDS")
+
+school_cost <-
+  school_cost[, .(
+    `Year` = as.integer(year),
+    district_name,
+    cost_student)]
+
+year_2018 <-
+  school_cost[`Year` == "2017", 
+              .(`Year`, 
+                district_name, 
+                cost_student)]
+year_2018$`Year` <- "2018"
+school_cost <- rbind(school_cost, year_2018)
+d_cost <- unique(
+  school_cost[d,on = c("Year", "district_name")]
+  )
+d_cost <- d_cost[!str_detect(`School`, "Bugbee")]
+d_cost[, `:=`(
+  `English Point` = cost_student / `Mean English`,
+  `Math Point` = cost_student / `Mean Math`)]
+
+p <- 
+  d_cost[, 
+         ggplot(.SD) +
+           geom_line(aes(
+             `Year`,
+             `English Point`,
+             group = `School`)) +
+           scale_color_manual(values = "red", name = "") +
+           geom_line(
+             data = 
+               d_cost[`School` == "Stamford Charter School for Excellence District_Stamford Charter School for Excellence"],
+             aes(`Year`,
+                 `English Point`,
+                 col = "red",
+                 group = `School`),
+             size = 1
+           ) +
+           scale_y_continuous(labels = scales::dollar) +
+           xlab("Year") +
+           ylab("Mean Cost per Point") +
+           theme_bw() +
+           theme(legend.position = "none")]
+
+p <- plotly::ggplotly(p) %>%
+  layout(annotations = a)
+
+p1 <-
+  d_cost[, ggplot(.SD) +
+           geom_line(aes(
+             `Year`,
+             `Math Point`,
+             group = `School`)) +
+           scale_color_manual(values = "red", name = "") +
+           geom_line(
+             data = 
+               d_cost[`School` == "Stamford Charter School for Excellence District_Stamford Charter School for Excellence"],
+             aes(`Year`,
+                 `Math Point`,
+                 col = "red",
+                 group = `School`),
+             size = 1
+           ) +
+           scale_y_continuous(labels = scales::dollar) +
+           xlab("Year") +
+           ylab("Mean Cost Point") +
+           theme_bw() +
+           theme(legend.position = "none")]
+
+p1 <- plotly::ggplotly(p1) %>%
+  layout(annotations = b)
+
+subplot(
+  p,
+  p1,
+  titleX = TRUE, 
+  titleY = TRUE, 
+  margin=0.06) %>% 
+  layout(showlegend=FALSE)
+
+
+```
+
+
+Though we have never seen any cost driven KPI applied to education in the Connecticut discourse, we feel it is certainly relevant. Resources saved on one thing, can be available for other purposes like transportation infrastructure. Why would a leader not want to get the most bang for the buck its most significant expenditure?
+
+
+# Conclusions
+
+Leaving aside Stamford Excellence's outstanding academic achievements thus far, if the city could operate all of its schools at a similar cost, it would reduce spending by about ~$190 million (estimated as $302 million x $7,000 / $19,000) out of annual budgeted expenses of ~$505 million ([Stamford 2018 CAFR](https://www.stamfordct.gov/sites/stamfordct/files/uploads/1_f2018_city_cafr_12-31-2018_final.pdf). This leaves aside the much higher pension costs attributed to town school districts than to charters picked up by the state. Judging by these numbers, it is difficult to see comments like the those by Norwalk's Superintendant (referenced above article) as coming in good faith.
+
+There is a lot of concern about the acceleration of the longstanding outward migration of retirees from Connecticut. By in large, retirees probably don't pay the level of income taxes as employed workers, but they do bear the cost and less of the benefits of high real estate taxes. While Redwall doesn't embrace the idea that the millionaire's taxes implemented so far or the removal of the SALT deduction are the sole drivers of outmigration, the overall high cost of living is certainly causing residents at the margin to move away. 
+
+Also, Connecticut's failure to attract great new businesses in the last couple of decades in the same way as the past has a lot with a workforce which may not be able to justify the extra cost. Based on the evidence, it seems like non-traditional schools like Stamford Excellence must be one of the solutions available to our leadership. Maybe we are optimistic, but we hope to see the press stop burying the story and a more honest dialogue by our leaders on this subject in the future.
+

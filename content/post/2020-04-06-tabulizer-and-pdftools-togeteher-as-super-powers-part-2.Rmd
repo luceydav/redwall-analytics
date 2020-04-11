@@ -1,0 +1,321 @@
+---
+title: Tabulizer and pdftools Together as Super-powers - Part 2
+author: David Lucey
+date: '2020-04-06'
+categories: ["R", "Code-Oriented"]
+tags: ["pdf", "pdftools", "tabulizer", "XBRL"]
+slug: tabulizer-and-pdftools-togeteher-as-super-powers-part-2
+output:
+  html_document:
+    code_folding: yes
+---
+
+
+```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
+
+# Libraries
+library(data.table)
+library(stringr)
+library(rlist)
+library(tabulizer)
+library(pdftools)
+library(parallel)
+library(DT)
+
+```
+
+
+
+# Introduction
+
+This post will be a continuation of [Parsing of Mass Municipal PDF CAFR's with Tabulizer, pdftools and AWS Textract - Part 1](https://redwallanalytics.com/code_based/parsing-of-mass-municipal-pdf-cafr-s-with-the-center-for-municipal-finance/) dealing with extracting data from PDFs using R. When Redwall discovered pdftools, and its pdf_data function, which maps out every word on a pdf page by x-y coordinate, we thought that was interesting, but didn't really know how to use it. We also didn't have the regular expression skills, and were much more befuddled by the nested list structures than we are now. 
+
+As for Tabulizer, it took about a year before rJava magically started working properly, but even then we it wasn't possible to consistently read a large number of tables of different sizes without cutting off fields in unexpected ways. Only in this Mass pdf scraping project have we realized that, by combining these two packages, it becomes possible to access data in reliable way, from a large number of varied pdf formats. 
+
+Our Massachusset's municipal CAFR project provided a perfect opportunity to put all these pieces together. This blog post will consist of a step-by-step walk through which will hopefully help others avoid some of the pain that we experienced in getting to this point.
+
+
+# Walk Through Plan
+
+To begin with, we had to download the pdfs from the CAFR Library at the [Center for Municipal Finance](http://www.municipalfinance.org). We won't show the code to do the download here, but it can be found at [reason_pdf_parser.R](https://github.com/luceydav/pdf_cafr_parse/blob/master/reason_pdf_parser.R). In order to do this on the scale that we plan for this project, we had to build nested lists with the pdf metadata of 150 Massachussett's CAFR pdfs. For now, we will just walk through a few key points using a single statment from the Abington, MA 2018 Statement of Net Position from the CAFR downloaded [here](https://www.abingtonma.gov/home/pages/annual-town-reports).
+
+
+```{r 'pdf-data', echo=TRUE, message=FALSE, warning=FALSE}
+
+# Set up pdf and pdf_path to directory
+dir <- "/Users/davidlucey/Desktop/David/Projects/mass_munis/data/pdf_cafr/"
+city <- "abington"
+pdf <- paste0(city, "_2018.pdf", collapse="")
+pdf_path <- paste0(dir, pdf, collapse = "")
+
+# Run pdf_data on Abington CAFR
+abington <- pdftools::pdf_data(pdf_path)
+
+# Name each page of list for page index in pdf
+names(abington) <- 1:length(abington)
+
+# Look at structure of 2n element in 92-page nested list
+str(abington[[2]])
+```
+
+# PDF Tools pdf_data Functionality
+
+The above is a list of data.frames containing metadata of the location of every word on every one of the 92 pages of the Abington 2018 CAFR. The structure of the second page is shown above. But, we only need the key financial statements, so would like to drop the majority of pages which don't have what we need. For example, we know that page 16 has the Statement of Net Position. We could search for that page using regular expressions as shown for variable "sonp" below. 
+
+See how we extract only the head unique 5 lines of each page by y, paste those lines back together, then match our regular expression on the text of those lines looking for the phrase "STATEMENT OF NET POSITION". However, there are several pages meeting this criteria, such as "Proprietary Funds" Statement of Net Position on page 20 (which we don't want). Most of these other pages can be eliminated by choosing NOT to match the word "FUNDS" by the same process, so notice that we negate our second match with "!". Hence, our sonp_index comes back as 16, which can be used to filter out the remaining pages.
+
+
+```{r 'find-pdf-pages', echo=TRUE, message=FALSE, warning=FALSE}
+
+# Convert elements to data.table
+abington <- mclapply(abington, setDT)
+
+# Get index of Abington Statement of Net Position
+sonp_index <- 
+  which(
+    unlist(
+      mclapply(abington, function(page){
+        (str_detect(
+          paste(
+            # Reformat top 5 lines by y and look for match to "STATEMENT OF NET POSITION"
+              page$text[
+                page$y %in% head(unique(page$y), 5)
+                ],
+              collapse = " "
+              ),
+          "STATEMENT OF NET POSITION"
+        ) & 
+          # And requires both statements to be TRUE
+          !str_detect(
+            paste(
+              page$text[
+               # Reformat top 5 lines by y and look for non match to "FUNDS" 
+                page$y %in% head(unique(page$y), 5)
+                ],
+              collapse = " "
+              ),
+            "FUNDS"
+            )
+        )
+        }
+        )
+    )
+    )
+    
+# Extract and View Statement of Net Position pdftools pdf_data  metadata
+sonp <- abington[sonp_index][[1]]
+sonp
+```
+
+Above is the text grid of Abington's Statement of Net Position as taken by pdftools. Using this metadata, we can begin to put together exact area parameters for Tabula. Even better, we could programically do it for a large number of tabless. In our experience, this is important because Tabulizer's default "lattice" method for tabular data can be unpredictable cutting off fields unexpectedly. 
+
+
+# Tabulizer Area Coordinates
+
+Tabulizer specifies pages in blocks of 72 * inches, so a typical 8.5 x 11 verticle page would have dimensions of 612 x 720. This coordinate grid is used to specify the "area" parameter (top, left, bottom and right). All of of Massachusett's financial statement tables have a "$" sign in the first and last rows, so those could be used to locate the "top" or "bottom" paramenters. In addition, all pages including financial statements have language referring users to the "notes to the financial statements" usually on the second to last line, which could be the "bottom", or the midpoint between the bottom and the "$" (if more room was needed). 
+
+
+```{r 'calculate-tabulizer-area', echo=TRUE, message=FALSE, warning=FALSE}
+
+
+ # Determine if page is verticle or horizontal
+    x <- 8.5 * 72
+    y <- 11 * 72
+    max_x <- max(sonp$x)
+    max_y <- max(sonp$y)
+    orientation <- 
+      ifelse(x < max_x, "horizontal", "verticle")
+    
+    # TOP
+    
+    # Keys on the first instance of the year "2018"
+    table_top <-
+      min(sonp$y[str_detect(sonp$text, "2018") & sonp$space==FALSE])
+    # Find the height at in the table_top row
+    height_top <- unique(sonp$height[sonp$y == table_top])
+    # Add table_top and height_top to avoid slicing row
+    top <- table_top + height_top 
+    
+    # BOTTOM
+    
+    # Table Bottom marked by last instance of character "$"
+    table_bottom <-
+      max(sonp$y[str_detect(sonp$text, "\\$")])
+    # Height at bottom row of table 
+    height_bottom <- unique(sonp$height[sonp$y == table_bottom])
+    # Bottom of table
+    bottom <- table_bottom + height_bottom
+    
+    # LEFT
+    
+    # Add some space to leftmost x coordinate to avoid slicing
+    left <-     
+      ifelse( min(sonp$x) - 30 > 0,
+              min(sonp$x) - 30, 1 )
+    
+    # RIGHT
+    
+    # Find width at maximum "x" coordinate
+    width_max_x <- max(sonp$width[sonp$x == max_x])
+    # Add width at maximum "x" plus more space wether verticle or horizontal
+    right <- 
+      max_x + width_max_x + ifelse(orientation == "verticle", 30, 50)
+    
+    # FINAL AREA PARAMETER FOR TABULIZER AS INTEGER VECTOR
+    # Note the specification as an integer vector
+    a <- c(top, left, bottom, right)
+    
+    # Show coordinates 
+    a
+    
+```
+
+We give an example for Abington's Statement of Net Position above, starting with the maximum "x" and "y", and determining the page orientation (ie: verticle or horizontal). After finding the location of the date line at the top, and walk down a little from there to set a "table_top" variable. Typically, it is best to leave a little margin between the page header and the top of the table. The bottom of the table is set adding the height to the bottom line of the table, and left parameter is set by taking the smallest "x" coordinate and reducing by a little to margin for error.  We leave a larger margin for the right-most coordinate because this is where we have found that the most errors occur, often when the algorithm seems to try to squish the table into the available columns.
+
+In our experience, the most problems come with missetting the top and right parameters. Indentation can also confuse the algorithm. Columns can be split in the middle into two columns, often at the far-rightmost, for example. In the end, we chose parameters of 93 (top), 24 (left), 681 (bottom) and 585 (right).
+
+# Tabulizer extract_table Function
+
+Below we run our area parameters we derived above through Tabulizer. Note that the area parameter, itself an integer vector, is further wrapped as a list because not having this structure throws an error. In addition, avoid the half day of wheel spinning we experienced by specifying guess as "F" to over-ride the default lattice, otherwise your area parameter is ignored with no warning. Also, we use the sonp_index integer to specify the page of the pdf. There are several options for output which all work as expected, but data.frame seems most natural.
+
+
+```{r}
+
+# Tabulizer extract_tables output is a list
+abington_sonp <-
+  extract_tables(
+    pdf_path, 
+    pages = sonp_index,
+    area = list(a), 
+    guess = F,
+    output = "data.frame")
+
+# Extract and print single element from list
+abington_sonp <- abington_sonp[[1]]
+abington_sonp
+```
+
+# Clean up
+
+The Tabulizer output is still in a raw form with colums sometimes determined by indentations and "x" values, such as the "$" signs. The numbers are in character form with commas and sometimes negative numbers are shown in parenthesis, and need to be parsed into numeric. The item names often have a long series of periods which need to be stripped. The biggest challenge is the column names which often include the first row of the full column name, and need to be rebuilt. This is not a small task and not what we were hoping to illustrate in this post, so we are just showing the output below. Please refer to our Github code for the a more complete explanation and solutions to many of these issues.
+
+
+```{r 'clean-table', message=FALSE, warning=FALSE, include=FALSE}
+
+clean_table <- function(page) {
+  
+  #page <- abington_sonp_dt
+  
+  # Convert to dt
+  page <- setDT(page)
+      
+  # Select $ or all is.na columns and drop
+  if(length(page) > 0) {
+      drops <-
+        sapply(page, function(col) which(any(str_detect(col, "^\\$$")) | all(is.na(col))))
+      drops <- 
+        which(sapply(drops, function(col) sum(col) > 0))
+      page[ , (drops) := NULL] 
+      }
+      
+  # Get names function to clean up names
+  get_names <- function(page) {
+    
+    # Extract incomplete column names resulting from 
+    # faulty tabula 
+    names <- t(colnames(page))
+    
+    # Find empty rows at top to set to be combined with names
+    empty  <-
+      min(which(apply(page, function(row)
+        ifelse(all(!str_detect(row[-1], "\\w")), 
+               TRUE, 
+               FALSE), 
+        MARGIN = 1)))
+    
+    # Convert to matrix of first few rows and rbind with names
+    page <- as.matrix(page)
+    new <- 
+      rbind(names, page)
+    
+    # Drop empty rows
+    new <- new[1:empty,]
+    
+    # Build new names by pasting together rows by column
+    names <- sapply(2:ncol(new), function(col) {
+      name <- paste(new[, col], collapse = " ")
+      name <- str_trim(str_remove(name, "X\\.?\\d?"))
+      new[, col] <- name
+    })
+    names <- c("element", names)
+  }
+  
+  #Run get names function 
+  names(page) <- get_names(page)
+  
+  # Clean names to snake case
+  page <- janitor::clean_names(page)
+  
+  # Drop empty rows
+  page <- page[element != ""]
+  
+  # Clean and convert to numeric
+  num <- names(page)[2:ncol(page)]
+  page[, (num) := mclapply(.SD, function(col) {
+    col[1] <- str_remove(col[1], "\\w*")
+    col <- str_replace(col, "-", NA_character_)
+    col <- str_remove(col, " ")
+    col <- readr::parse_number(col, c("NA"))
+    #col <- nafill(col, fill = 0L)
+    col
+  }), .SDcols=num]
+  
+  # Clean punctuation from rownames
+  page[, element := str_remove(element, "\\W[\\s\\.\\$]*$")]
+  
+  # Return
+  page
+  
+}
+
+# Run clean_table on raw Tabula output
+abington_final <- clean_table(abington_sonp)
+
+# Clean names for display in datatable
+names(abington_final) <- 
+  str_remove(names(abington_final), "primary_government_")
+```
+
+
+```{r 'final-dt', echo=FALSE, message=FALSE, warning=FALSE}
+
+datatable(abington_final, 
+  extensions = c('FixedColumns'),
+  options = list(scrollY = TRUE,
+                 pageLength=10),
+  colnames=c('Element',
+             'Governmental Activities',
+             'Business-Type Activities',
+             'Total'),
+              rownames = FALSE,
+  caption = htmltools::tags$caption(
+    style = 'caption-side: bottom; text-align: right;',
+    '', htmltools::em('Source: Abington Mass Town Reports')
+    )
+  ) %>%
+  formatStyle(columns = c(1:4),
+              fontSize = '100%') %>%
+  formatCurrency(
+    columns = c(2:4),
+    currency = "",
+    interval = 3,
+    mark = ",",
+    digits = 0
+  )
+
+```
+
+# Final Product
+
+Though there is still work to be done, the final product of this post is shown above Single elements could be extracted to form a database, or the output could be saved to csv. The headers such as ASSETS AAND LIABILITIES could be nested. The main point is that short of XBRL, the data has been set free from the PDF in a machine readable form. Not only that, this general process can be repeated for a large number of slightly differing PDFs with a relatively high low error rate. In cases where errors do occur, a second layer can be used to run the more challenging PDFs through AWS Textract SDK. We will show how this is done in our next post.
+

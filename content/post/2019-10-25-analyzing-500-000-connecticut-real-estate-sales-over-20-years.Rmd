@@ -1,0 +1,143 @@
+---
+title: Analyzing 500,000 Connecticut Real Estate Sales over 20 Years
+author: David Lucey
+date: '2019-10-25'
+slug: analyzing-500-000-connecticut-real-estate-sales-over-20-years
+categories:
+  - R
+tags:
+  - connecticut
+  - rstats
+  - dataviz
+  - cteconomy
+---
+
+
+```{r 'load-data', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+re <- readRDS("~/Desktop/David/Projects/ct_real_assess/ct_re_sales.RDS")
+irs <- readRDS("~/Desktop/David/Projects/irs/irs.RDS")
+irs <- setDT(irs)[state=="CT"]
+zips <- fread("~/Desktop/David/Projects/ct_data/ct_zips.csv")
+zips$zipcode <- paste0("0",zips$zip)
+irs <- zips[irs, on = "zipcode"]
+
+```
+
+
+# Under Construction
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+library(data.table)
+library(ggplot2)
+library(stringr)
+library(patchwork)
+```
+
+
+
+```{r 'summary-viz', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+scaleFUN <- function(x) sprintf("$%.0fK", x/1000)
+
+p <-
+  re[residential_type == "Single Family" &
+     qtr < "2018 Q4" &
+     sale_amount][
+    ][, mean(sale_amount, na.rm = TRUE), qtr][
+    ][, ggplot(.SD, aes(qtr, V1)) +
+        geom_line() +
+        geom_smooth() +
+        scale_y_log10(labels = scaleFUN) +
+        ylab("Mean Price") +
+        xlab("Quarter") +
+        labs(
+          title = "Steady Price Fall for 10 Years, but Volume Starting to Picking Up"
+        ) +
+        theme_bw()]
+
+p1 <-
+  re[residential_type == "Single Family"
+     & qtr < "2018 Q4", .N, by = qtr][
+     ][, ggplot(.SD, aes(qtr, N)) +
+         geom_line() +
+         geom_smooth()+
+         xlab("Quarter") +
+         ylab("Number of Sales") +
+         scale_y_continuous(labels = scales::comma) +
+         theme_bw()]
+
+p + p1 + plot_layout()
+
+```
+
+
+```{r 'all-towns-spaghetti', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+scaleFUN <- function(x) sprintf("$%.0fK", x/1000)
+
+p <- re[residential_type=="Single Family"][
+  ][,.(`Mean Selling Price` = mean(sale_amount,na.rm=TRUE)),
+    by=.(`Year` = year,
+         `Town` = town)][
+  ][`Mean Selling Price` > 50000,
+    ggplot(.SD,aes(`Year`,`Mean Selling Price`,group=`Town`)) + 
+      geom_line() + 
+      scale_y_log10(labels=scaleFUN) +
+      ylab("Average Annual Price") +
+      xlab("Year") +
+      theme_bw()
+    ]
+
+plotly::ggplotly(p)
+
+p <- irs[residential_type=="Single Family"][
+  ][,.(`Mean Selling Price` = mean(sale_amount,na.rm=TRUE)),
+    by=.(`Year` = year,
+         `Town` = town)][
+  ][`Mean Selling Price` > 50000,
+    ggplot(.SD,aes(`Year`,`Mean Selling Price`,group=`Town`)) + 
+      geom_line() + 
+      scale_y_log10(labels=scaleFUN) +
+      ylab("Average Annual Price") +
+      xlab("Year") +
+      theme_bw()
+    ]
+
+```
+
+
+
+
+```{r 'assessment-accuracy-time', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+re[sale_amount > 10000 &
+     residential_type == "Single Family" &
+     qtr < "2018 Q4", ][
+     ][, .(sales_ratio = sale_amount * 0.7 / (assessed_value ),
+           year,
+           reval_yr)][
+     ][sales_ratio < 100,
+       .(mn_ratio = mean(sales_ratio, na.rm = TRUE)),
+       .(year, 
+         reval_yr = as.factor(reval_yr))][
+     ][, ggplot(.SD,
+                aes(year, 
+                    mn_ratio, 
+                    color = reval_yr, 
+                    group = reval_yr)) + 
+         geom_line() +
+         theme_bw() +
+         xlab("Quarter") +
+         ylab("Mean Ratio") +
+         labs(
+           title = "Assessment Accuracy Declines Over Time"
+         )]
+
+```
+
+
+```{r}
+
+```
+
+
+

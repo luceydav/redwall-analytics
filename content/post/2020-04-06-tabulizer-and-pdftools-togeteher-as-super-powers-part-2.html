@@ -1,0 +1,320 @@
+---
+title: Tabulizer and pdftools Together as Super-powers - Part 2
+author: David Lucey
+date: '2020-04-06'
+categories: ["R", "Code-Oriented"]
+tags: ["pdf", "pdftools", "tabulizer", "XBRL"]
+slug: tabulizer-and-pdftools-togeteher-as-super-powers-part-2
+output:
+  html_document:
+    code_folding: yes
+---
+
+<script src="/rmarkdown-libs/htmlwidgets/htmlwidgets.js"></script>
+<script src="/rmarkdown-libs/jquery/jquery.min.js"></script>
+<link href="/rmarkdown-libs/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/datatables-binding/datatables.js"></script>
+<link href="/rmarkdown-libs/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="/rmarkdown-libs/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/dt-core/js/jquery.dataTables.min.js"></script>
+<link href="/rmarkdown-libs/dt-ext-fixedcolumns/css/fixedColumns.dataTables.min.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/dt-ext-fixedcolumns/js/dataTables.fixedColumns.min.js"></script>
+<link href="/rmarkdown-libs/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/crosstalk/js/crosstalk.min.js"></script>
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>This post will be a continuation of <a href="https://redwallanalytics.com/code_based/parsing-of-mass-municipal-pdf-cafr-s-with-the-center-for-municipal-finance/">Parsing of Mass Municipal PDF CAFR’s with Tabulizer, pdftools and AWS Textract - Part 1</a> dealing with extracting data from PDFs using R. When Redwall discovered pdftools, and its pdf_data function, which maps out every word on a pdf page by x-y coordinate, we thought that was interesting, but didn’t really know how to use it. We also didn’t have the regular expression skills, and were much more befuddled by the nested list structures than we are now.</p>
+<p>As for Tabulizer, it took about a year before rJava magically started working properly, but even then we it wasn’t possible to consistently read a large number of tables of different sizes without cutting off fields in unexpected ways. Only in this Mass pdf scraping project have we realized that, by combining these two packages, it becomes possible to access data in reliable way, from a large number of varied pdf formats.</p>
+<p>Our Massachusset’s municipal CAFR project provided a perfect opportunity to put all these pieces together. This blog post will consist of a step-by-step walk through which will hopefully help others avoid some of the pain that we experienced in getting to this point.</p>
+</div>
+<div id="walk-through-plan" class="section level1">
+<h1>Walk Through Plan</h1>
+<p>To begin with, we had to download the pdfs from the CAFR Library at the <a href="http://www.municipalfinance.org">Center for Municipal Finance</a>. We won’t show the code to do the download here, but it can be found at <a href="https://github.com/luceydav/pdf_cafr_parse/blob/master/reason_pdf_parser.R">reason_pdf_parser.R</a>. In order to do this on the scale that we plan for this project, we had to build nested lists with the pdf metadata of 150 Massachussett’s CAFR pdfs. For now, we will just walk through a few key points using a single statment from the Abington, MA 2018 Statement of Net Position from the CAFR downloaded <a href="https://www.abingtonma.gov/home/pages/annual-town-reports">here</a>.</p>
+<pre class="r"><code># Set up pdf and pdf_path to directory
+dir &lt;- &quot;/Users/davidlucey/Desktop/David/Projects/mass_munis/data/pdf_cafr/&quot;
+city &lt;- &quot;abington&quot;
+pdf &lt;- paste0(city, &quot;_2018.pdf&quot;, collapse=&quot;&quot;)
+pdf_path &lt;- paste0(dir, pdf, collapse = &quot;&quot;)
+
+# Run pdf_data on Abington CAFR
+abington &lt;- pdftools::pdf_data(pdf_path)
+
+# Name each page of list for page index in pdf
+names(abington) &lt;- 1:length(abington)
+
+# Look at structure of 2n element in 92-page nested list
+str(abington[[2]])</code></pre>
+<pre><code>## Classes &#39;tbl_df&#39;, &#39;tbl&#39; and &#39;data.frame&#39;:    266 obs. of  6 variables:
+##  $ width : int  42 19 76 124 58 20 96 19 41 73 ...
+##  $ height: int  15 15 15 15 15 15 15 15 15 15 ...
+##  $ x     : int  168 215 238 319 92 154 179 279 302 348 ...
+##  $ y     : int  72 72 72 72 102 102 102 102 102 102 ...
+##  $ space : logi  TRUE TRUE TRUE FALSE TRUE TRUE ...
+##  $ text  : chr  &quot;TOWN&quot; &quot;OF&quot; &quot;ABINGTON,&quot; &quot;MASSACHUSETTS&quot; ...</code></pre>
+</div>
+<div id="pdf-tools-pdf_data-functionality" class="section level1">
+<h1>PDF Tools pdf_data Functionality</h1>
+<p>The above is a list of data.frames containing metadata of the location of every word on every one of the 92 pages of the Abington 2018 CAFR. The structure of the second page is shown above. But, we only need the key financial statements, so would like to drop the majority of pages which don’t have what we need. For example, we know that page 16 has the Statement of Net Position. We could search for that page using regular expressions as shown for variable “sonp” below.</p>
+<p>See how we extract only the head unique 5 lines of each page by y, paste those lines back together, then match our regular expression on the text of those lines looking for the phrase “STATEMENT OF NET POSITION”. However, there are several pages meeting this criteria, such as “Proprietary Funds” Statement of Net Position on page 20 (which we don’t want). Most of these other pages can be eliminated by choosing NOT to match the word “FUNDS” by the same process, so notice that we negate our second match with “!”. Hence, our sonp_index comes back as 16, which can be used to filter out the remaining pages.</p>
+<pre class="r"><code># Convert elements to data.table
+abington &lt;- mclapply(abington, setDT)
+
+# Get index of Abington Statement of Net Position
+sonp_index &lt;- 
+  which(
+    unlist(
+      mclapply(abington, function(page){
+        (str_detect(
+          paste(
+            # Reformat top 5 lines by y and look for match to &quot;STATEMENT OF NET POSITION&quot;
+              page$text[
+                page$y %in% head(unique(page$y), 5)
+                ],
+              collapse = &quot; &quot;
+              ),
+          &quot;STATEMENT OF NET POSITION&quot;
+        ) &amp; 
+          # And requires both statements to be TRUE
+          !str_detect(
+            paste(
+              page$text[
+               # Reformat top 5 lines by y and look for non match to &quot;FUNDS&quot; 
+                page$y %in% head(unique(page$y), 5)
+                ],
+              collapse = &quot; &quot;
+              ),
+            &quot;FUNDS&quot;
+            )
+        )
+        }
+        )
+    )
+    )
+    
+# Extract and View Statement of Net Position pdftools pdf_data  metadata
+sonp &lt;- abington[sonp_index][[1]]
+sonp</code></pre>
+<pre><code>##      width height   x   y space          text
+##   1:    32      6 264  73  TRUE     STATEMENT
+##   2:     7      6 299  73  TRUE            OF
+##   3:    10      6 308  73  TRUE           NET
+##   4:    25      6 320  73 FALSE      POSITION
+##   5:    14      6 287  87  TRUE          JUNE
+##  ---                                         
+## 337:    71      9 144 745 FALSE Massachusetts
+## 338:    11     11 300 743 FALSE            13
+## 339:    26      9 426 745  TRUE         Basic
+## 340:    43      9 456 745  TRUE     Financial
+## 341:    53      9 502 745 FALSE    Statements</code></pre>
+<p>Above is the text grid of Abington’s Statement of Net Position as taken by pdftools. Using this metadata, we can begin to put together exact area parameters for Tabula. Even better, we could programically do it for a large number of tabless. In our experience, this is important because Tabulizer’s default “lattice” method for tabular data can be unpredictable cutting off fields unexpectedly.</p>
+</div>
+<div id="tabulizer-area-coordinates" class="section level1">
+<h1>Tabulizer Area Coordinates</h1>
+<p>Tabulizer specifies pages in blocks of 72 * inches, so a typical 8.5 x 11 verticle page would have dimensions of 612 x 720. This coordinate grid is used to specify the “area” parameter (top, left, bottom and right). All of of Massachusett’s financial statement tables have a “<span class="math inline">\(&quot; sign in the first and last rows, so those could be used to locate the &quot;top&quot; or &quot;bottom&quot; paramenters. In addition, all pages including financial statements have language referring users to the &quot;notes to the financial statements&quot; usually on the second to last line, which could be the &quot;bottom&quot;, or the midpoint between the bottom and the &quot;\)</span>” (if more room was needed).</p>
+<pre class="r"><code> # Determine if page is verticle or horizontal
+    x &lt;- 8.5 * 72
+    y &lt;- 11 * 72
+    max_x &lt;- max(sonp$x)
+    max_y &lt;- max(sonp$y)
+    orientation &lt;- 
+      ifelse(x &lt; max_x, &quot;horizontal&quot;, &quot;verticle&quot;)
+    
+    # TOP
+    
+    # Keys on the first instance of the year &quot;2018&quot;
+    table_top &lt;-
+      min(sonp$y[str_detect(sonp$text, &quot;2018&quot;) &amp; sonp$space==FALSE])
+    # Find the height at in the table_top row
+    height_top &lt;- unique(sonp$height[sonp$y == table_top])
+    # Add table_top and height_top to avoid slicing row
+    top &lt;- table_top + height_top 
+    
+    # BOTTOM
+    
+    # Table Bottom marked by last instance of character &quot;$&quot;
+    table_bottom &lt;-
+      max(sonp$y[str_detect(sonp$text, &quot;\\$&quot;)])
+    # Height at bottom row of table 
+    height_bottom &lt;- unique(sonp$height[sonp$y == table_bottom])
+    # Bottom of table
+    bottom &lt;- table_bottom + height_bottom
+    
+    # LEFT
+    
+    # Add some space to leftmost x coordinate to avoid slicing
+    left &lt;-     
+      ifelse( min(sonp$x) - 30 &gt; 0,
+              min(sonp$x) - 30, 1 )
+    
+    # RIGHT
+    
+    # Find width at maximum &quot;x&quot; coordinate
+    width_max_x &lt;- max(sonp$width[sonp$x == max_x])
+    # Add width at maximum &quot;x&quot; plus more space wether verticle or horizontal
+    right &lt;- 
+      max_x + width_max_x + ifelse(orientation == &quot;verticle&quot;, 30, 50)
+    
+    # FINAL AREA PARAMETER FOR TABULIZER AS INTEGER VECTOR
+    # Note the specification as an integer vector
+    a &lt;- c(top, left, bottom, right)
+    
+    # Show coordinates 
+    a</code></pre>
+<pre><code>## [1]  93  24 681 585</code></pre>
+<p>We give an example for Abington’s Statement of Net Position above, starting with the maximum “x” and “y”, and determining the page orientation (ie: verticle or horizontal). After finding the location of the date line at the top, and walk down a little from there to set a “table_top” variable. Typically, it is best to leave a little margin between the page header and the top of the table. The bottom of the table is set adding the height to the bottom line of the table, and left parameter is set by taking the smallest “x” coordinate and reducing by a little to margin for error. We leave a larger margin for the right-most coordinate because this is where we have found that the most errors occur, often when the algorithm seems to try to squish the table into the available columns.</p>
+<p>In our experience, the most problems come with missetting the top and right parameters. Indentation can also confuse the algorithm. Columns can be split in the middle into two columns, often at the far-rightmost, for example. In the end, we chose parameters of 93 (top), 24 (left), 681 (bottom) and 585 (right).</p>
+</div>
+<div id="tabulizer-extract_table-function" class="section level1">
+<h1>Tabulizer extract_table Function</h1>
+<p>Below we run our area parameters we derived above through Tabulizer. Note that the area parameter, itself an integer vector, is further wrapped as a list because not having this structure throws an error. In addition, avoid the half day of wheel spinning we experienced by specifying guess as “F” to over-ride the default lattice, otherwise your area parameter is ignored with no warning. Also, we use the sonp_index integer to specify the page of the pdf. There are several options for output which all work as expected, but data.frame seems most natural.</p>
+<pre class="r"><code># Tabulizer extract_tables output is a list
+abington_sonp &lt;-
+  extract_tables(
+    pdf_path, 
+    pages = sonp_index,
+    area = list(a), 
+    guess = F,
+    output = &quot;data.frame&quot;)
+
+# Extract and print single element from list
+abington_sonp &lt;- abington_sonp[[1]]
+abington_sonp</code></pre>
+<pre><code>##                                                                                          X
+## 1                                                                                         
+## 2                                                                                         
+## 3                                                                                   ASSETS
+## 4                                                                                 CURRENT:
+## 5              Cash and cash equivalents................................................ $
+## 6                                        Receivables, net of allowance for uncollectibles:
+## 7                       Real estate and personal property taxes...........................
+## 8           Tax liens.....................................................................
+## 9                      Community preservation fund surtax.................................
+## 10                   Motor vehicle and other excise taxes.................................
+## 11             User charges...............................................................
+## 12                  Departmental and other................................................
+## 13              Intergovernmental.........................................................
+## 14                     Community preservation state share.................................
+## 15               Special assessments......................................................
+## 16         Tax foreclosures...............................................................
+## 17                 Total current assets...................................................
+## 18                                                                             NONCURRENT:
+## 19                                       Receivables, net of allowance for uncollectibles:
+## 20               Special assessments......................................................
+## 21             Capital assets, nondepreciable.............................................
+## 22                    Capital assets, net of accumulated depreciation.....................
+## 23                    Total noncurrent assets.............................................
+## 24          TOTAL ASSETS..................................................................
+## 25                                                                                        
+## 26                                                          DEFERRED OUTFLOWS OF RESOURCES
+## 27               Deferred outflows related to pensions....................................
+## 28                        Deferred outflows related to other postemployment benefits......
+## 29                                  TOTAL DEFERRED OUTFLOWS OF RESOURCES..................
+## 30                                                                             LIABILITIES
+## 31                                                                                CURRENT:
+## 32            Warrants payable............................................................
+## 33          Accrued payroll...............................................................
+## 34          Health claims payable.........................................................
+## 35         Accrued interest...............................................................
+## 36      Accrued liabilities...............................................................
+## 37            Capital lease obligations...................................................
+## 38      Landfill closure..................................................................
+## 39              Compensated absences......................................................
+## 40         Notes payable..................................................................
+## 41         Bonds payable..................................................................
+## 42               Total current liabilities................................................
+## 43                                                                             NONCURRENT:
+## 44      Landfill closure..................................................................
+## 45              Compensated absences......................................................
+## 46       Net pension liability............................................................
+## 47               Net other postemployment benefits liability..............................
+## 48         Bonds payable..................................................................
+## 49                  Total noncurrent liabilities..........................................
+## 50        TOTAL LIABILITIES...............................................................
+## 51                                                           DEFERRED INFLOWS OF RESOURCES
+## 52                Deferred inflows related to pensions....................................
+## 53                                                                            NET POSITION
+## 54         Net investment in capital assets...............................................
+## 55                                                                         Restricted for:
+## 56                                                                        Permanent funds:
+## 57              Expendable................................................................
+## 58               Nonexpendable............................................................
+## 59         Gifts and grants...............................................................
+## 60               Community preservation...................................................
+## 61 Unrestricted...........................................................................
+## 62           TOTAL NET POSITION......................................................... $
+##    X.1          X.2 Primary.Government X.3          X.4
+## 1   NA Governmental      Business-type                 
+## 2   NA   Activities         Activities            Total
+## 3   NA                                                 
+## 4   NA                                                 
+## 5   NA   10,392,587        $ 7,449,193   $   17,841,780
+## 6   NA                                                 
+## 7   NA      313,316                  -          313,316
+## 8   NA      882,182             34,598          916,780
+## 9   NA       6 ,245                  -            6,245
+## 10  NA      387,455                  -          387,455
+## 11  NA            -          1,930,158        1,930,158
+## 12  NA            -            149,296          149,296
+## 13  NA    1,715,882                  -        1,715,882
+## 14  NA       70,735                  -           70,735
+## 15  NA            -             32,137           32,137
+## 16  NA      663,449                  -          663,449
+## 17  NA   14,431,851          9,595,382       24,027,233
+## 18  NA                                                 
+## 19  NA                                                 
+## 20  NA            -             10,712           10,712
+## 21  NA  101,526,106          1,614,044      103,140,150
+## 22  NA   26,998,272         31,944,596       58,942,868
+## 23  NA  128,524,378         33,569,352      162,093,730
+## 24  NA  142,956,229         43,164,734      186,120,963
+## 25  NA                                                 
+## 26  NA                                                 
+## 27  NA      417,711              7,062          424,773
+## 28  NA    1,982,740             19,982        2,002,722
+## 29  NA    2,400,451             27,044        2,427,495
+## 30  NA                                                 
+## 31  NA                                                 
+## 32  NA      660,037            403,389        1,063,426
+## 33  NA      206,897             75,704          282,601
+## 34  NA      311,064                  -          311,064
+## 35  NA      278,817             71,281          350,098
+## 36  NA       50,638          2,247,039        2,297,677
+## 37  NA            -             53,845           53,845
+## 38  NA      139,000                  -          139,000
+## 39  NA      346,271             26,896          373,167
+## 40  NA       53,168                  -           53,168
+## 41  NA    2,462,040            491,136        2,953,176
+## 42  NA    4,507,932          3,369,290        7,877,222
+## 43  NA                                                 
+## 44  NA    4,080,000                  -        4,080,000
+## 45  NA      881,952             20,919          902,871
+## 46  NA   19,188,882            324,438       19,513,320
+## 47  NA   67,618,712            681,460       68,300,172
+## 48  NA   45,761,763          5,764,229       51,525,992
+## 49  NA  137,531,309          6,791,046      144,322,355
+## 50  NA  142,039,241         10,160,336      152,199,577
+## 51  NA                                                 
+## 52  NA    1,399,576             23,663        1,423,239
+## 53  NA                                                 
+## 54  NA   82,168,482         27,395,220      109,563,702
+## 55  NA                                                 
+## 56  NA                                                 
+## 57  NA       99,189                  -           99,189
+## 58  NA       69,778                  -           69,778
+## 59  NA    1,088,568                  -        1,088,568
+## 60  NA      740,211                  -          740,211
+## 61  NA (82,248,365)          5,612,559     (76,635,806)
+## 62  NA    1,917,863       $ 33,007,779   $   34,925,642</code></pre>
+</div>
+<div id="clean-up" class="section level1">
+<h1>Clean up</h1>
+<p>The Tabulizer output is still in a raw form with colums sometimes determined by indentations and “x” values, such as the “$” signs. The numbers are in character form with commas and sometimes negative numbers are shown in parenthesis, and need to be parsed into numeric. The item names often have a long series of periods which need to be stripped. The biggest challenge is the column names which often include the first row of the full column name, and need to be rebuilt. This is not a small task and not what we were hoping to illustrate in this post, so we are just showing the output below. Please refer to our Github code for the a more complete explanation and solutions to many of these issues.</p>
+<div id="htmlwidget-1" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"filter":"none","extensions":["FixedColumns"],"caption":"<caption style=\"caption-side: bottom; text-align: right;\">\n  \n  <em>Source: Abington Mass Town Reports<\/em>\n<\/caption>","data":[["ASSETS","CURRENT","Cash and cash equivalents","Receivables, net of allowance for uncollectibles","Real estate and personal property taxes","Tax liens","Community preservation fund surtax","Motor vehicle and other excise taxes","User charges","Departmental and other","Intergovernmental","Community preservation state share","Special assessments","Tax foreclosures","Total current assets","NONCURRENT","Receivables, net of allowance for uncollectibles","Special assessments","Capital assets, nondepreciable","Capital assets, net of accumulated depreciation","Total noncurrent assets","TOTAL ASSETS","DEFERRED OUTFLOWS OF RESOURCES","Deferred outflows related to pensions","Deferred outflows related to other postemployment benefits","TOTAL DEFERRED OUTFLOWS OF RESOURCES","LIABILITIES","CURRENT","Warrants payable","Accrued payroll","Health claims payable","Accrued interest","Accrued liabilities","Capital lease obligations","Landfill closure","Compensated absences","Notes payable","Bonds payable","Total current liabilities","NONCURRENT","Landfill closure","Compensated absences","Net pension liability","Net other postemployment benefits liability","Bonds payable","Total noncurrent liabilities","TOTAL LIABILITIES","DEFERRED INFLOWS OF RESOURCES","Deferred inflows related to pensions","NET POSITION","Net investment in capital assets","Restricted for","Permanent funds","Expendable","Nonexpendable","Gifts and grants","Community preservation","Unrestricted","TOTAL NET POSITION"],[null,null,10392587,null,313316,882182,6245,387455,null,null,1715882,70735,null,663449,14431851,null,null,null,101526106,26998272,128524378,142956229,null,417711,1982740,2400451,null,null,660037,206897,311064,278817,50638,null,139000,346271,53168,2462040,4507932,null,4080000,881952,19188882,67618712,45761763,137531309,142039241,null,1399576,null,82168482,null,null,99189,69778,1088568,740211,82248365,1917863],[null,null,7449193,null,null,34598,null,null,1930158,149296,null,null,32137,null,9595382,null,null,10712,1614044,31944596,33569352,43164734,null,7062,19982,27044,null,null,403389,75704,null,71281,2247039,53845,null,26896,null,491136,3369290,null,null,20919,324438,681460,5764229,6791046,10160336,null,23663,null,27395220,null,null,null,null,null,null,5612559,33007779],[null,null,17841780,null,313316,916780,6245,387455,1930158,149296,1715882,70735,32137,663449,24027233,null,null,10712,103140150,58942868,162093730,186120963,null,424773,2002722,2427495,null,null,1063426,282601,311064,350098,2297677,53845,139000,373167,53168,2953176,7877222,null,4080000,902871,19513320,68300172,51525992,144322355,152199577,null,1423239,null,109563702,null,null,99189,69778,1088568,740211,76635806,34925642]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>Element<\/th>\n      <th>Governmental Activities<\/th>\n      <th>Business-Type Activities<\/th>\n      <th>Total<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"scrollY":true,"pageLength":10,"columnDefs":[{"targets":[1,2,3],"render":"function(data, type, row, meta) { return DTWidget.formatCurrency(data, \"\", 0, 3, \",\", \".\", true); }"},{"className":"dt-right","targets":[1,2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"rowCallback":"function(row, data) {\nvar value=data[0]; $(this.api().cell(row, 0).node()).css({'font-size':'100%'});\nvar value=data[1]; $(this.api().cell(row, 1).node()).css({'font-size':'100%'});\nvar value=data[2]; $(this.api().cell(row, 2).node()).css({'font-size':'100%'});\nvar value=data[3]; $(this.api().cell(row, 3).node()).css({'font-size':'100%'});\n}"}},"evals":["options.columnDefs.0.render","options.rowCallback"],"jsHooks":[]}</script>
+</div>
+<div id="final-product" class="section level1">
+<h1>Final Product</h1>
+<p>Though there is still work to be done, the final product of this post is shown above Single elements could be extracted to form a database, or the output could be saved to csv. The headers such as ASSETS AAND LIABILITIES could be nested. The main point is that short of XBRL, the data has been set free from the PDF in a machine readable form. Not only that, this general process can be repeated for a large number of slightly differing PDFs with a relatively high low error rate. In cases where errors do occur, a second layer can be used to run the more challenging PDFs through AWS Textract SDK. We will show how this is done in our next post.</p>
+</div>

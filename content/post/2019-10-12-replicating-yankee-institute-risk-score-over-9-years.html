@@ -1,0 +1,43 @@
+---
+title: "Replicating Yankee Institute Risk Score Over 15 Years"
+author: "David Lucey"
+date: '2019-10-12'
+slug: replicating-yankee-institute-risk-score-over-15-years
+categories: ["R", "Nutmeg Project"]
+tags: ["connecticut", "dataviz", "pension", "opeb"]
+---
+
+
+
+<div id="warning-signs---part-ii" class="section level1">
+<h1>Warning Signs - Part II</h1>
+<p>As mentioned in part I of this series <a href="https://redwallanalytics.com/2019/10/11/connecticut-city-unfunded-pension-and-opeb-liabilities-over-time/">Connecticut City Unfunded Pension and OPEB Liabilities Over Time</a>, we intend to look at the evolution of city financial vulnerability over time. The metric put forth in the Yankee report used a methodology developed by Marc Joffe of the Reason Foundation in two pieces.</p>
+<p>Mr. Joffe’s first piece <a href="https://www.treasurer.ca.gov/cdiac/publications/probabilities.pdf">Assessing Municipal Bond Default Probabilities</a> looked in depth at the conditions which led to municipal bankruptcies during the Great Depression when they were most common, and the handful of more recent special cases.</p>
+<p>His second piece <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2858674">Costs of the Municipal Rating System</a> pointed out the large burden of the current ratings, and costly and ineffective municipal bond insurance system. In response, Joffe suggested a simple, easily calculated risk index combining three components based on municipal financial indicators and two smaller components based on macro economic factors (home prices and unemployment).</p>
+<p>The Yankee Institute report is based on this <a href="http://www.yankeeinstitute.org/wp-content/uploads/2018/08/Connecticut-Fiscal-Analysis-2016-v2-2.xlsx">linked spreadsheet analysis</a>, which gathered source data from CAFR reports and manually processed in Excel. It turns out that very similar calculations can be done quickly, and on a larger scale using available digital information on the State of Connecticut’s <a href="https://portal.ct.gov/OPM/IGP-MUNFINSR/Municipal-Financial-Services/Municipal-Fiscal-Indicators">website</a>.</p>
+<p>There are a several key differences in our calculation:</p>
+<ol style="list-style-type: decimal">
+<li><p>Warning signs used all “Long Term Obligations”, effectively including bonds outstanding, pension and OPEB Liabilities and payables. Our calculation include everything except for payables, which was not available in the MFI disclosures.</p></li>
+<li><p>The Yankee report used Total Revenues from all municipal accounts, but our data referred only to General Fund Revenues. The General Fund will be by far the largest share for most towns, but will lead to differences in the GF Score and Total Scores.</p></li>
+<li><p>The Yankee report used Zillow indices to determine home price levels in each city, but we will use actual arm’s length sales as reported annually by each town’s assessor’s office to determine median prices.</p></li>
+<li><p>We also only determine risk scores for 115 cities through the period because many cities did not report pensions or OPEB liabilities in the MFI database.</p></li>
+<li><p>The ARC Score (related to fixed costs due to pension contributions) in the Yankee report gave all municipalities scores of 10 possibly due to mis-calibration of the defaults. We added other fixed costs like OPEB liabilities and debt service, and re-calibrated so that cities with less flexibility would be punished for it.</p></li>
+</ol>
+</div>
+<div id="shiny-app-of-connecticut-municipal-vulnerability-scores-from-2004-2017" class="section level1">
+<h1>Shiny App of Connecticut Municipal Vulnerability Scores from 2004-2017</h1>
+<p>The default in the app below is set for Bridgeport (shown in red) along with the trajectory for 115 other Connecticut municipalities. Using the app pull down at the top, it is possible to change the city name (shown in red) to see its scores relative to the rest of the State. The table tab can also be used to see the actual data for that town by year.</p>
+<iframe width="900" height="900" scrolling="no" frameborder="yes" src="https://luceyda.shinyapps.io/yankee_shiny/">
+</iframe>
+<p>While the aggregate scores for most towns bottomed out around 2009 with the economic cycle helped by unemployment and home prices, the more significant LTO Score continues to tail off as liabilities grow for many. It is also important to mention that OPEB liabilities were only included starting in 2009, the first year those tables were included in the OPM website. Because we did not adjust for prior years, LTO and Total Scores will be biased higher in the earlier years so the trajectory of the recovery will appear less pronounced than it likely is.</p>
+</div>
+<div id="thoughts-on-yankee-institute-report-metrics" class="section level1">
+<h1>Thoughts on Yankee Institute Report Metrics</h1>
+<p>In his research, Joffe acknowledges that creating a model of municipal vulnerability is challenging when there have been so few municipal bankruptcies in the past. During the Great Depression, there were hundreds of municipal bankruptcies, but many of these were caused by the contagion of large scale bank failure. Since then, municipal bankruptcies have often been special situations where a city ran down its general fund balance because of the loss of key industries or poor financial management. With many of historical bankruptcies related to a single financial event and others to case-specific conditions, the training data is not well-suited to a statistical model. Compounding the challenge, fixed costs related to unfunded employee obligations on the current scale and with current growth rates are a relatively new phenomena.</p>
+<p>The available data left Yankee with the only option of an heuristic model. Looking at the specific Yankee vulnerability index, Yankee’s “ARC Score” is a function of actuarial pension contributions divided by total revenue from all sources. As mentioned earlier, we also included OPEB required contributions and debt service in our Arc Score, but not other sources of revenue because this data wasn’t available in the digital MFI. We also re-calibrated so there would be variability giving cities with low fixed cost ratios higher scores and vice versa for those with high fixed costs. The Yankee ARC Score was 10 in all cases, while ours varied between 0-10. The Unemployment Score tracks the economy, but is essentially a lagging indicator. In his research, Joffe also acknowledges the challenge of predicting when financial disclosures are made with a significant lag. He proposes some possible solutions, but for the time being the vulnerability score likely to remain mostly a report card and not a prediction.</p>
+</div>
+<div id="conclusion-based-on-current-events" class="section level1">
+<h1>Conclusion Based on Current Events</h1>
+<p>One interesting test case is Sprague, which had $5 million of debt downgraded by Moody’s in March to speculative grade with a negative outlook, and put under supervision by the <a href="https://portal.ct.gov/OPM/Marb/Sprague-Committee-Meetings-and-Materials">Municipal Review Board</a> (though it was hard to find a newspaper articles discussing this). Sprague has had declining, though volatile general fund balances over the last few years scoring 39 and 40 in 2016 and 2017, respectively. The Yankee Institute’s calculation gave a 50 vulnerability score for 2016, so neither calculation indicated distress, though the General Fund balance was clearly deteriorating.</p>
+<p>The other municipalities currently under MARB supervision, Hartford and West Haven. Redwall Analytics scored Hartford under &lt;20 from 2014-2017, while the Yankee Institute calculated 50 in 2016. The State of Connecticut subsequently stepped in during 2018 and essentially assumed $550 million of Hartford’s debt. In the case of West Haven, the Yankee Institute gave it 44 during 2016 and the Redwall Analytics calculations were below 20 in that year, but recovered a bit to 29 in 2017, just before the 2018 MARB intervention. Based on the vulnerability scores for Bridgeport, New Haven, Hamden and Stratford, it would not be surprising to see other large intervention there before long. Mr. Joffe was upfront regarding the challenges of modeling municipal vulnerability in his research, and that appears to have been born out by events so far.</p>
+</div>
