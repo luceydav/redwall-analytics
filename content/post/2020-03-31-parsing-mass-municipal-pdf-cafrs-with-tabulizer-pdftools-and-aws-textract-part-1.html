@@ -41,6 +41,12 @@ output:
 <p>After that, we will move on to attempting to extract that data from the PDFs. The first steps of the process to parse these PDFs using two incredible rstat wrappers <a href="https://docs.ropensci.org/pdftools/">pdftools</a> and <a href="https://docs.ropensci.org/tabulizer/">Tabulizer</a>. We will also use <a href="https://aws.amazon.com/textract/">Amazon’s Textract</a> using the R PAWS package SDK. While these libraries have been around for a couple of years, we did not find anyone who had put all of these pieces together through the paces like we are about to.</p>
 <p>Because these tools are relatively new, we struggled to find much written on the nuance of using them to their full individual potentials. We also believe that we have found a few interesting solutions through their combination, making them even more powerful than individually.</p>
 </div>
+<div id="blogpost-index" class="section level1">
+<h1>Blogpost Index</h1>
+<p>Part 1 - Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract
+Part 2 - <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers</a>
+Part 3 - Scraping Failed Tabulizer PDFs with AWS Textract (Under Construction)</p>
+</div>
 <div id="massachusetts-municipal-vulnerability" class="section level1">
 <h1>Massachusetts Municipal Vulnerability</h1>
 <p>To begin with, we load and show his spreadsheet analysis with his key inputs. Needless to say, it is a big job to gather and extract that much data manually PDF-by-PDF and record in a spreadsheet. In addition, Marc’s approach can only be used at a point in time, and would require a similar amount of effort to repeat for past or future years. If it is possible to reliably automate, even partially, it should help the cause of municipal fiscal transparency. We show the data used in Marc’s analysis in Table <a href="#fig:mass-inputs">1</a> below. As with most of our posts, it is possible to scroll over the table columns, adjust the number of rows displayed or search for a particular municipality with the search bar.</p>
@@ -63,6 +69,5 @@ Figure 2: Massachusetts Municipal Vulnerability Scores
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>That completes the first in this series of posts.</p>
-<p>Please return for the next one for some pretty amazing tools!</p>
+<p>That completes the first in this series of posts. In the next post <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers - Part 2</a>, we will evaluate the results of our Tabulizer extraction and show how to send failed tables to AWS Textract where needed with the R paws SDK.</p>
 </div>

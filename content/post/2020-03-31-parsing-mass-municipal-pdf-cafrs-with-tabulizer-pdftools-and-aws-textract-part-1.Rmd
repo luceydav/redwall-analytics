@@ -55,6 +55,12 @@ names(reason)[c(1:16, 40:106)]
 
 ```
 
+# Blogpost Index
+
+Part 1 - Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract
+Part 2 - [Tabulizer and pdftools Together as Super-powers](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/)
+Part 3 - Scraping Failed Tabulizer PDFs with AWS Textract (Under Construction)
+
 # Massachusetts Municipal Vulnerability
 
 To begin with, we load and show his spreadsheet analysis with his key inputs. Needless to say, it is a big job to gather and extract that much data manually PDF-by-PDF and record in a spreadsheet. In addition, Marc's approach can only be used at a point in time, and would require a similar amount of effort to repeat for past or future years. If it is possible to reliably automate, even partially, it should help the cause of municipal fiscal transparency. We show the data used in Marc's analysis in Table \@ref(fig:mass-inputs) below. As with most of our posts, it is possible to scroll over the table columns, adjust the number of rows displayed or search for a particular municipality with the search bar. 
@@ -134,9 +140,7 @@ datatable(reason[keeps], extensions = c('FixedColumns'),
 
 # Conclusion
 
-That completes the first in this series of posts. 
-
-Please return for the next one for some pretty amazing tools!
+That completes the first in this series of posts. In the next post [Tabulizer and pdftools Together as Super-powers - Part 2](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/), we will evaluate the results of our Tabulizer extraction and show how to send failed tables to AWS Textract where needed with the R paws SDK.
 
 
 
