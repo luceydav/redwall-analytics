@@ -5,7 +5,6 @@ date: '2020-04-14'
 slug: evaluating-mass-muni-cafr-tabulizer-results-part-3
 categories: ["R", "Code-Oriented"]
 tags: ["pdf", "pdftools", "tabulizer", "textract"]
-draft: true
 output:
   html_document:
     code_folding: yes
