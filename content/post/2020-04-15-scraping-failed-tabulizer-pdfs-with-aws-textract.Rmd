@@ -20,6 +20,8 @@ library(paws.storage)
 library(data.table)
 library(stringr)
 library(rlist)
+library(tabulizer)
+library(pdftools)
 
 ```
 
@@ -36,22 +38,39 @@ Textract offers a number of [alternatives](https://aws.amazon.com/blogs/machine-
 In this case, we will show how to subset five tables from  [Attleboro CAFR](https://www.cityofattleboro.us/ArchiveCenter/ViewFile/Item/223) which was problematic with tabulizer. In our full project, we aggregated five pages from every CAFR in Massachusetts (700 pages) for a total cost of \$11.
 
 
-```{r 'subset-pdfs', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r 'subset-pdfs', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
 
-# Financial Statement pages
+# Problem PDFs
 path <- "/Users/davidlucey/Desktop/David/Projects/mass_munis/"
-pdfs <- paste0(path, "data/pdf_cafr/", bad_cases, "_2018.pdf")
-pages <- 
-  as.integer(names(readRDS(paste0(path, "mass.RDS"))[[3]][["attleboro"]]))
+bad_cases <- c("attleboro", "boston")
+pdfs <- 
+  paste0(path, "data/pdf_cafr/", bad_cases, "_2018.pdf")
 
-# Extract just 5-pages from Atteboro CAFR as new attleboro.pdf
+# Extract 5-pages from Atteboro and Boston CAFR PDFs with pdftools
+pages_attleboro <- 
+  as.integer(names(readRDS(paste0(path, "mass.RDS"))[[3]][["attleboro"]]))
 attleboro <-  
   pdf_subset(
     pdfs[1],
-    pages = pages,
-    output = "attleboro.pdf"
+    pages = pages_attleboro,
+    output = paste0(path, "attleboro.pdf")
     )
 
+pages_boston <- 
+  as.integer(names(readRDS(paste0(path, "mass.RDS"))[[3]][["boston"]]))
+boston <-  
+  pdf_subset(
+    pdfs[2],
+    pages = pages_boston,
+    output = paste0(path, "boston.pdf")
+    )
+
+# Merge pdfs with tabulizer
+  merge_pdfs(
+    c(paste0(path, "attleboro.pdf"), 
+      paste0(path, "boston.pdf")), 
+    outfile= "joined.pdf"
+    )
 ```
 
 
@@ -60,7 +79,9 @@ attleboro <-
 We then input our AWS credentials and establish an S3 response object, which we use to instruct AWS to create a S3 bucket, and then upload our Attleboro file to S3. One thing we encountered was that the PDF had to be in our working directory because S3 created the directory structure to match our disc, and Textract seemed to be unable to navigate the file structure to find the document. We showed "attleboro" bucket at the bottom of the code below.
 
 
-```{r 's3-bucket', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r 's3-bucket', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
+
+setwd(path)
 
 # Set AWS system credentials 
 #Sys.setenv(AWS_ACCESS_KEY_ID = "")
@@ -82,13 +103,13 @@ s3 <-
   )
 
 # Create bucket
-bucket_name <- "attleboro"
+bucket_name <- "muni_subset"
 s3$create_bucket(
   Bucket = bucket_name
 )
 
 # Load the file as a raw binary
-file_name <- "attleboro.pdf"
+file_name <- "joined.pdf"
 read_file <- file(file_name, "rb")
 s3_object <- 
   readBin(read_file, "raw", n = file.size(file_name))
@@ -109,7 +130,7 @@ buckets$Buckets[[1]]
 Next, we set up a Textract response object and use "start_document_analysis" to process the pages in the code below. It is possible to get help by using ?textract or ?start_document_analysis just like any other function in R. The docs say that "start_document_analysis" uses asynchronous analysis to look for relationships between key-value pairs. Running Textract 700 pages took more than an hour to get the "JobID" identifier which is required to get the analysis.
 
 
-```{r 'textract-analysis', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r 'textract-analysis', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
 
 # Set up Amazon Textract object
 svc <- 
@@ -155,7 +176,7 @@ Below, we show our call to paws "get_document_analysis" using the JobId we recei
 In the next step, we have our work cut out to extract the key elements from the json. A json is a common object for API calls, but when introduced to a json a few years ago, it seemed to be a hopelessly, impenetrable data structure, and one to be avoided if at all possible. Fortunately, time has moved on, and like many things, it might be possible now. In the next post, we will attempt to reconstitute the Blocks into their original pages, and then parse out the desired elements for comparison. A lot is at stake since we have invested quite a bit of time to get to this point.
 
 
-```{r 'get-document-analysis', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r 'get-document-analysis', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
 
 # Get 1st list of blocks and "NextToken"
 a <- 
