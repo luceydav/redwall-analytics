@@ -1,11 +1,10 @@
 ---
 title: Scraping Failed Tabulizer PDFs with AWS Textract - Part 4
 author: David Lucey
-date: '2020-04-15'
+date: '2020-04-14'
 slug: scraping-failed-tabulizer-pdfs-with-aws-textract-part-4
 categories: ["R", "Code-Oriented"]
 tags: ["pdf", "pdftools", "tabulizer", "textract"]
-draft: true
 output:
   html_document:
     code_folding: yes
@@ -15,25 +14,27 @@ output:
 
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>In <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers - Part 2</a>, we ran through how to use pdftools to locate the area parameters to over-ride tabulizer defaults when scraping a single pdf. The beauty of this approach is that it can be scaled to get consistent results for a large number of slightly differing PDFs. We won’t show the whole process in this post, but we used this strategy to iterate over a nested list of 2018 CAFR PDF’s of 150 Massachusett’s towns for our project. In this post, we will evaluate those results for a few key line-items, and try <a href="https://aws.amazon.com/textract/">AWS Textract</a> for the problematic PDFs.</p>
+<p>In <a href="https://redwallanalytics.com/2020/04/14/evaluating-mass-muni-cafr-tabulizer-results-part-3/">Evaluating Mass Muni CAFR Tabulizer Results - Part 3</a>, we discovered that we were able to accurately extract ~95% of targeted data using tabulizer, but that might not have been good enough for some applications. In this post, we will show how to subset specific pages of PDFs using pdftools pdf_subset function, merge those pages with those of other municipalities with tabulizer merge_pdf, and then upload the aggregated document to an AWS S3 bucket with the R paws interface with the AWS SDK. Once in an S3 bucket, we will show how to use paws to call <a href="https://aws.amazon.com/textract/">AWS Textract</a>, which uses OCR and machine learning to try to accurately parse text and tables.</p>
 </div>
 <div id="aws-textract-using-paws-package" class="section level1">
 <h1>AWS Textract Using PAWS Package</h1>
-<p>Textract costs $0.015 per page, so a logical workflow would be to try tabulizer free, where possible, and then pay for problematic cases. Again using pdftools and tabula, we can slice only those pages out of the the relevant PDFs, rebuild an aggregated PDF, and upload it to S3 for processing. In this case, we will show how this is done for five tables from Attleboro, which was problematic to parse using this <a href="https://www.cityofattleboro.us/ArchiveCenter/ViewFile/Item/223">document</a>.</p>
-<p>We show below how to subset tables with pages out of the PDF below, and it is also possible to put tables from a different city back together with tabulizer’s merge_pdf function. We actually tried it with five pages from every CAFR in Massachusetts (700 pages) for a cost of $11. A colleague has also converted the pages to PNG, where it is possible to sendup to 1,000 pages per month, page-by-page for free for the first 3 months (also skipping the S3 upload).</p>
+<p>Textract offers a number of <a href="https://aws.amazon.com/blogs/machine-learning/automatically-extract-text-and-structured-data-from-documents-with-amazon-textract/">alternatives</a> for using OCR to extract structured text, forms and tabular data. The API allows to manually upload up to 10 pages and get back a response, and second option of up to 1,000 pages a month for PNG formats for the first three months. This option also doesn’t require upload to an S3 bucket. Extracting from bulk PDFs, which we used, costs $0.015 per page up to 1 million pages using their asynchronous API on documents which are in an S3 bucket. A logical workflow seemed to be to try tabulizer for free, where possible, and then pay for cases where the document can’t be extracted with tabulizer or the error rate is expected to be high.</p>
+<p>In this case, we will show how to subset five tables from <a href="https://www.cityofattleboro.us/ArchiveCenter/ViewFile/Item/223">Attleboro CAFR</a> which was problematic with tabulizer. In our full project, we aggregated five pages from every CAFR in Massachusetts (700 pages) for a total cost of $11.</p>
 </div>
 <div id="setting-up-an-s3-bucket-and-uploading-a-pdf" class="section level1">
 <h1>Setting up an S3 Bucket and Uploading a PDF</h1>
-<p>We then input our AWS credentials and establish an S3 connection, which we use to create an S3 bucket, and put the file to S3 from our disc. One thing we encountered was that the PDF had to be in our working directory because S3 created the directory structure to match our disc, and Textract then couldn’t find the document. We showed “attleboro” bucket at the bottom.</p>
+<p>We then input our AWS credentials and establish an S3 response object, which we use to instruct AWS to create a S3 bucket, and then upload our Attleboro file to S3. One thing we encountered was that the PDF had to be in our working directory because S3 created the directory structure to match our disc, and Textract seemed to be unable to navigate the file structure to find the document. We showed “attleboro” bucket at the bottom of the code below.</p>
 </div>
 <div id="setting-up-textract-object-and-calling-start-document-analysis" class="section level1">
 <h1>Setting up Textract Object and Calling Start Document Analysis</h1>
-<p>Next, we set up a Textract connection and use “start_document_analysis” to process the pages. It is possible to get help by using ?textract or ?start_document_analysis just like any other function. The docs say that “start_document_analysis” uses asynchronous analysis to look for relationships between key-value pairs. Running on 700 pages took more than an hour to get the “JobID” identifier which is required to get the analysis.</p>
-<p>Below, we show our call to “get_document_analysis” using the JobId. A few things to mention about this. Textract stores all the documents together in “Blocks”. It doesn’t seem like it is possible to download the whole object at one time, so the only way we could figure out to get the data back into our environment was to set up a function call and loop through in the 1,000 maximum increments. Our 700 pages of tables came back as over 400,000 blocks.</p>
-<p>We then had to figure out how to reconstitute those as pages. One of the subelements of each Block is the page it was on, so we were able to reconstitute pages using rlist “list.group” function where we were able to then save the object as a json. Just to give an idea of the sizes involved, the 700-page PDF led to a 210 MB json once we had called all the Blocks back.</p>
-<p>In the code below the call to the API and a single Block, the Blocks come in “PAGE”, “LINE” and “WORD” Types, along with the confidence level in the OCR reading. In the block below, we see the “LINE” for the header for one of the Attleboro tables. We will get into parsing the pages back into tables on the next post, but it seems like the Confidence could be useful here.</p>
+<p>Next, we set up a Textract response object and use “start_document_analysis” to process the pages in the code below. It is possible to get help by using ?textract or ?start_document_analysis just like any other function in R. The docs say that “start_document_analysis” uses asynchronous analysis to look for relationships between key-value pairs. Running Textract 700 pages took more than an hour to get the “JobID” identifier which is required to get the analysis.</p>
+</div>
+<div id="recalling-the-blocks-from-textract" class="section level1">
+<h1>Recalling the Blocks from Textract</h1>
+<p>Below, we show our call to paws “get_document_analysis” using the JobId we received back from Textract above. A few things to mention about this, Textract stores pages from all of the documents together in “Blocks” when called in bulk. We searched around, but it doesn’t seem possible to download the whole job with all of the pages at one time. The only way we could figure out to get the data back into our environment was to loop get_document_analysis in 1,000 increments. This also took time, and our 700 pages of tables came back as over 400,000 blocks with all of the pages commingled together in a json object. To give an idea of the sizes involved, the 700-page 30MB PDF resulted to a 210 MB json once we had called all the Blocks back.</p>
+<p>In the next step, we have our work cut out to extract the key elements from the json. A json is a common object for API calls, but when introduced to a json a few years ago, it seemed to be a hopelessly, impenetrable data structure, and one to be avoided if at all possible. Fortunately, time has moved on, and like many things, it might be possible now. In the next post, we will attempt to reconstitute the Blocks into their original pages, and then parse out the desired elements for comparison. A lot is at stake since we have invested quite a bit of time to get to this point.</p>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>That concludes this section of setting up S3 and calling Textract which seems like a complete segment. It seemed like a good place to stop to keep this in manageable increments. In the next post, we will use our full Textract object for elements where tabulizer failed to yield us a table or a specific element to see if it is a viable backup.</p>
+<p>That concludes this section of setting up S3 and calling Textract which seems like a complete segment. In addition to Textract, the paws link to the AWS SDK opens up so many other options, including the obvious links EC2 and ECS, but also Rekognition for images, Polly for speech to text, Translate for languages and Lambda among others. It seemed like a good place to stop to keep the series in digestible increments.</p>
 </div>

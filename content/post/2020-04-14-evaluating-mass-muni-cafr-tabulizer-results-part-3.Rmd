@@ -24,7 +24,7 @@ library(readxl)
 
 # Introduction
 
-This post is a continuation [Tabulizer and pdftools Together as Super-powers - Part 2](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/) of Although the full process used to extract data from all our 150 PDFs will not shown, to review the steps that Redwall followed for the portion using pdftools and tabulizer:
+This post is a continuation [Tabulizer and pdftools Together as Super-powers - Part 2](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/). Although the full process used to extract data from all our 150 PDFs will not shown, to review the steps that Redwall followed for the portion using pdftools and tabulizer:
 
   1. Load all the pdf_data (metadata) for every page of the 150 PDFs into a list of lists with the metadata data.frame from pdftool's pdf_data.
   2. Filter the nested list to keep only the key tables (ie:  Statement of Activities, Balance Sheet, Statement of Net Position) using regular expression matching of sub-elements.

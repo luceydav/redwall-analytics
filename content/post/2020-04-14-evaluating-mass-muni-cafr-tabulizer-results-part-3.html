@@ -23,7 +23,7 @@ output:
 
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>This post is a continuation <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers - Part 2</a> of Although the full process used to extract data from all our 150 PDFs will not shown, to review the steps that Redwall followed for the portion using pdftools and tabulizer:</p>
+<p>This post is a continuation <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers - Part 2</a>. Although the full process used to extract data from all our 150 PDFs will not shown, to review the steps that Redwall followed for the portion using pdftools and tabulizer:</p>
 <ol style="list-style-type: decimal">
 <li>Load all the pdf_data (metadata) for every page of the 150 PDFs into a list of lists with the metadata data.frame from pdftool’s pdf_data.</li>
 <li>Filter the nested list to keep only the key tables (ie: Statement of Activities, Balance Sheet, Statement of Net Position) using regular expression matching of sub-elements.</li>
