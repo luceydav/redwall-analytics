@@ -33,20 +33,22 @@ In [Evaluating Mass Muni CAFR Tabulizer Results - Part 3](https://redwallanalyti
 
 # AWS Textract Using PAWS Package
 
-Textract offers a number of [alternatives](https://aws.amazon.com/blogs/machine-learning/automatically-extract-text-and-structured-data-from-documents-with-amazon-textract/) for using OCR to extract structured text, forms and tabular data. The API allows to manually upload up to 10 pages and get back a response, and second option of up to 1,000 pages a month for PNG formats for the first three months. This option also doesn't require upload to an S3 bucket. Extracting from bulk PDFs, which we used, costs $0.015 per page up to 1 million pages using their asynchronous API on documents which are in an S3 bucket. A logical workflow seemed to be to try tabulizer for free, where possible, and then pay for cases where the document can't be extracted with tabulizer or the error rate is expected to be high. 
+Textract offers a number of [alternatives](https://aws.amazon.com/blogs/machine-learning/automatically-extract-text-and-structured-data-from-documents-with-amazon-textract/) for using OCR to extract structured text, forms and tabular data. The API allows to manually upload up to 10 pages and get back a response, and second option of up to 1,000 pages a month for PNG formats for the first three months. This option also doesn't require upload to an S3 bucket. 
 
-In this case, we will show how to subset five tables from  [Attleboro CAFR](https://www.cityofattleboro.us/ArchiveCenter/ViewFile/Item/223) which was problematic with tabulizer. In our full project, we aggregated five pages from every CAFR in Massachusetts (700 pages) for a total cost of \$11.
+Extracting from bulk PDFs, which we used, costs $0.015 per page up to 1 million pages using their asynchronous API on documents which are in an S3 bucket. A logical workflow seemed to be to try tabulizer for free, where possible, and then pay for cases where the document can't be extracted with tabulizer or the error rate is expected to be high. 
+
+In this case, we will show how to subset five tables from  [Attleboro CAFR](https://www.cityofattleboro.us/ArchiveCenter/ViewFile/Item/223) which failed to scrape three out of five desired fields, and Hudson, MA where the PDF couldn't be found on the town's website and is probably an image. In our full project, we aggregated five pages from every CAFR in Massachusetts (30MB file for 700 pages) for a total cost of \$11.
 
 
-```{r 'subset-pdfs', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
+```{r 'subset-pdfs', echo=TRUE, message=FALSE, warning=FALSE}
 
 # Problem PDFs
 path <- "/Users/davidlucey/Desktop/David/Projects/mass_munis/"
-bad_cases <- c("attleboro", "boston")
+bad_cases <- c("attleboro", "hudson")
 pdfs <- 
   paste0(path, "data/pdf_cafr/", bad_cases, "_2018.pdf")
 
-# Extract 5-pages from Atteboro and Boston CAFR PDFs with pdftools
+# Extract 5-pages from Atteboro and Hudson CAFR PDFs with pdftools
 pages_attleboro <- 
   as.integer(names(readRDS(paste0(path, "mass.RDS"))[[3]][["attleboro"]]))
 attleboro <-  
@@ -56,19 +58,19 @@ attleboro <-
     output = paste0(path, "attleboro.pdf")
     )
 
-pages_boston <- 
-  as.integer(names(readRDS(paste0(path, "mass.RDS"))[[3]][["boston"]]))
-boston <-  
+pages_hudson <- 
+  as.integer(names(readRDS(paste0(path, "mass.RDS"))[[3]][["hudson"]]))
+hudson <-  
   pdf_subset(
     pdfs[2],
-    pages = pages_boston,
-    output = paste0(path, "boston.pdf")
+    pages = pages_hudson,
+    output = paste0(path, "hudson.pdf")
     )
 
 # Merge pdfs with tabulizer
   merge_pdfs(
     c(paste0(path, "attleboro.pdf"), 
-      paste0(path, "boston.pdf")), 
+      paste0(path, "hudson.pdf")), 
     outfile= "joined.pdf"
     )
 ```
@@ -76,12 +78,12 @@ boston <-
 
 # Setting up an S3 Bucket and Uploading a PDF
 
-We then input our AWS credentials and establish an S3 response object, which we use to instruct AWS to create a S3 bucket, and then upload our Attleboro file to S3. One thing we encountered was that the PDF had to be in our working directory because S3 created the directory structure to match our disc, and Textract seemed to be unable to navigate the file structure to find the document. We showed "attleboro" bucket at the bottom of the code below.
+We then input our AWS credentials and establish an S3 response object ("s3" below), which we use to instruct AWS to create a S3 bucket, and then upload our subset file of PDFs to S3. When setting the bucket names, it is important not to include punctuation, because these will be rejected. Another mistake we made was uploading the PDF from outside our current working directory, because S3 created the directory structure to match our disc, and Textract seemed to be unable to navigate the file structure to find the document. We showed "munisubset" bucket at the bottom of the code below.
 
 
-```{r 's3-bucket', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
+```{r 's3-bucket', echo=TRUE, message=FALSE, warning=FALSE}
 
-setwd(path)
+#setwd(path)
 
 # Set AWS system credentials 
 #Sys.setenv(AWS_ACCESS_KEY_ID = "")
@@ -103,7 +105,7 @@ s3 <-
   )
 
 # Create bucket
-bucket_name <- "muni_subset"
+bucket_name <- "munisubset"
 s3$create_bucket(
   Bucket = bucket_name
 )
@@ -127,10 +129,10 @@ buckets$Buckets[[1]]
 
 # Setting up Textract Object and Calling Start Document Analysis
 
-Next, we set up a Textract response object and use "start_document_analysis" to process the pages in the code below. It is possible to get help by using ?textract or ?start_document_analysis just like any other function in R. The docs say that "start_document_analysis" uses asynchronous analysis to look for relationships between key-value pairs. Running Textract 700 pages took more than an hour to get the "JobID" identifier which is required to get the analysis.
+Next, we set up a Textract response object ("svc" below) and use "start_document_analysis" to process the pages in the code below. Note that we select "TABLES", but other parameters are "FORMS" or "FORMS | TABLES". It is possible to get help by using ?textract or ?start_document_analysis just like any other function in R. The docs say that "start_document_analysis" uses asynchronous analysis to look for relationships between key-value pairs. Running Textract pn our 700 pages took more than an hour, so another step would be to figure out how to be notified of the compeletion with AWS SNS. Once completed, Textract returns the "JobID" (shown below) which is required to get the analysis in the next step.
 
 
-```{r 'textract-analysis', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
+```{r 'textract-analysis', echo=TRUE, message=FALSE, warning=FALSE}
 
 # Set up Amazon Textract object
 svc <- 
@@ -154,8 +156,8 @@ JobId <-
   svc$start_document_analysis(
     Document = list(
       S3Object = list(
-        Bucket = "attleboro",
-        Name = "attleboro.pdf"
+        Bucket = "munisubset",
+        Name = "joined.pdf"
     )
   ),
   FeatureTypes = list(
@@ -171,18 +173,24 @@ JobId
 
 # Recalling the Blocks from Textract
 
-Below, we show our call to paws "get_document_analysis" using the JobId we received back from Textract above. A few things to mention about this, Textract stores pages from all of the documents together in "Blocks" when called in bulk. We searched around, but it doesn't seem possible to download the whole job with all of the pages at one time. The only way we could figure out to get the data back into our environment was to loop get_document_analysis in 1,000 increments. This also took time, and our 700 pages of tables came back as over 400,000 blocks with all of the pages commingled together in a json object. To give an idea of the sizes involved, the 700-page 30MB PDF resulted to a 210 MB json once we had called all the Blocks back. 
+Below, we show our call to paws "get_document_analysis" using the JobId we received back from Textract above. A few things to mention, Textract stores pages from all of the documents together in "Blocks" when called in bulk from a PDF. We searched around, but it doesn't seem possible to download the whole job with all of the pages at one time. The only way we could figure out to get the data back into our environment was to while loop over get_document_analysis in the maximum 1,000 increments. This also took time, and our 700 pages of tables came back as over 400,000 blocks commingled together in a json object. To give an idea of the sizes involved, the full aggregated PDF resulted to a 210 MB json, once we had called for all the Blocks. 
 
 In the next step, we have our work cut out to extract the key elements from the json. A json is a common object for API calls, but when introduced to a json a few years ago, it seemed to be a hopelessly, impenetrable data structure, and one to be avoided if at all possible. Fortunately, time has moved on, and like many things, it might be possible now. In the next post, we will attempt to reconstitute the Blocks into their original pages, and then parse out the desired elements for comparison. A lot is at stake since we have invested quite a bit of time to get to this point.
 
 
-```{r 'get-document-analysis', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
+```{r 'get-document-analysis', echo=TRUE, message=FALSE, warning=FALSE}
 
 # Get 1st list of blocks and "NextToken"
 a <- 
   svc$get_document_analysis(JobId= unlist(JobId))
 
 a[["Blocks"]][[2]][1:5]
+
+```
+
+
+
+```{r 'clean-up-s3', message=FALSE, warning=FALSE, include=FALSE}
 
 # Cleanup
 s3$delete_object(Bucket = bucket_name, Key = file_name)
