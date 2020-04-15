@@ -101,7 +101,7 @@ s3$put_object(
 ## character(0)
 ## 
 ## $ETag
-## [1] &quot;\&quot;72a48e7133c5c84c8dca4a8c3543b05e\&quot;&quot;
+## [1] &quot;\&quot;1c67e98b5e87449ce9ee8a294422fc4e\&quot;&quot;
 ## 
 ## $ServerSideEncryption
 ## character(0)
@@ -129,11 +129,11 @@ buckets$Buckets[[1]]</code></pre>
 ## [1] &quot;munisubset&quot;
 ## 
 ## $CreationDate
-## [1] &quot;2020-04-15 12:05:09 GMT&quot;</code></pre>
+## [1] &quot;2020-04-15 13:20:24 GMT&quot;</code></pre>
 </div>
 <div id="setting-up-textract-object-and-calling-start-document-analysis" class="section level1">
 <h1>Setting up Textract Object and Calling Start Document Analysis</h1>
-<p>Next, we set up a Textract response object (“svc” below) and use “start_document_analysis” to process the pages in the code below. Note that we select “TABLES”, but other parameters are “FORMS” or “FORMS | TABLES”. It is possible to get help by using ?textract or ?start_document_analysis just like any other function in R. The docs say that “start_document_analysis” uses asynchronous analysis to look for relationships between key-value pairs. Running Textract pn our 700 pages took more than an hour, so another step would be to figure out how to be notified of the compeletion with AWS SNS. Once completed, Textract returns the “JobID” (shown below) which is required to get the analysis in the next step.</p>
+<p>Next, we set up a Textract response object (“svc” below) and use “start_document_analysis” to process the pages in the code below. Note that we select “TABLES”, but other parameters are “FORMS” or “FORMS | TABLES”. It is possible to get help by using ?textract or ?start_document_analysis just like any other function in R. The docs say that “start_document_analysis” uses asynchronous analysis to look for relationships between key-value pairs. Running Textract on our 700 pages took more than an hour, so another step would be to figure out how to be notified of the completion with AWS SNS. Once completed, Textract returns the “JobID” (shown below) which is required to get the analysis in the next step.</p>
 <pre class="r"><code># Set up Amazon Textract object
 svc &lt;- 
   textract( 
@@ -168,7 +168,7 @@ JobId &lt;-
 # Textract job identifier
 JobId</code></pre>
 <pre><code>## $JobId
-## [1] &quot;1cd6c035407fcdc2090f8372dd9f5282740a430f3badc8b223b80546c8fcb714&quot;</code></pre>
+## [1] &quot;bcb98a1559c72bd1bfca7a3be239fa4464789fc6d5f9c48a689e32bfc6606dd3&quot;</code></pre>
 </div>
 <div id="recalling-the-blocks-from-textract" class="section level1">
 <h1>Recalling the Blocks from Textract</h1>

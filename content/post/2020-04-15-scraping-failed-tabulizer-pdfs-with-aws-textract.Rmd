@@ -129,7 +129,7 @@ buckets$Buckets[[1]]
 
 # Setting up Textract Object and Calling Start Document Analysis
 
-Next, we set up a Textract response object ("svc" below) and use "start_document_analysis" to process the pages in the code below. Note that we select "TABLES", but other parameters are "FORMS" or "FORMS | TABLES". It is possible to get help by using ?textract or ?start_document_analysis just like any other function in R. The docs say that "start_document_analysis" uses asynchronous analysis to look for relationships between key-value pairs. Running Textract pn our 700 pages took more than an hour, so another step would be to figure out how to be notified of the compeletion with AWS SNS. Once completed, Textract returns the "JobID" (shown below) which is required to get the analysis in the next step.
+Next, we set up a Textract response object ("svc" below) and use "start_document_analysis" to process the pages in the code below. Note that we select "TABLES", but other parameters are "FORMS" or "FORMS | TABLES". It is possible to get help by using ?textract or ?start_document_analysis just like any other function in R. The docs say that "start_document_analysis" uses asynchronous analysis to look for relationships between key-value pairs. Running Textract on our 700 pages took more than an hour, so another step would be to figure out how to be notified of the completion with AWS SNS. Once completed, Textract returns the "JobID" (shown below) which is required to get the analysis in the next step.
 
 
 ```{r 'textract-analysis', echo=TRUE, message=FALSE, warning=FALSE}
