@@ -170,6 +170,12 @@ JobId
 
 ```
 
+```{r 'wait-time', message=FALSE, warning=FALSE, include=FALSE}
+# Wait for Textract to finish processing
+Sys.sleep(120)
+```
+
+
 
 # Recalling the Blocks from Textract
 
