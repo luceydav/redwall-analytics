@@ -19,25 +19,31 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
     weight = 1
     
     [[menu.main]]
-    name = "Contact"
-    pre = "<i class='fa fa-phone fa-fw'></i>"
+    name = "About"
+    pre = ""
     weight = 2
+    url = "/about/"
+    
+    [[menu.main]]
+    name = "Contact"
+    pre = ""
+    weight = 3
     url = "/contact/"
     
     [[menu.main]]
     name = "LinkedIn"
     url = "https://linkedin.com/in/david-lucey-cfa-cpa-mba-msba"
-    weight = 3
+    weight = 4
     
     [[menu.main]]
     name = "Twitter"
     url = "https://twitter.com/lucey_david"
-    weight = 4
+    weight = 5
     
     [[menu.main]]
     name = "GitHub"
     url = "https://github.com/luceydav"
-    weight = 5
+    weight = 6
     
 [params]
     description = ""
