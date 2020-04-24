@@ -1,0 +1,263 @@
+---
+title: Evaluating Mass Muni CAFR Textract Results - Part 5
+author: David Lucey
+date: '2020-04-24'
+slug: evaluating-mass-muni-cafr-textract-results-part-5
+categories: ["R", "Code-Oriented"]
+tags: ["pdf", "pdftools", "tabulizer", "textract"]
+output:
+  html_document:
+    code_folding: yes
+---
+
+
+```{r 'setup', message=FALSE, warning=FALSE, cache=FALSE, include=TRUE}
+
+# Libraries
+packages <- 
+  c("data.table",
+    "reticulate",
+    "paws.machine.learning",
+    "paws.common",
+    "keyring",
+    "pdftools",
+    "listviewer"
+    )
+
+if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = '100%')
+
+```
+
+
+
+# Introduction
+
+In [Scraping Failed Tabulizer PDFs with AWS Textract - Part 4](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/), we showed how to use pdftools and tabulizer to subset a group of PDFs, the AWS paws SDK package to store the PDF in S3, and Textract machine learning to extract a block response object using its "asynchronous" process. Subsequently, we discovered an alternate route to save the desired pages as PNG and send those page-by-page to AWS to get the same result. This method has the added advantage of being free to free-tier AWS users. 
+
+In this post, we will show how to do this, and also how to parse the complicated response blocks (shown in Figure \@ref(tab:list-view)), which took us a few days to figure out. As mentioned previously, the response blocks are complicated, with one nested list pertaining to text and another to the coordinates on the page. We attempted to write R-code to extract the required data, but in the end, decided to modify the AWS code, and call it within RStudio using the reticulate package. This had the added benefit of bringing together several pieces we had been working on.
+
+
+```{r 'textract-config', message=FALSE, warning=FALSE, include=FALSE}
+
+# Set up Amazon Textract object
+svc <- 
+  textract( 
+    config = list(
+      credentials = list(
+        creds = list(
+          access_key_id = key_get("AWS_ACCESS_KEY_ID"),
+          secret_access_key = key_get("AWS_SECRET_ACCESS_KEY")
+        )
+      ),
+      region = "us-east-1")
+    )
+  
+```
+
+
+# Convert Selected Page to PNG with pdftools
+
+
+Below we show the steps extract the Balance Sheet (page 27) from the Attleboro CAFR as a png with pdftools "pdf_convert" function. At first, we used the default setting for dpi of 75, but we found that the resolution this was too fuzzy, and led to frequent errors on particular letters with the OCR. These were not eliminated, but significantly reduced once we switched to dpi of 200, but it seems like it might be beneficial to go even higher, because for example, the "l" was commonly dropped when it occurred at the end of a word (ie: "Governmenta").
+
+
+```{r 'extract-png', message=FALSE, warning=FALSE}
+
+# Point to particular muni pdf on disc
+pdf <- 
+  paste0("/Users/davidlucey/Desktop/David/Projects/mass_munis/data/pdf_cafr/attleboro_2018.pdf")
+  
+# Create png name for muni
+png <- 
+  paste0("/Users/davidlucey/Desktop/David/Projects/pdf_cafr_parse/attleboro.png")
+    
+  # Convert report to png
+pdf_convert(
+  pdf, 
+  format = "png", 
+  pages = 27, 
+  filenames = png, 
+  dpi = 200)
+
+
+```
+
+
+# Extract Page with AWS Textract Synchronous Operation
+
+We input our AWS credentials and set up a Textract response object in the same way as in the previous post. One difference between synchronous and asynchronous (demonstrated in the last post), is that paws sends the request and gets the response with just the "analyze_document" function call, instead of "start_document_analysis" and the second "get_document_analysis". We also did not need to loop, because each page fit within the maximum of 1000 blocks, and was immediately returned without a second function call.
+
+
+```{r 'textract-extract', echo=TRUE, message=FALSE, warning=FALSE}
+    
+# Call Textract for particular muni pdf page
+response <-
+  svc$analyze_document(
+    Document = list(
+      Bytes = png
+      ),
+    FeatureTypes = list(
+      "TABLES"
+      )
+    )
+
+```
+
+
+# Description and List View of Textract Response Object
+
+In the chunk below, we show the anatomy of the response object. The first 10 tabs in the listviewer below have the PAGE and some LINE elements, which are the parents of WORDS and CELLS. The TABLE block is shown in element 421, with its 168 children. WORDS and CELL blocks are shown in lines 161-170 and 422-430, respectively. CELL and WORD blocks hvae no children, but can be used to find the location or row-column coordinates of a WORD. We spent a lot of time trying to understand the relationships between the different kinds of objects in order to parse it out in R, but in the end, it seemed easier just to use AWS's pre-built Python parser.
+
+
+```{r 'list-view', echo=TRUE, message=FALSE, warning=FALSE}
+
+# View of first block
+listviewer::jsonedit(
+  response[["Blocks"]][c(1:10, 161:170, 421:430)]
+)
+
+```
+
+
+# Parsing the Response Object with Reticulated Python
+
+An increasing amount is being written on how to use reticulate, so we won't get into great detail here about how to set it up. We used Python 3.7 with miniconda after re-installing Anaconda post the recent upgrade to Catalina, in which Apple re-arranged our whole set-up. 
+
+
+```{r 'reticulate', echo=TRUE, message=FALSE, warning=FALSE}
+
+# Choose Python 3.7 miniconda
+reticulate::use_condaenv(
+  condaenv = "r-miniconda", 
+  conda = "/Users/davidlucey/opt/anaconda3/bin/conda", 
+  required = TRUE
+  )
+
+```
+
+
+AWS gives the Python code to parse the blocks back into a tabular form [Textract Python Table Parser] (https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/python/example_code/textract/textract_python_table_parser.py). This code built in the call to AWS with the Python boto client, but we didn't need this so we had to modify to take already returned response instead. A second problem that we encountered was that when the object was parsed over from R into Python, blocks which had multiple children "Ids" were converted to list, while those with single children remained as strings. It took some time, we patched this in the "get_text" function below, so assume it should work for any R user now. 
+
+
+```{python 'textract-python-table-parser', echo=TRUE}
+
+import webbrowser, os
+import json
+import io
+from io import BytesIO
+import sys
+
+
+def get_rows_columns_map(table_result, blocks_map):
+    rows = {}
+    for relationship in table_result['Relationships']:
+        if relationship['Type'] == 'CHILD':
+            for child_id in relationship['Ids']:
+                cell = blocks_map[child_id]
+                if cell['BlockType'] == 'CELL':
+                    row_index = cell['RowIndex']
+                    col_index = cell['ColumnIndex']
+                    if row_index not in rows:
+                        # create new row
+                        rows[row_index] = {}
+                        
+                    # get the text value
+                    rows[row_index][col_index] = get_text(cell, blocks_map)
+    return rows
+
+def get_text(result, blocks_map):
+    text = ''
+    if 'Relationships' in result:
+        for relationship in result['Relationships']:
+            if relationship['Type'] == 'CHILD':
+                if isinstance(relationship['Ids'], str):     # Modified here
+                    relationship_ids = [relationship['Ids']]
+                else: 
+                    relationship_ids = relationship['Ids']
+                for child_id in relationship_ids:
+                    word = blocks_map[child_id]
+                    if word['BlockType'] == 'WORD':
+                        text += word['Text'] + ' '
+                        
+    return text
+
+def get_table_csv_results(response):
+    blocks = response['Blocks'] # Modified here
+    blocks_map = {}
+    table_blocks = []
+    for block in blocks:
+        blocks_map[block['Id']] = block
+        if block['BlockType'] == "TABLE":
+            table_blocks.append(block)
+            
+    if len(table_blocks) <= 0:
+        return "<b> NO Table FOUND </b>"
+        
+    csv = ''
+    for index, table in enumerate(table_blocks):
+        csv += generate_table_csv(table, blocks_map, index +1)
+        csv += '\n\n'
+    return csv
+
+def generate_table_csv(table_result, blocks_map, table_index):
+    rows = get_rows_columns_map(table_result, blocks_map)
+    table_id = 'Table_' + str(table_index)
+    # get cells.
+    csv = 'Table: {0}\n\n'.format(table_id)
+    for row_index, cols in rows.items():
+        for col_index, text in cols.items():
+            csv += '{}'.format(text) + "\t"
+        csv += '\n'
+    csv += '\n\n\n'
+    return csv
+
+
+```
+
+
+We called our Python "get_table_csv_results" function from reticulate (as py$get_table_csv_results()) and show the raw parsed unparsed text below. We will not show the clean up here, but please refer to our Github repo for the code which we used.
+
+
+```{r 'extract-tables', echo=TRUE, message=FALSE, warning=FALSE}
+
+page <- py$get_table_csv_results(response)
+
+cat(page)
+    
+```
+
+
+# Comparing the Textract Results
+
+We started with 29 municipalities where there were problems matching the manually extracted data. We discovered that two of those had used scanned PDFs (ie: the auditor put the document on a scanner before converting to PDF), so pdftools couldn't recognize the data, and we couldn't get page numbers to send to Textract. Of those sent to Textract, most tables were not able to be parsed. Thus, of the 5% of cases which didn't work with Tabulizer, we successfully extracted 83/125 (almost 70%) with Textract for about $2. We also didn't spend to much time fine tuning our regex and cleaning of the raw Textract output, so if this were going to be a repeated process, it could likely be further improved.
+
+```{r 'textract-compare', echo=TRUE, message=FALSE, warning=FALSE}
+textract_compare <- 
+  readxl::read_xls("~/Desktop/David/Projects/pdf_cafr_parse/textract_compare.xls")
+textract_compare <- setDT(textract_compare)
+
+# Percentage correct
+sum(as.matrix(textract_compare[,.SD, .SDcols=patterns("diff")])==0)/125
+
+# Show bad cases
+DT::datatable(textract_compare[, .SD, .SDcols=patterns("diff|muni")])
+```
+
+# Conclusions
+
+As reminder of the tools demonstrated in this series, 
+
+1/ How to find the location of a table on a page with regex matching and pdftools [Tabulizer and pdftools Together as Super-powers](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/)
+
+2/ How to extract a particular page from a pdf with pdftools [Tabulizer and pdftools Together as Super-powers](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/)
+
+3/ How to aggregate multiple PDF pages together [Tabulizer and pdftools Together as Super-powers](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/)
+
+4/ 
+

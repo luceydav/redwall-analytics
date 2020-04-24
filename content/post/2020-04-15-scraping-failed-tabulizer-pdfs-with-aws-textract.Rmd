@@ -14,14 +14,26 @@ output:
 ```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
 
 # Libraries
-library(paws.machine.learning)
-library(paws.common)
-library(paws.storage)
-library(data.table)
-library(stringr)
-library(rlist)
-library(tabulizer)
-library(pdftools)
+packages <- 
+  c("data.table",
+    "stringr",
+    "rlist",
+    "paws.machine.learning",
+    "paws.storage",
+    "paws.common",
+    "tabulizer",
+    "pdftools",
+    "keyring",
+    "listviewer"
+    )
+
+if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = '100%')
 
 ```
 
@@ -96,11 +108,11 @@ s3 <-
     config = list(
       credentials = list(
         creds = list(
-          access_key_id = Sys.getenv("AWS_ACCESS_KEY_ID"),
-          secret_access_key = Sys.getenv("AWS_SECRET_ACCESS_KEY")
+          access_key_id = key_get("AWS_ACCESS_KEY_ID"),
+          secret_access_key = key_get("AWS_SECRET_ACCESS_KEY")
         )
       ),
-      region = Sys.getenv("AWS_REGION")
+      region = "us-east-1"
     )
   )
 
@@ -140,11 +152,11 @@ svc <-
     config = list(
       credentials = list(
         creds = list(
-          access_key_id = Sys.getenv("AWS_ACCESS_KEY_ID"),
-          secret_access_key = Sys.getenv("AWS_SECRET_ACCESS_KEY")
+          access_key_id = key_get("AWS_ACCESS_KEY_ID"),
+          secret_access_key = key_get("AWS_SECRET_ACCESS_KEY")
         )
       ),
-      region = Sys.getenv("AWS_REGION")
+      region = "us-east-1"
     )
   )
 
@@ -190,7 +202,9 @@ In the next step, we have our work cut out to extract the key elements from the 
 a <- 
   svc$get_document_analysis(JobId= unlist(JobId))
 
-a[["Blocks"]][[2]][1:5]
+listviewer::jsonedit(
+  a[["Blocks"]][2:10]
+)
 
 ```
 
