@@ -7,7 +7,7 @@ categories: ["R", "Code-Oriented"]
 tags: ["pdf", "pdftools", "tabulizer", "textract"]
 output:
   html_document:
-    code_folding: yes
+    code_folding: 'hide'
 ---
 
 <script src="/rmarkdown-libs/htmlwidgets/htmlwidgets.js"></script>
@@ -23,9 +23,9 @@ output:
 
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>This post is a continuation <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers - Part 2</a>. Although the full process used to extract data from all our 150 PDFs will not shown, to review the steps that Redwall followed for the portion using pdftools and tabulizer:</p>
+<p>This post is a continuation <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers - Part 2</a> where we showed how combining <code>pdftools</code> and <code>tabulizer</code> together could lead to better, more scaleable data extraction. Although the full process used to extract data from all our 149 PDFs will not shown in this series, to review the steps that Redwall followed for the portion using <code>pdftools</code> and <code>tabulizer</code>:</p>
 <ol style="list-style-type: decimal">
-<li>Load all the pdf_data (metadata) for every page of the 150 PDFs into a list of lists with the metadata data.frame from pdftool’s pdf_data.</li>
+<li>Load all the pdf_data (metadata) for every page of the 148 PDFs into a list of lists with the metadata data.frame from pdftool’s pdf_data.</li>
 <li>Filter the nested list to keep only the key tables (ie: Statement of Activities, Balance Sheet, Statement of Net Position) using regular expression matching of sub-elements.</li>
 <li>Find the coordinates for the key Tabulizer area parameters using regular expressions and the pdf_data metadata.</li>
 <li>Extract those tables with Tabulizer into data.frames.</li>
@@ -47,7 +47,7 @@ mass_compare &lt;- setDT(mass_compare)</code></pre>
 </div>
 <div id="tabulizer-results-compared-to-manual-spreadsheet" class="section level1">
 <h1>Tabulizer Results Compared to Manual Spreadsheet</h1>
-<p>In the code below, we show the PDFs where all fields did not match the manually-compiled spreadsheet. It is encouraging that there are only 6, Boston didn’t match only because its CAFR numbers were rounded to the nearest thousand, while our reference spreadsheet was not. We also discovered that our CAFR library didn’t have a 2018 CAFR in some cases, so that was the reason some didn’t return any scraped results. In addition, some CAFR’s are released as images, which don’t work with the tabulizer OCR, but might work in AWS Textract.</p>
+<p>In the code below, we show the PDFs where all fields did not match the manually-compiled spreadsheet. It is encouraging that there are only 5 (Boston didn’t match only because its CAFR numbers were rounded to the nearest thousand). We also discovered that our CAFR library didn’t have a 2018 CAFR in some cases, so that was the reason some didn’t return any scraped results. In addition, some CAFR’s (Clinton and Montague) are released as scanned images of printed documents, which don’t work with <code>pdftools</code>, so we couldn’t get page indices to send to <code>tabulizer</code>.</p>
 <pre class="r"><code># Filter diff != 0 (cases where there wasn&#39;t a match)
 diff &lt;- 
   names(mass_compare)[str_detect(names(mass_compare), &quot;diff_&quot;)]
@@ -59,13 +59,18 @@ all_missing &lt;- mass_compare[,
     ][problem == 1]$muni
 
 all_missing</code></pre>
-<pre><code>## [1] &quot;boston&quot;      &quot;clinton&quot;     &quot;montague&quot;    &quot;new_bedford&quot; &quot;sandwich&quot;   
-## [6] &quot;weston&quot;</code></pre>
-<p>The next table shows cases where one or more variable was not being extracted properly (difference not equal to zero). Of the 660 potential items in the spreadsheets which were successfully parsed, 33 did not match. 95% accuracy seems pretty good at first glance, but an analyst probably couldn’t rely on this without a manual checking process. Another possible objective would be to know which formats would have a higher likelihood of failure, and just check those. For example, some tables run over onto a second page, and others have sections with larger indentations. In the next step, we will slice the problematic tables out of the relevant PDF, and run these through Textract to see what happens.</p>
+<pre><code>[1] &quot;boston&quot;      &quot;clinton&quot;     &quot;montague&quot;    &quot;new_bedford&quot; &quot;sandwich&quot;   
+[6] &quot;weston&quot;     </code></pre>
+<p>The next table shows cases where one or more variable was not being extracted properly (difference not equal to zero). Of the 720 potential items in the spreadsheets which were successfully parsed, 43 did not match. 94% accuracy seems pretty good at first glance, but an analyst probably couldn’t rely on this without some manual back-up checking. Another possible objective would be to know which formats would have a higher likelihood of failure, and just check those. For example, some tables run over onto a second page, and others have sections with larger indentations. In the next step, we will slice the problematic tables out of the relevant PDF, and run these through <code>Textract</code> to see what happens.</p>
+<div class="figure"><span id="fig:bad-elements"></span>
 <div id="htmlwidget-1" style="width:100%;height:auto;" class="datatables html-widget"></div>
 <script type="application/json" data-for="htmlwidget-1">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23"],["attleboro","chatham","concord","dartmouth","dukes_county","east_bridgewater","eastham","fall_river","franklin","hingham","hudson","malden","mashpee","methuen","millbury","newton","rockland","swansea","walpole","waltham","westford","winchendon","winchester"],[-2100746,-4820067,0,0,0,0,0,-523405,0,0,0,0,-170564,0,-1909601,0,0,-573076,0,0,0,0,0],[-3781241,0,0,0,0,0,724963,-1732397,0,0,0,0,-10649504,0,-1653652,0,0,-9517777,0,0,0,-2203949,54817],[-194452330,0,-150966028,0,-13517342,0,-31359504,0,0,0,-131479222,-237218751,0,-211073671,0,-559727406,0,0,-121229951,0,-142358561,0,-134820038],[0,0,-4593392,-27297549,0,-64218253,0,-769836761,0,-58697620,-116078697,0,0,0,0,0,-116886446,0,0,19856951,0,0,0],[0,0,-242041449,-96535569,0,-10237445,0,-392638228,-147040675,-106975935,-17044118,0,0,0,0,0,-23259352,0,0,37562683,0,0,-100000000]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>muni<\/th>\n      <th>diff_assigned<\/th>\n      <th>diff_unassigned<\/th>\n      <th>diff_total_exp<\/th>\n      <th>diff_unrestricted<\/th>\n      <th>diff_net_position<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[2,3,4,5,6]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<p class="caption">
+Figure 1: 43 Elements had differences with manually extracted data
+</p>
+</div>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>The combination of pdftools and Tabula gave encouraging results, and we are confident that further fine tuning could further reduce the error rate. We also have some ideas about which tables fail most often, so the risk of an unexpected mismatch might be mitigated by manual intervention or getting a back up from Textract in these cases. In the next post <a href="https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/">Scraping Failed Tabulizer PDFs with AWS Textract - Part 4</a>, we use the AWS paws SDK to save an aggregated PDF in S3 and use their machine-learning based Textract solution to extract the tables to see how their solution does for the difficult cases.</p>
+<p>The combination of <code>pdftools</code> and <code>tabulizer</code> gave encouraging results, and we are confident that further fine tuning could further reduce the error rate. We also have some ideas about which tables fail most often, so the risk of an unexpected mismatch might be mitigated by manual intervention or getting a back up from <code>Textract</code> in these cases. In the next post <a href="https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/">Scraping Failed Tabulizer PDFs with AWS Textract - Part 4</a>, we use the AWS <code>paws</code> SDK to save an aggregated PDF in <code>S3</code> and use their machine-learning based <code>Textract</code> solution to extract the tables to see how their solution does for the difficult cases.</p>
 </div>

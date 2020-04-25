@@ -7,30 +7,39 @@ tags: ["pdf", "pdftools", "tabulizer", "XBRL"]
 slug: tabulizer-and-pdftools-together-as-super-powers-part-2
 output:
   html_document:
-    code_folding: yes
+    code_folding: 'hide'
 ---
 
 
 ```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
 
 # Libraries
-library(data.table)
-library(stringr)
-library(rlist)
-library(tabulizer)
-library(pdftools)
-library(parallel)
-library(DT)
+packages <- 
+  c("data.table",
+    "stringr",
+    "rlist",
+    "tabulizer",
+    "pdftools",
+    "parallel",
+    "DT"
+    )
 
+if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = '100%')
 ```
 
 
 
 # Introduction
 
-This post will be a continuation of [Parsing of Mass Municipal PDF CAFR's with Tabulizer, pdftools and AWS Textract - Part 1](https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/) dealing with extracting data from PDFs using R. When Redwall discovered pdftools, and its pdf_data function, which maps out every word on a pdf page by x-y coordinate, we thought that was interesting, but didn't really know how to use it. We also didn't have the regular expression skills, and were much more befuddled by the nested list structures than we are now. 
+This post will be a continuation of [Parsing of Mass Municipal PDF CAFR's with Tabulizer, pdftools and AWS Textract - Part 1](https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/) dealing with extracting data from PDFs using R. When Redwall discovered `pdftools`, and its `pdf_data()` function, which maps out every word on a pdf page by x-y coordinate, we thought that was interesting, but didn't really know how to use it. We also didn't have the regular expression skills, and were much more befuddled by the nested list structures than we are now. 
 
-As for Tabulizer, it took about a year before rJava magically started working properly, but even then we it wasn't possible to consistently read a large number of tables of different sizes without cutting off fields in unexpected ways. Only in this Mass pdf scraping project have we realized that, by combining these two packages, it becomes possible to access data in reliable way, from a large number of varied pdf formats. 
+As for `tabulizer`, it took about a year before rJava magically started working properly, but even then we it wasn't possible to consistently read a large number of tables of different sizes without cutting off fields in unexpected ways. Only in this Mass pdf scraping project have we realized that, by combining these two packages, it becomes possible to access data in reliable way, from a large number of varied pdf formats. 
 
 Our Massachusset's municipal CAFR project provided a perfect opportunity to put all these pieces together. This blog post will consist of a step-by-step walk through which will hopefully help others avoid some of the pain that we experienced in getting to this point.
 
@@ -60,9 +69,9 @@ str(abington[[2]])
 
 # PDF Tools pdf_data Functionality
 
-The above is a list of data.frames containing metadata of the location of every word on every one of the 92 pages of the Abington 2018 CAFR. The structure of the second page is shown above. But, we only need the key financial statements, so would like to drop the majority of pages which don't have what we need. For example, we know that page 16 has the Statement of Net Position. We could search for that page using regular expressions as shown for variable "sonp" below. 
+The above is a list of data.frames containing metadata of the location of every word on every one of the 92 pages of the Abington 2018 CAFR. The structure of the second page is shown above. But, we only need the key financial statements, so would like to drop the majority of pages which don't have what we need. For example, we know that page 16 has the Statement of Net Position. We could search for that page using regular expressions as shown for variable `sonp` below. 
 
-See how we extract only the head unique 5 lines of each page by y, paste those lines back together, then match our regular expression on the text of those lines looking for the phrase "STATEMENT OF NET POSITION". However, there are several pages meeting this criteria, such as "Proprietary Funds" Statement of Net Position on page 20 (which we don't want). Most of these other pages can be eliminated by choosing NOT to match the word "FUNDS" by the same process, so notice that we negate our second match with "!". Hence, our sonp_index comes back as 16, which can be used to filter out the remaining pages.
+See how we extract only the head unique 5 lines of each page by y, paste those lines back together, then match our regular expression on the text of those lines looking for the phrase "STATEMENT OF NET POSITION". However, there are several pages meeting this criteria, such as "Proprietary Funds" Statement of Net Position on page 20 (which we don't want). Most of these other pages can be eliminated by choosing NOT to match the word "FUNDS" by the same process, so notice that we negate our second match with "!". Hence, our `sonp_index` comes back as 16, which can be used to filter out the remaining pages.
 
 
 ```{r 'find-pdf-pages', echo=TRUE, message=FALSE, warning=FALSE}
@@ -107,12 +116,12 @@ sonp <- abington[sonp_index][[1]]
 sonp
 ```
 
-Above is the text grid of Abington's Statement of Net Position as taken by pdftools. Using this metadata, we can begin to put together exact area parameters for Tabula. Even better, we could programically do it for a large number of tabless. In our experience, this is important because Tabulizer's default "lattice" method for tabular data can be unpredictable cutting off fields unexpectedly. 
+Above is the text grid of Abington's Statement of Net Position as taken by `pdftools`. Using this metadata, we can begin to put together exact area parameters for Tabula. Even better, we could programically do it for a large number of tabless. In our experience, this is important because the `tabulizer` default `lattice` method for tabular data can be unpredictable cutting off fields unexpectedly. 
 
 
 # Tabulizer Area Coordinates
 
-Tabulizer specifies pages in blocks of 72 * inches, so a typical 8.5 x 11 verticle page would have dimensions of 612 x 720. This coordinate grid is used to specify the "area" parameter (top, left, bottom and right). All of of Massachusett's financial statement tables have a "$" sign in the first and last rows, so those could be used to locate the "top" or "bottom" paramenters. In addition, all pages including financial statements have language referring users to the "notes to the financial statements" usually on the second to last line, which could be the "bottom", or the midpoint between the bottom and the "$" (if more room was needed). 
+`Tabulizer` specifies pages in blocks of 72 * inches, so a typical 8.5 x 11 verticle page would have dimensions of 612 x 720. This coordinate grid is used to specify the `area` parameter (`top`, `left`, `bottom` and `right`). All of of Massachusett's financial statement tables have a `"$"` sign in the first and last rows, so those could be used to locate the `top` or `bottom` paramenters. In addition, all pages including financial statements have language referring users to the "notes to the financial statements" usually on the second to last line, which could be the "bottom", or the midpoint between the bottom and the `"$"` (if more room was needed). 
 
 
 ```{r 'calculate-tabulizer-area', echo=TRUE, message=FALSE, warning=FALSE}
@@ -170,13 +179,13 @@ Tabulizer specifies pages in blocks of 72 * inches, so a typical 8.5 x 11 vertic
     
 ```
 
-We give an example for Abington's Statement of Net Position above, starting with the maximum "x" and "y", and determining the page orientation (ie: verticle or horizontal). After finding the location of the date line at the top, and walk down a little from there to set a "table_top" variable. Typically, it is best to leave a little margin between the page header and the top of the table. The bottom of the table is set adding the height to the bottom line of the table, and left parameter is set by taking the smallest "x" coordinate and reducing by a little to margin for error.  We leave a larger margin for the right-most coordinate because this is where we have found that the most errors occur, often when the algorithm seems to try to squish the table into the available columns.
+We give an example for Abington's Statement of Net Position above, starting with the maximum `x` and `y`, and determining the page orientation (ie: verticle or horizontal). After finding the location of the date line at the top, and walk down a little from there to set a `table_top` variable. Typically, it is best to leave a little margin between the page header and the top of the table. The bottom of the table is set adding the height to the bottom line of the table, and left parameter is set by taking the smallest `x` coordinate and reducing by a little to margin for error.  We leave a larger margin for the right-most coordinate because this is where we have found that the most errors occur, often when the algorithm seems to try to squish the table into the available columns.
 
 In our experience, the most problems come with missetting the top and right parameters. Indentation can also confuse the algorithm. Columns can be split in the middle into two columns, often at the far-rightmost, for example. In the end, we chose parameters of 93 (top), 24 (left), 681 (bottom) and 585 (right).
 
-# Tabulizer extract_table Function
+# Tabulizer `extract_table()` Function
 
-Below we run our area parameters we derived above through Tabulizer. Note that the area parameter, itself an integer vector, is further wrapped as a list because not having this structure throws an error. In addition, avoid the half day of wheel spinning we experienced by specifying guess as "F" to over-ride the default lattice, otherwise your area parameter is ignored with no warning. Also, we use the sonp_index integer to specify the page of the pdf. There are several options for output which all work as expected, but data.frame seems most natural.
+Below we run our area parameters we derived above through `tabulizer`. Note that the area parameter, itself an integer vector, is further wrapped as a list because not having this structure throws an error. In addition, avoid the half day of wheel spinning we experienced by specifying guess as "F" to over-ride the default lattice, otherwise your area parameter is ignored with no warning. Also, we use the sonp_index integer to specify the page of the pdf. There are several options for output which all work as expected, but data.frame seems most natural.
 
 
 ```{r}
@@ -197,7 +206,7 @@ abington_sonp
 
 # Clean up
 
-The Tabulizer output is still in a raw form with colums sometimes determined by indentations and "x" values, such as the "$" signs. The numbers are in character form with commas and sometimes negative numbers are shown in parenthesis, and need to be parsed into numeric. The item names often have a long series of periods which need to be stripped. The biggest challenge is the column names which often include the first row of the full column name, and need to be rebuilt. This is not a small task and not what we were hoping to illustrate in this post, so we are just showing the output below. Please refer to our Github code for the a more complete explanation and solutions to many of these issues.
+The `tabulizer` output is still in a raw form with colums sometimes determined by indentations and `x` values, such as the "$" signs. The numbers are in character form with commas and sometimes negative numbers are shown in parenthesis, and need to be parsed into numeric. The item names often have a long series of periods which need to be stripped. The biggest challenge is the column names which often include the first row of the full column name, and need to be rebuilt. This is not a small task and not what we were hoping to illustrate in this post, so we are just showing the output below. Please refer to our Github code for the a more complete explanation and solutions to many of these issues.
 
 
 ```{r 'clean-table', message=FALSE, warning=FALSE, include=FALSE}
@@ -266,7 +275,6 @@ clean_table <- function(page) {
     col <- str_replace(col, "-", NA_character_)
     col <- str_remove(col, " ")
     col <- readr::parse_number(col, c("NA"))
-    #col <- nafill(col, fill = 0L)
     col
   }), .SDcols=num]
   
@@ -317,5 +325,5 @@ datatable(abington_final,
 
 # Final Product
 
-Though there is still work to be done, the final product of this post is shown above Single elements could be extracted to form a database, or the output could be saved to csv. The headers such as ASSETS AAND LIABILITIES could be nested. The main point is that short of XBRL, the data has been set free from the PDF in a machine readable form. Not only that, this general process can be repeated for a large number of slightly differing PDFs with a relatively high low error rate. In cases where errors do occur, a second layer can be used to run the more challenging PDFs through AWS Textract SDK. We will show how this is done in our next post.
+Though there is still work to be done, the final product of this post is shown above Single elements could be extracted to form a database, or the output could be saved to csv. The headers such as ASSETS or LIABILITIES could be nested. The main point is that short of XBRL, the data has been set free from the PDF in a machine readable form. Not only that, this general process can be repeated for a large number of slightly differing PDFs with a relatively high low error rate. In cases where errors do occur, a second layer can be used to run the more challenging PDFs through AWS Textract SDK. We will show how this is done in our next post.
 

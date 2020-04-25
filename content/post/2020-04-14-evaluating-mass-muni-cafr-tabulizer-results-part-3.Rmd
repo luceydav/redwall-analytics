@@ -7,26 +7,37 @@ categories: ["R", "Code-Oriented"]
 tags: ["pdf", "pdftools", "tabulizer", "textract"]
 output:
   html_document:
-    code_folding: yes
+    code_folding: 'hide'
 ---
 
 
 ```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
 
-library(rlist)
-library(data.table)
-library(stringr)
-library(pdftools)
-library(readxl)
+# Libraries
+packages <- 
+  c("data.table",
+    "rlist",
+    "stringr",
+    "pdftools",
+    "readxl"
+    )
+
+if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = '100%')
 
 ```
 
 
 # Introduction
 
-This post is a continuation [Tabulizer and pdftools Together as Super-powers - Part 2](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/). Although the full process used to extract data from all our 150 PDFs will not shown, to review the steps that Redwall followed for the portion using pdftools and tabulizer:
+This post is a continuation [Tabulizer and pdftools Together as Super-powers - Part 2](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/) where we showed how combining `pdftools` and `tabulizer` together could lead to better, more scaleable data extraction. Although the full process used to extract data from all our 149 PDFs will not shown in this series, to review the steps that Redwall followed for the portion using `pdftools` and `tabulizer`:
 
-  1. Load all the pdf_data (metadata) for every page of the 150 PDFs into a list of lists with the metadata data.frame from pdftool's pdf_data.
+  1. Load all the pdf_data (metadata) for every page of the 148 PDFs into a list of lists with the metadata data.frame from pdftool's pdf_data.
   2. Filter the nested list to keep only the key tables (ie:  Statement of Activities, Balance Sheet, Statement of Net Position) using regular expression matching of sub-elements.
   3. Find the coordinates for the key Tabulizer area parameters using regular expressions and the pdf_data metadata.
   4. Extract those tables with Tabulizer into data.frames. 
@@ -57,7 +68,7 @@ mass_compare <- setDT(mass_compare)
 
 # Tabulizer Results Compared to Manual Spreadsheet
 
-In the code below, we show the PDFs where all fields did not match the manually-compiled spreadsheet. It is encouraging that there are only 6, Boston didn't match only because its CAFR numbers were rounded to the nearest thousand, while our reference spreadsheet was not. We also discovered that our CAFR library didn't have a 2018 CAFR in some cases, so that was the reason some didn't return any scraped results. In addition, some CAFR's are released as images, which don't work with the tabulizer OCR, but might work in AWS Textract.
+In the code below, we show the PDFs where all fields did not match the manually-compiled spreadsheet. It is encouraging that there are only 5 (Boston didn't match only because its CAFR numbers were rounded to the nearest thousand). We also discovered that our CAFR library didn't have a 2018 CAFR in some cases, so that was the reason some didn't return any scraped results. In addition, some CAFR's (Clinton and Montague) are released as scanned images of printed documents, which don't work with `pdftools`, so we couldn't get page indices to send to `tabulizer`.
 
 
 ```{r 'all-missing'}
@@ -77,10 +88,10 @@ all_missing
 ```
 
 
-The next table shows cases where one or more variable was not being extracted properly (difference not equal to zero). Of the 660 potential items in the spreadsheets which were successfully parsed, 33 did not match. 95% accuracy seems pretty good at first glance, but an analyst probably couldn't rely on this without a manual checking process. Another possible objective would be to know which formats would have a higher likelihood of failure, and just check those. For example, some tables run over onto a second page, and others have sections with larger indentations. In the next step, we will slice the problematic tables out of the relevant PDF, and run these through Textract to see what happens.
+The next table shows cases where one or more variable was not being extracted properly (difference not equal to zero). Of the 720 potential items in the spreadsheets which were successfully parsed, 43 did not match. 94% accuracy seems pretty good at first glance, but an analyst probably couldn't rely on this without some manual back-up checking. Another possible objective would be to know which formats would have a higher likelihood of failure, and just check those. For example, some tables run over onto a second page, and others have sections with larger indentations. In the next step, we will slice the problematic tables out of the relevant PDF, and run these through `Textract` to see what happens.
 
 
-```{r 'bad-elements', echo=FALSE, message=FALSE, warning=FALSE}
+```{r 'bad-elements', echo=FALSE, message=FALSE, warning=FALSE, fig.cap= '43 Elements had differences with manually extracted data'}
 
 # Find cases where at least one scraped item didn't match
 any_missing <- mass_compare[, 
@@ -100,4 +111,4 @@ DT::datatable(mass_compare[muni %in% bad_elements,
 
 # Conclusion
 
-The combination of pdftools and Tabula gave encouraging results, and we are confident that further fine tuning could further reduce the error rate. We also have some ideas about which tables fail most often, so the risk of an unexpected mismatch might be mitigated by manual intervention or getting a back up from Textract in these cases. In the next post [Scraping Failed Tabulizer PDFs with AWS Textract - Part 4](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/), we use the AWS paws SDK to save an aggregated PDF in S3 and use their machine-learning based Textract solution to extract the tables to see how their solution does for the difficult cases.
+The combination of `pdftools` and `tabulizer` gave encouraging results, and we are confident that further fine tuning could further reduce the error rate. We also have some ideas about which tables fail most often, so the risk of an unexpected mismatch might be mitigated by manual intervention or getting a back up from `Textract` in these cases. In the next post [Scraping Failed Tabulizer PDFs with AWS Textract - Part 4](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/), we use the AWS `paws` SDK to save an aggregated PDF in `S3` and use their machine-learning based `Textract` solution to extract the tables to see how their solution does for the difficult cases.
