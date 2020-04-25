@@ -39,7 +39,7 @@ knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = '100%'
 
 # Introduction
 
-In [Scraping Failed Tabulizer PDFs with AWS Textract - Part 4](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/), we showed how to use `pdftools` and `tabulizer` to subset a group of PDFs, the AWS `paws` SDK package to store the PDF in S3, and Textract machine learning to extract a block response object using its "asynchronous" process. Subsequently, we discovered an alternate route to save the desired pages as PNG and send those page-by-page to AWS to get the same result. This method has the added advantage of being free to free-tier AWS users. 
+In [Evaluating Mass Muni CAFR Tabulizer Results - Part 3](https://redwallanalytics.com/2020/04/14/evaluating-mass-muni-cafr-tabulizer-results-part-3/), we showed how to use `pdftools` and `tabulizer` to subset a group of PDFs, the AWS `paws` SDK package to store the PDF in `s3`, and Textract machine learning to extract a block response object using its "asynchronous" process. Subsequently, we discovered an alternate route to save the desired pages as PNG and send those page-by-page to AWS to get the same result. In the last post [Scraping Failed Tabulizer PDFs with AWS Textract - Part 4](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/) method has the added advantage of being free to free-tier AWS users. 
 
 In this post, we will show how to do this, and also how to parse the response blocks (shown in Figure \@ref(tab:list-view)), which took us a few days to figure out. As mentioned previously, the response blocks are complicated, with one nested list pertaining to text and another to the coordinates on the page. We attempted to write R-code to extract the required data, but in the end, decided to modify the AWS code, and call it within RStudio using the `reticulate` package. This had the added benefit of bringing together several pieces we had been working on.
 
@@ -92,7 +92,7 @@ pdf_convert(
 
 # Extract Page with AWS Textract Synchronous Operation
 
-We input our AWS credentials and set up a Textract response object in the same way as in the previous post. One difference between synchronous and asynchronous (demonstrated in the last post), is that `paws` sends the request and gets the response with just the `analyze_document()` function, instead of `start_document_analysis()` and the second `get_document_analysis`. We also did not need to loop, because each page fit within the maximum of 1000 blocks, and was immediately returned without a second function call. We also used the Bytes argument to reference the PNG from our local environment instead of pointing Textract to an S3 bucket.
+We input our AWS credentials and set up a Textract response object in the same way as in the previous post. One difference between synchronous and asynchronous (demonstrated in the last post), is that `paws` sends the request and gets the response with just the `analyze_document()` function, instead of `start_document_analysis()` and the second `get_document_analysis`. We also did not need to loop, because each page fit within the maximum of 1000 blocks, and was immediately returned without a second function call. We also used the Bytes argument to reference the PNG from our local environment instead of pointing Textract to an `s3` bucket.
 
 
 ```{r 'textract-extract', echo=TRUE, message=FALSE, warning=FALSE}
@@ -113,12 +113,12 @@ response <-
 
 # Description and List View of Textract Response Object
 
-In the chunk below, we show the anatomy of the response object. The first 10 tabs in the listviewer below have the `PAGE` (element 0) and some `LINE` elements (1-10), which are the parents of `WORD` and `CELL`. The `TABLE` block is shown in element 21, with its 168 children. `WORD` and `CELL` blocks are shown in lines 11-20 and 22-30, respectively. `CELL` and `WORD` blocks hvae no children, but can be used to find the location or row-column coordinates of a `WORD`. We spent a lot of time trying to understand the relationships between the different kinds of objects in order to parse it out in R, but in the end, it seemed easier just to use AWS's pre-built Python parser via `reticulate`.
+In the chunk below, we show the anatomy of the response object in a subset of blocks. The first 10 tabs in the listviewer below have the `PAGE` (element 0) and some `LINE` elements (1-10), which are the parents of `WORD` and `CELL`. The `TABLE` block is shown in element 21, with its 168 children. `WORD` and `CELL` blocks are shown in lines 11-20 and 22-30, respectively. `CELL` and `WORD` blocks hvae no children, but can be used to find the location or row-column coordinates of a `WORD`. We spent a lot of time trying to understand the relationships between the different kinds of objects in order to parse it out in R, but in the end, it seemed easier just to use AWS's pre-built Python parser via `reticulate`.
 
 
 ```{r 'list-view', echo=TRUE, message=FALSE, warning=FALSE}
 
-# View of first block
+# Sample of blocks
 listviewer::jsonedit(
   response[["Blocks"]][c(1:10, 161:170, 421:430)]
 )
@@ -128,7 +128,7 @@ listviewer::jsonedit(
 
 # Parsing the Response Object with Reticulated Python
 
-An increasing amount is being written on how to use `reticulate`, so we won't get into great detail here about how to set it up here. It took us a long time to understand how to set up our environment, but as this case shows, it is probably going to be worth it to switch back and forth to take advantage of the strengths of the two languages. We used Python 3.7 with miniconda after re-installing Anaconda post the recent upgrade to Catalina, in which Apple re-arranged our whole set-up. 
+An increasing amount is being written on how to use `reticulate` to run Python code from RStudio, so we won't get into great detail here about how to set it up here. It took us a long time to understand how to set up our environment, but as this case shows, it is probably going to be worth it to switch back and forth to take advantage of the strengths of the two languages. We used Python 3.7 with miniconda after re-installing Anaconda post the recent upgrade to Catalina, in which Apple re-arranged our whole set-up. 
 
 
 ```{r 'reticulate', echo=TRUE, message=FALSE, warning=FALSE}
@@ -145,7 +145,7 @@ reticulate::use_condaenv(
 
 AWS gives the Python code to parse the blocks back into a tabular form [Textract Python Table Parser] (https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/python/example_code/textract/textract_python_table_parser.py). This code built in the call to AWS with the Python boto client from the command line, but we didn't need these functions, so we had to modify to take already returned response straight from our RStudio environment. 
 
-A second problem that we encountered was that when the response object was read into Python from R, blocks which had multiple children `Ids` were converted to list, while those with single children were stored as strings. It took some time, we patched this in the `get_text` function below by converting the strings to single item lists, so it should work for any R user now. We noted where we made modifications with comments below. 
+A second problem that we encountered was that when the response object was read into Python from R, blocks which had multiple children `Ids` were converted to list, while those with single children were stored as strings. It took some time, we patched this in the `get_text()` function below by converting the strings to single item lists, so it should work for any R user now. We noted where we made modifications with comments below. 
 
 
 ```{python 'textract-python-table-parser', echo=TRUE}
@@ -245,7 +245,7 @@ As a refresher from [Evaluating Mass Muni CAFR Tabulizer Results - Part 3](https
 
 
 
-```{r 'textract-compare', echo=FALSE, message=FALSE, warning=FALSE, fig.cap = 'Textract fixed almost half of wrong elements'}
+```{r 'textract-compare', echo=FALSE, message=FALSE, warning=FALSE, fig.cap = 'Textract fixed almost half of wrongly extracted tabulizer elements'}
 
 # Compare Textract to manual data
 textract_compare <-
@@ -294,10 +294,10 @@ As reminder of the tools demonstrated in this 5-part series,
 4. Use pdttools to find exact table parameters and accurately extract a large amount of slightly varying tables combining `pdftools` and `tabulizer` 
 [Tabulizer and pdftools Together as Super-powers](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/)
 
-5. Connect and interact with AWS S3 with the `paws` SDK 
+5. Connect and interact with AWS'`s3` with the `paws` SDK 
 [Scraping Failed Tabulizer PDFs with AWS Textract](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/)
 
-6. Send requests to AWS Textract from S3 and use bulk asynchronous operation with the `paws` SDK 
+6. Send requests to AWS `Textract` from `s3` and use bulk asynchronous operation with the `paws` SDK 
 [Scraping Failed Tabulizer PDFs with AWS Textract](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/)
 
 7. Convert a PDF page to PNG and send and receive single page requests to AWS Textract. 

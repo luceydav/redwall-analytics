@@ -8,7 +8,7 @@ categories: ["R", "Code-Oriented"]
 tags: ["pdf", "pdftools", "tabulizer", "XBRL", "textract"]
 output:
   html_document:
-    code_folding: true
+    code_folding: 'hide'
 ---
 
 ```{r 'set-up', include=FALSE}
@@ -35,6 +35,7 @@ knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = '100%'
 ```
 
 
+
 # Introduction
 
 Redwall Analytics had the pleasure of collaborating with Marc Joffe, of Reason Foundation, in its October 2018 post [Replicating Yankee Institute Risk Score Over 15 Years](https://redwallanalytics.com/2019/10/12/replicating-yankee-institute-risk-score-over-15-years/) for 150 Connecticut towns. This involved taking a well organized public dataset from the State's website, and analyzing and building an application to view the risk score over time in R. When Marc called to ask if we could report on our blog site about similar analysis for 149 Massachusetts towns, as in Connecticut's [Warning Signs](https://yankeeinstitute.org/wp-content/uploads/2018/08/Warning-Signs-min-1.pdf), we jumped at the idea. Naturally, Redwall wanted to replicate the analysis over a longer time period, but this turned out to be more challenging in Massachusetts. 
@@ -42,6 +43,7 @@ Redwall Analytics had the pleasure of collaborating with Marc Joffe, of Reason F
 As Redwall discussed in [A Walk Though of Accessing Financial Statements with XBRL in R - Part 1](https://redwallanalytics.com/2020/02/18/a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1/), the SEC has required registered companies to report in XBRL since 2008. Unfortunately, this is not the case for the tens of thousands of municipal borrowers around the US. Connecticut is one of approximately 20 states with a forman municipal monitoring program, so the Office of Policy and Management systematically gathers key financial statement data each year in an annual report and open public databases. Unfortunately, Massachusetts does not have formal monitoring and does not make similar databases available. 
 
 While Massachusetts does maintain the slick-looking [Municipal Trends Dashboard](https://www.mass.gov/service-details/municipal-finance-trend-dashboard), with some key information going back in some cases 20 years, it doesn't offer the opportunity to download the complete data, and for some reason, excludes a lot of key elements. For example, it includes "Unassigned General Fund Balance", but not "Assigned General Fund Balance", so it is impossible to know the complete picture of the Fund Balance of a municipality. There are similar difficulties finding the "Unrestricted Net Position", which is essential to the Yankee Institute's analysis. In Connecticut, we have felt a little left behind by Massachusetts' successful biotech and high-technology industries, and resulting booming real estate markets, so it was a surprise to see how far ahead we are in this regard.
+
 
 # Project Outlines
 
@@ -68,11 +70,11 @@ names(reason)[c(1:16, 40:106)]
 
 # Blogpost Index
 
-Part 1 - Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract
-Part 2 - [Tabulizer and pdftools Together as Super-powers](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/)
-Part 3 - [Evaluating Mass Muni CAFR Tabulizer Results](https://redwallanalytics.com/2020/04/14/evaluating-mass-muni-cafr-tabulizer-results-part-3/)
-Part 4 - [Scraping Failed Tabulizer PDFs with AWS Textract](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/)
-Part 5 - [Evaluating Mass Muni CAFR Textract Results](https://redwallanalytics.com/2020/04/24/evaluating-mass-muni-cafr-textract-results-part-5/)
+* Part 1 - Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract
+* Part 2 - [Tabulizer and pdftools Together as Super-powers](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/)
+* Part 3 - [Evaluating Mass Muni CAFR Tabulizer Results](https://redwallanalytics.com/2020/04/14/evaluating-mass-muni-cafr-tabulizer-results-part-3/)
+* Part 4 - [Scraping Failed Tabulizer PDFs with AWS Textract](https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/)
+* Part 5 - [Evaluating Mass Muni CAFR Textract Results](https://redwallanalytics.com/2020/04/24/evaluating-mass-muni-cafr-textract-results-part-5/)
 
 
 
@@ -80,7 +82,9 @@ Part 5 - [Evaluating Mass Muni CAFR Textract Results](https://redwallanalytics.c
 
 To begin with, we load and show his spreadsheet analysis with his key inputs. Needless to say, it is a big job to gather and extract that much data manually PDF-by-PDF and record in a spreadsheet. In addition, Marc's approach can only be used at a point in time, and would require a similar amount of effort to repeat for past or future years. If it is possible to reliably automate, even partially, it should help the cause of municipal fiscal transparency. We show the data used in Marc's analysis in Table \@ref(fig:mass-inputs) below. As with most of our posts, it is possible to scroll over the table columns, adjust the number of rows displayed or search for a particular municipality with the search bar. 
 
+
 ```{r 'mass-inputs', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Massachusetts Municipal Financial Data - Key Inputs'}
+
 keeps <- 
   unlist(strsplit(
     "entity census_2018_population unrestricted_net_position_total_expenditures total_debt_total_revenue unassigned_and_assigned_general_fund_balance_general_fund_expenditures home_price_change employment_change current_assets current_liabilities total_assets total_net_position total_unrestricted_net_position general_revenues capital_grants_and_contributions charges_for_services operating_grants_and_contributions other total_revenues total_expenditures change_in_net_assets general_fund_revenues general_fund_expenditures revenues_over_under_expenditure net_1 governmental_fund_revenues governmental_fund_expenditures revenues_over_under_expenditure_2 net_2 current_portion_of_long_term_debt net_pension_liability net_opeb_liability all_other_long_term_debt total_long_term_debt_sum_of_four_fields_above total_long_term_debt_from_balance_sheet net_opeb_obligation_governmental_activities net_opeb_obligation_business_type_activities net_opeb_obligation_governmentwide net_opeb_obligation_component_units adec_opeb annual_opeb_cost actual_contribution_opeb actuarial_valuation_of_assets_opeb total_opeb_liability unfunded_actuarially_accrued_liability_opeb funded_ratio_opeb discount_rate_opeb inflation_rate_opeb actuarially_determined_pension_contribution actual_pension_contribution gen_fund_balance_non_spendable gen_fund_balance_restricted gen_fund_balance_committed assigned_general_fund_balance unassigned_general_fund_balance general_fund_balance_previously_labeled_excess_deficiency_general_fund all_gen_fund_balance tot_gov_fund_balance_non_spendable tot_gov_fund_balance_restricted tot_gov_fund_balance_committed assigned_governmental_fund_balance unassigned_governmental_fund_balance governmental_fund_balance pension_adec_over_total_revenue general_fund_balance_over_general_fund_expenditure total_debt_ex_pension_liability_over_total_revenue", " "
@@ -117,9 +121,11 @@ DT::datatable(
 
 ```
 
+
 As shown above in Table \@ref(fig:mass-inputs), Marc uses three financial statement metrics for his analysis: (1) Unrestricted Net Position divided by total expenses, (2) All forms of indebtedness including unfunded pension and OBEB liabilities divided by total revenues, (3) Unassigned plus Assigned Net Position divided by General Fund Expenses, and two cyclical/macro metrics inculding: (1) year-over-year change in employment and change in home prices. At the moment of this analysis (ie: based on 2018 conditions), the two cyclical components don't differentiate much among municipalities at this point in time, because most have high scores. Together, these drive his five Risk score components to give the aggregate "Risk Score" below for each town, shown below in Table \@ref(fig:risk-score-summary). For a more detailed explanation, see [Towns in Trouble - Assessing Municipal Health in Vermont](http://ethanallen.org/wp-content/uploads/2019/11/Towns-in-Trouble.EAI-2019.-11.18.2019.pdf)
 
 According to Marc's analysis, a handful of towns including:  Fall River, New Bedford, Pittsfield, Eastham, Quincy, Glouchester and Springfield are most vulnerable. Some of these towns have weak scores for Unrestricted Net Position, Debt and General Fund, but are helped by the smaller, more cyclical Home Valuation and Employment components. Even the strongest towns have somewhat weak Unrestricted Net Positions, and after the strongest 30-40 towns, General Funds and Debt Scores start to fall off. 
+
 
 ```{r 'risk-score-summary', echo=FALSE, message=FALSE, warning=FALSE,fig.cap='Massachusetts Municipal Vulnerability Scores'}
 
@@ -155,7 +161,7 @@ datatable(reason[keeps], extensions = c('FixedColumns'),
 
 # Conclusion
 
-That completes the first in this series of posts. In the next post [Tabulizer and pdftools Together as Super-powers - Part 2](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/), we will show how to the combination of pdftools and tabulizer can enable more accurate table extraction for a large number of slightly varying tables.
+That completes the first in this series of posts. In the next post [Tabulizer and pdftools Together as Super-powers - Part 2](https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-together-as-super-powers-part-2/), we will show how to the combination of pdftools and tabulizer can enable more accurate table extraction for a large number of slightly varying tables.
 
 
 ```{r 'load-mass-file', eval=FALSE, include=FALSE}

@@ -67,6 +67,7 @@ names(abington) <- 1:length(abington)
 str(abington[[2]])
 ```
 
+
 # PDF Tools pdf_data Functionality
 
 The above is a list of data.frames containing metadata of the location of every word on every one of the 92 pages of the Abington 2018 CAFR. The structure of the second page is shown above. But, we only need the key financial statements, so would like to drop the majority of pages which don't have what we need. For example, we know that page 16 has the Statement of Net Position. We could search for that page using regular expressions as shown for variable `sonp` below. 
@@ -115,6 +116,7 @@ sonp_index <-
 sonp <- abington[sonp_index][[1]]
 sonp
 ```
+
 
 Above is the text grid of Abington's Statement of Net Position as taken by `pdftools`. Using this metadata, we can begin to put together exact area parameters for Tabula. Even better, we could programically do it for a large number of tabless. In our experience, this is important because the `tabulizer` default `lattice` method for tabular data can be unpredictable cutting off fields unexpectedly. 
 
@@ -179,9 +181,11 @@ Above is the text grid of Abington's Statement of Net Position as taken by `pdft
     
 ```
 
+
 We give an example for Abington's Statement of Net Position above, starting with the maximum `x` and `y`, and determining the page orientation (ie: verticle or horizontal). After finding the location of the date line at the top, and walk down a little from there to set a `table_top` variable. Typically, it is best to leave a little margin between the page header and the top of the table. The bottom of the table is set adding the height to the bottom line of the table, and left parameter is set by taking the smallest `x` coordinate and reducing by a little to margin for error.  We leave a larger margin for the right-most coordinate because this is where we have found that the most errors occur, often when the algorithm seems to try to squish the table into the available columns.
 
 In our experience, the most problems come with missetting the top and right parameters. Indentation can also confuse the algorithm. Columns can be split in the middle into two columns, often at the far-rightmost, for example. In the end, we chose parameters of 93 (top), 24 (left), 681 (bottom) and 585 (right).
+
 
 # Tabulizer `extract_table()` Function
 
@@ -322,6 +326,7 @@ datatable(abington_final,
   )
 
 ```
+
 
 # Final Product
 
