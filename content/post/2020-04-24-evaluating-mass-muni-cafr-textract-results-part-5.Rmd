@@ -249,7 +249,7 @@ As a refresher from [Evaluating Mass Muni CAFR Tabulizer Results - Part 3](https
 
 # Compare Textract to manual data
 textract_compare <-
-  readxl::read_xls("~/Desktop/David/Projects/pdf_cafr_parse/textract_compare.xls")
+  readxl::read_xls("~/Desktop/David/Projects/pdf_cafr_parse/intermediate_data/textract_compare.xls")
 textract_compare <- setDT(textract_compare)
 textract_compare <-
   textract_compare[, .SD, .SDcols = patterns("muni|diff_")]
@@ -258,7 +258,7 @@ textract_compare <-
 
 # Problem elements from pdftools/tabulizer extraction
 problems <-
-  fread("/Users/davidlucey/Desktop/David/Projects/pdf_cafr_parse/problems.csv")
+  fread("/Users/davidlucey/Desktop/David/Projects/pdf_cafr_parse/intermediate_data/problems.csv")
 fixed <-
   textract_compare[problems, on = c("muni", "variable")]
 fixed[,

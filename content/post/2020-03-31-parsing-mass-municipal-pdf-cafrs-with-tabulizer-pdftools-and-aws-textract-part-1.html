@@ -28,6 +28,24 @@ output:
 <script src="/rmarkdown-libs/crosstalk/js/crosstalk.min.js"></script>
 
 
+<pre class="r"><code># Libraries
+packages &lt;- 
+  c(&quot;data.table&quot;,
+    &quot;rlist&quot;,
+    &quot;stringr&quot;,
+    &quot;DT&quot;,
+    &quot;janitor&quot;,
+    &quot;readxl&quot;,
+    &quot;xlsx&quot;
+    )
+
+if (length(setdiff(packages,rownames(installed.packages()))) &gt; 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = &#39;100%&#39;)</code></pre>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>Redwall Analytics had the pleasure of collaborating with Marc Joffe, of Reason Foundation, in its October 2018 post <a href="https://redwallanalytics.com/2019/10/12/replicating-yankee-institute-risk-score-over-15-years/">Replicating Yankee Institute Risk Score Over 15 Years</a> for 150 Connecticut towns. This involved taking a well organized public dataset from the State’s website, and analyzing and building an application to view the risk score over time in R. When Marc called to ask if we could report on our blog site about similar analysis for 149 Massachusetts towns, as in Connecticut’s <a href="https://yankeeinstitute.org/wp-content/uploads/2018/08/Warning-Signs-min-1.pdf">Warning Signs</a>, we jumped at the idea. Naturally, Redwall wanted to replicate the analysis over a longer time period, but this turned out to be more challenging in Massachusetts.</p>
@@ -45,7 +63,7 @@ output:
 <h1>Blogpost Index</h1>
 <ul>
 <li>Part 1 - Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract</li>
-<li>Part 2 - <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers</a></li>
+<li>Part 2 - <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-together-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers</a></li>
 <li>Part 3 - <a href="https://redwallanalytics.com/2020/04/14/evaluating-mass-muni-cafr-tabulizer-results-part-3/">Evaluating Mass Muni CAFR Tabulizer Results</a></li>
 <li>Part 4 - <a href="https://redwallanalytics.com/2020/04/14/scraping-failed-tabulizer-pdfs-with-aws-textract-part-4/">Scraping Failed Tabulizer PDFs with AWS Textract</a></li>
 <li>Part 5 - <a href="https://redwallanalytics.com/2020/04/24/evaluating-mass-muni-cafr-textract-results-part-5/">Evaluating Mass Muni CAFR Textract Results</a></li>

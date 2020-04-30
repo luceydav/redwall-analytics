@@ -23,6 +23,24 @@ output:
 <script src="/rmarkdown-libs/crosstalk/js/crosstalk.min.js"></script>
 
 
+<pre class="r"><code># Libraries
+packages &lt;- 
+  c(&quot;data.table&quot;,
+    &quot;stringr&quot;,
+    &quot;rlist&quot;,
+    &quot;tabulizer&quot;,
+    &quot;pdftools&quot;,
+    &quot;parallel&quot;,
+    &quot;DT&quot;
+    )
+
+if (length(setdiff(packages,rownames(installed.packages()))) &gt; 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = &#39;100%&#39;)</code></pre>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>This post will be a continuation of <a href="https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/">Parsing of Mass Municipal PDF CAFR’s with Tabulizer, pdftools and AWS Textract - Part 1</a> dealing with extracting data from PDFs using R. When Redwall discovered <code>pdftools</code>, and its <code>pdf_data()</code> function, which maps out every word on a pdf page by x-y coordinate, we thought that was interesting, but didn’t really know how to use it. We also didn’t have the regular expression skills, and were much more befuddled by the nested list structures than we are now.</p>
@@ -316,5 +334,5 @@ abington_sonp</code></pre>
 </div>
 <div id="final-product" class="section level1">
 <h1>Final Product</h1>
-<p>Though there is still work to be done, the final product of this post is shown above Single elements could be extracted to form a database, or the output could be saved to csv. The headers such as ASSETS or LIABILITIES could be nested. The main point is that short of XBRL, the data has been set free from the PDF in a machine readable form. Not only that, this general process can be repeated for a large number of slightly differing PDFs with a relatively high low error rate. In cases where errors do occur, a second layer can be used to run the more challenging PDFs through AWS Textract SDK. We will show how this is done in our next post.</p>
+<p>Though there is still work to be done, the final product of this post is shown above. Single elements could be extracted to form a database, or the output could be saved to csv. The headers such as ASSETS or LIABILITIES could be nested. The main point is that short of XBRL, the data has been set free from the PDF in a machine readable form. Not only that, this general process can be repeated for a large number of slightly differing PDFs with a relatively high low error rate as we will show in the next post <a href="https://redwallanalytics.com/2020/04/14/evaluating-mass-muni-cafr-tabulizer-results-part-3/">Evaluating Mass Muni CAFR Tabulizer Results - Part 3</a>. In cases where errors do occur, a second layer can be used to run the more challenging PDFs through AWS Textract SDK. We will show how this is done in our next post.</p>
 </div>

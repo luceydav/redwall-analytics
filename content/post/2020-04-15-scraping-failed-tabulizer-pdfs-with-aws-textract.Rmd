@@ -11,7 +11,7 @@ output:
 ---
 
 
-```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
+```{r 'set-up', message=FALSE, warning=FALSE}
 
 # Libraries
 packages <- 
@@ -129,7 +129,7 @@ s3$put_object(
 )
 
 buckets <- s3$list_buckets()
-buckets$Buckets[[1]]
+buckets$Buckets[[1]][1:3]
 ```
 
 # Setting up Textract Object and Calling Start Document Analysis
@@ -191,12 +191,12 @@ In the next step, we have our work cut out to extract the key elements from the 
 
 ```{r 'get-document-analysis', echo=TRUE, message=FALSE, warning=FALSE}
 
-# Get 1st list of blocks and "NextToken"
+# Get 1st 10 blocks
 a <- 
   svc$get_document_analysis(JobId= unlist(JobId))
 
 listviewer::jsonedit(
-  a[["Blocks"]][2:10]
+  a[["Blocks"]][1:10]
 )
 
 ```

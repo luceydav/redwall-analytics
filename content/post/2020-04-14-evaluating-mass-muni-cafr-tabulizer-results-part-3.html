@@ -21,6 +21,22 @@ output:
 <script src="/rmarkdown-libs/crosstalk/js/crosstalk.min.js"></script>
 
 
+<pre class="r"><code># Libraries
+packages &lt;- 
+  c(&quot;data.table&quot;,
+    &quot;rlist&quot;,
+    &quot;stringr&quot;,
+    &quot;pdftools&quot;,
+    &quot;readxl&quot;
+    )
+
+if (length(setdiff(packages,rownames(installed.packages()))) &gt; 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = &#39;100%&#39;)</code></pre>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>This post is a continuation <a href="https://redwallanalytics.com/2020/04/06/tabulizer-and-pdftools-togeteher-as-super-powers-part-2/">Tabulizer and pdftools Together as Super-powers - Part 2</a> where we showed how combining <code>pdftools</code> and <code>tabulizer</code> together could lead to better, more scaleable data extraction on a large number of slightly varying pdfs. Although the full process used to extract data from all our 149 PDFs will not shown in this series, to review the steps that Redwall followed for the portion using <code>pdftools</code> and <code>tabulizer</code>:</p>
@@ -36,7 +52,7 @@ output:
 <p>Please see our <a href="https://github.com/luceydav/pdf_cafr_parse/blob/master">Github</a> for the code. In this post, we will evaluate how we did with with this first method.</p>
 <pre class="r"><code># Load comparison of scraped vs Reason spreadsheet
 mass_compare &lt;- 
-  readxl::read_excel(&quot;~/Desktop/David/Projects/pdf_cafr_parse/mass_compare.xls&quot;, 
+  readxl::read_excel(&quot;~/Desktop/David/Projects/pdf_cafr_parse/intermediate_data/mass_compare.xls&quot;, 
     col_types = c(&quot;skip&quot;, &quot;text&quot;, &quot;numeric&quot;, 
         &quot;numeric&quot;, &quot;numeric&quot;, &quot;numeric&quot;, 
         &quot;numeric&quot;, &quot;numeric&quot;, &quot;numeric&quot;, 

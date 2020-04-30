@@ -11,7 +11,7 @@ output:
 ---
 
 
-```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
+```{r 'set-up', message=FALSE, warning=FALSE}
 
 # Libraries
 packages <- 
@@ -52,7 +52,7 @@ Please see our [Github](https://github.com/luceydav/pdf_cafr_parse/blob/master) 
 
 # Load comparison of scraped vs Reason spreadsheet
 mass_compare <- 
-  readxl::read_excel("~/Desktop/David/Projects/pdf_cafr_parse/mass_compare.xls", 
+  readxl::read_excel("~/Desktop/David/Projects/pdf_cafr_parse/intermediate_data/mass_compare.xls", 
     col_types = c("skip", "text", "numeric", 
         "numeric", "numeric", "numeric", 
         "numeric", "numeric", "numeric", 

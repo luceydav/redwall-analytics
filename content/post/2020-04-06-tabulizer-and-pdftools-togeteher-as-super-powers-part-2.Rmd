@@ -11,7 +11,7 @@ output:
 ---
 
 
-```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
+```{r 'set-up', message=FALSE, warning=FALSE}
 
 # Libraries
 packages <- 
@@ -330,5 +330,5 @@ datatable(abington_final,
 
 # Final Product
 
-Though there is still work to be done, the final product of this post is shown above Single elements could be extracted to form a database, or the output could be saved to csv. The headers such as ASSETS or LIABILITIES could be nested. The main point is that short of XBRL, the data has been set free from the PDF in a machine readable form. Not only that, this general process can be repeated for a large number of slightly differing PDFs with a relatively high low error rate. In cases where errors do occur, a second layer can be used to run the more challenging PDFs through AWS Textract SDK. We will show how this is done in our next post.
+Though there is still work to be done, the final product of this post is shown above. Single elements could be extracted to form a database, or the output could be saved to csv. The headers such as ASSETS or LIABILITIES could be nested. The main point is that short of XBRL, the data has been set free from the PDF in a machine readable form. Not only that, this general process can be repeated for a large number of slightly differing PDFs with a relatively high low error rate as we will show in the next post [Evaluating Mass Muni CAFR Tabulizer Results - Part 3](https://redwallanalytics.com/2020/04/14/evaluating-mass-muni-cafr-tabulizer-results-part-3/). In cases where errors do occur, a second layer can be used to run the more challenging PDFs through AWS Textract SDK. We will show how this is done in our next post.
 
