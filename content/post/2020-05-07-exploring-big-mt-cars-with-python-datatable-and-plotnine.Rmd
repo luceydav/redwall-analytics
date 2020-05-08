@@ -17,7 +17,7 @@ As mentioned in [Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and A
 
 The Python datatable was launched by h2o two years ago, and feels very similar to the R version with some small syntax differences and some important pieces still missing. We could only find a handful of posts showing how to use datatable, and those felt like they were not written by regular R data.table users. We use data.table every day and love the speed and consise syntax, so will discuss datatable from that perspective. Plotnine feels more seemless with ggplot2, another library we use every day, with a few problems formatting plots in R Studio. 
 
-To make it more interesting, we will use the [Tidy Tuesday Big MT Cars]("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv) with 35 years of new car models (over 42k) with the data dictionary found [here](https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1). This is a great dataset with a few caveats. In the past, when we modeled the traditional mtcars, weight and horsepower were the most significant variables for predicting mpg. In addition, it is hard to get a sense of total fleet mileage without the total number of each model sold. While the dataset is still of interest, including these three fields would enrich the dataset considerably if the EPA was interested in getting people to consider the attributes of fuel efficient cars!
+To make it more interesting, we will use the [Tidy Tuesday Big MT Cars]("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv) with 35 years of new car models (over 42k) with the data dictionary found [here](https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1). This is a great dataset with a few caveats. In the past, when we modeled the traditional mtcars, weight (`wt`) and horsepower (`hp`) were the most significant variables for predicting mpg. In addition, it is hard to get a sense of total fleet mileage without the total number of each model sold. While the dataset is still of interest, including these three fields would enrich it considerably if the EPA was interested in getting people to consider the attributes of fuel efficient cars!
 
 
 ```{r 'setup', message=FALSE, warning=FALSE, cache=FALSE, include=TRUE}
@@ -103,7 +103,7 @@ big_mt[['trans', 'speed']] = big_mt.to_pandas().pop('trany').str.split('\s', 1, 
 big_mt['speed'] = big_mt.to_pandas().pop('speed').str.replace('\D*', '')
 
 # Summarize percent of instances by transmission and speed
-big_mt[:, {'percent' : dt.count()/big_mt.nrows}, dt.by(dt.f.trans, dt.f.speed)][0:10, :: ,dt.sort(-dt.f.percent)]
+print(big_mt[:, {'percent' : dt.count()/big_mt.nrows}, dt.by(dt.f.trans, dt.f.speed)][0:10, :: ,dt.sort(-dt.f.percent)])
 
 ```
 
@@ -115,7 +115,7 @@ We also use piped our evMotor evaluation out to pandas in order to create an "is
 big_mt['is_ev'] = big_mt[:, dt.f.evMotor != '' ].to_pandas()
 
 # Summarize number of ev models by year
-big_mt[:, dt.count(), dt.by(dt.f.is_ev, dt.f.year)][(dt.f.is_ev == 1), ('year', 'count')]
+print(big_mt[:, dt.count(), dt.by(dt.f.is_ev, dt.f.year)][(dt.f.is_ev == 1), ('year', 'count')])
 
 ```
 
@@ -133,7 +133,7 @@ big_mt[:, 'engine'] = dt.Frame([re.findall(r'V\d', x)[0] if re.search(r'V\d', x)
 big_mt.replace("\dwd", "\dWD")
 
 # Summarize total count for all years
-big_mt[(dt.f.wheel != 'nan'), ('make', 'model', 'drive', 'engine', 'cylinders', 'wheel', 'tCharger', 'sCharger')][:, dt.count(), dt.by(dt.f.engine, dt.f.wheel, dt.f.cylinders)][0:13,:, dt.sort(-dt.f.count)]
+print(big_mt[(dt.f.wheel != 'nan'), ('make', 'model', 'drive', 'engine', 'cylinders', 'wheel', 'tCharger', 'sCharger')][:, dt.count(), dt.by(dt.f.engine, dt.f.wheel, dt.f.cylinders)][0:13,:, dt.sort(-dt.f.count)])
 
 ```
 
@@ -144,10 +144,8 @@ There was no such thing as SUVs or AWD back in the 80's, and we remember the big
 # Summarize by year again having to move to pandas to pivot
 big_mt[:, dt.count(), dt.by(dt.f.wheel, dt.f.year)].to_pandas().pivot_table(index='wheel', columns='year', values='count')
 
-big_mt[:, dt.count(), dt.by(dt.f.cylinders, dt.f.year)].to_pandas().pivot_table(index='cylinders', columns='year', values='count')
+print(big_mt[:, dt.count(), dt.by(dt.f.cylinders, dt.f.year)].to_pandas().pivot_table(index='cylinders', columns='year', values='count'))
 ```
-
-
 
 
 
@@ -187,14 +185,14 @@ big_mt['VClass'] = dt.Frame([re.sub('\s\dWD$|\/\dwd$|\s\-\s\dWD$', '', x) if re.
 big_mt['VClass'] = dt.Frame([collapse_vclass(line[0]) for line in big_mt[:, 'VClass'].to_tuples()])
 
 # Show final VClass types
-big_mt[:, dt.f.VClass, dt.by(dt.f.VClass)][0:11, 'VClass'].to_numpy()
+print(big_mt[:, dt.f.VClass, dt.by(dt.f.VClass)][0:11, 'VClass'].to_numpy())
 
 ```
 
 
 
 ```{python}
-big_mt[((dt.f.engine != 'nan') & (dt.f.wheel != 'nan')), ('make','model','year', 'VClass', 'engine', 'wheel')]
+print(big_mt[((dt.f.engine != 'nan') & (dt.f.wheel != 'nan')), ('make','model','year', 'VClass', 'engine', 'wheel')])
 ```
 
 We show some output of the split `VClass` and `model` above. Note that we only have both `engine` and `wheel` for a small number of cases. Below, we show how to `export_names()` in order to specify those variables as available for non-standard evaluation. We waited while we were transforming variables above to do this, but maybe it would make sense to do it along the way as new variables are created. This happens automatically in data.table, and is an added layer of inconvenience. 
