@@ -22,7 +22,7 @@ To make it more interesting, we will use the [Tidy Tuesday Big MT Cars]("https:/
 
 ```{r 'setup', message=FALSE, warning=FALSE, cache=FALSE, include=TRUE}
 
-# Libraries
+# R Libraries
 library("reticulate")
 library("skimr")
 
@@ -48,6 +48,7 @@ reticulate::use_condaenv(
 
 ```{r 'install-conda', message=FALSE, warning=FALSE, eval = FALSE}
 
+# Install Python packages
 lapply(c("plotnine", "datatable", "re"), function(package) {
        conda_install("datatable", package, pip = TRUE)
 })
@@ -57,10 +58,10 @@ lapply(c("plotnine", "datatable", "re"), function(package) {
 
 ```{python 'python-setup'}
 
+# Python libraries
 import datatable as dt
 import numpy as np
 import re
-import plotnine as p9
 
 ```
 
@@ -69,6 +70,7 @@ We downloaded the most recent version of the EPA data and took a look at the dim
 
 ```{python 'load-big-mt'}
 
+# Load vehicles
 #https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
 #big_mt_cars <- fread("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv")
 big_mt = dt.fread("~/Downloads/vehicles.csv")
@@ -91,7 +93,7 @@ print(big_mt[year_filter, (dt.f.year, dt.f.make, dt.f.model, dt.f.trany, dt.f.ev
 
 To start with, `trany` has both the transmission-type and gear-speed variable within it. We struggled quite a bit with column transformations, like separating variables, which still seems easier with data.table. It may be that our Python ability is still lacking, but the need to iterate over the nested list or tuples structure of columns wouldn't allow us to use regex patterns without list comprehensions. We found that the easiest thing to do in these cases was to send the data to pandas, and split and replace as shown in the first two steps below. An easier method from within datatable would be appreciated.
 
-In the third line of code, we felt like we were using an R data.table. Notice that we had to refer to variables with the datatable non-standard evaluation format (ie: `dt.f.trans` and `dt.f.speed`) if we wanted to avoid including quotation marks. In Python datatable, an extra step is required to `export_names` before this can be avoided (as we will show further down). We also have to call functions referring to the short name `dt` as we did with `dt.count()` and `dt.by()`  even though we are within the frame. Two other differences, which we frequently forgot, was the need to refer to the row or column with a `:` even if we were not specifically giving instructions, because an error was thrown if not specified. Also, `dt.sort` and several other operations are done in a forth slot within the frame, unlike in data.table where they are done in `i` in the next frame.
+In the third line of code, we felt like we were using an R data.table.  The `{}` is used to create the new variable without affecting the other variables as `:=` would be used within data.table. Notice that we had to refer to variables with the datatable non-standard evaluation format (ie: `dt.f.trans` and `dt.f.speed`) if we wanted to avoid including quotation marks. In Python datatable, an extra step is required to `export_names()` before this can be avoided (as we will show further down). We also have to call functions referring to the short name `dt` as we did with `dt.count()` and `dt.by()`, even though we are within the frame. Two other differences, which we frequently forgot, was the need to refer to the row or column with a `:` even if we were not specifically giving instructions, because an error was thrown if not specified. Also, `dt.sort` and several other operations are done in a forth slot within the frame, unlike in data.table where they are done in `i` in the next frame.
 
 
 ```{python 'split-trany', echo=TRUE}
@@ -107,7 +109,8 @@ print(big_mt[:, {'percent' : dt.count()/big_mt.nrows}, dt.by(dt.f.trans, dt.f.sp
 
 ```
 
-We also use piped our evMotor evaluation out to pandas in order to create an "is_ev" (electric) vehicle if the row had a battery given. We also had difficulty with row filtering at first, but got more used it over time. Above we showed how to filter with an expression set up outside the frame, but below `(dt.f.is_ev == 1)`, it is done within the frame. Without the parentheses, the expression won't work. We sometimes also had difficulty if we wanted to use multiple expressions to filter one frame or if we wanted to filter, and then perform some operations in `j` or In the table, we show the number of electric vehicles rising from 3 in 1998 to 149 this year.
+We also use piped our `evMotor` evaluation out to pandas in order to create an `is_ev` (electric) vehicle if the row had a battery given. We also had difficulty with row filtering at first, but got more used it over time. Above we showed how to filter with an expression set up outside the frame, but below `(dt.f.is_ev == 1)` is used to filter within the frame. Without the parentheses, the expression won't work whether it is set up within or outside the frame. We sometimes also had difficulty using multiple expressions to filter a frame, or if we wanted to filter, and then perform operations in `j` of the same frame. In the table below, we show the number of electric vehicles rising from 3 in 1998 to 149 this year.
+
 
 ```{python 'flag-ev', echo=TRUE}
 

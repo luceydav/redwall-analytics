@@ -17,7 +17,7 @@ output:
 <p>As mentioned in <a href="https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/">Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract - Part 1</a>, Redwall Analytics is going through this year, and solving problems previously out of reach. It is also doing this by combining tools as we did with <code>pdftools</code> and <code>tabulizer</code> in the previous series. Although we have worked with some Python, we have been hoping to bridge our way into the language with the Python implementations of two of our favorite R packages, <code>data.table</code> and <code>ggplot2</code>.</p>
 <p>The Python datatable was launched by h2o two years ago, and feels very similar to the R version with some small syntax differences and some important pieces still missing. We could only find a handful of posts showing how to use datatable, and those felt like they were not written by regular R data.table users. We use data.table every day and love the speed and consise syntax, so will discuss datatable from that perspective. Plotnine feels more seemless with ggplot2, another library we use every day, with a few problems formatting plots in R Studio.</p>
 <p>To make it more interesting, we will use the <a href="%22https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv">Tidy Tuesday Big MT Cars</a> with 35 years of new car models (over 42k) with the data dictionary found <a href="https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1">here</a>. This is a great dataset with a few caveats. In the past, when we modeled the traditional mtcars, weight (<code>wt</code>) and horsepower (<code>hp</code>) were the most significant variables for predicting mpg. In addition, it is hard to get a sense of total fleet mileage without the total number of each model sold. While the dataset is still of interest, including these three fields would enrich it considerably if the EPA was interested in getting people to consider the attributes of fuel efficient cars!</p>
-<pre class="r"><code># Libraries
+<pre class="r"><code># R Libraries
 library(&quot;reticulate&quot;)
 library(&quot;skimr&quot;)
 
@@ -31,16 +31,18 @@ reticulate::use_condaenv(
   conda = &quot;/Users/davidlucey/opt/anaconda3/bin/conda&quot;,
   required = TRUE
   )</code></pre>
-<pre class="r"><code>lapply(c(&quot;plotnine&quot;, &quot;datatable&quot;, &quot;re&quot;), function(package) {
+<pre class="r"><code># Install Python packages
+lapply(c(&quot;plotnine&quot;, &quot;datatable&quot;, &quot;re&quot;), function(package) {
        conda_install(&quot;datatable&quot;, package, pip = TRUE)
 })</code></pre>
 <pre class="python"><code>
+# Python libraries
 import datatable as dt
 import numpy as np
-import re
-import plotnine as p9</code></pre>
+import re</code></pre>
 <p>We downloaded the most recent version of the EPA data and took a look at the dimensions. There are 83 variables and a lot of them are not that useful.</p>
 <pre class="python"><code>
+# Load vehicles
 #https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
 #big_mt_cars &lt;- fread(&quot;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv&quot;)
 big_mt = dt.fread(&quot;~/Downloads/vehicles.csv&quot;)
@@ -79,7 +81,7 @@ print(big_mt[year_filter, (dt.f.year, dt.f.make, dt.f.model, dt.f.trany, dt.f.ev
 ## 
 ## [1335 rows x 6 columns]</code></pre>
 <p>To start with, <code>trany</code> has both the transmission-type and gear-speed variable within it. We struggled quite a bit with column transformations, like separating variables, which still seems easier with data.table. It may be that our Python ability is still lacking, but the need to iterate over the nested list or tuples structure of columns wouldn’t allow us to use regex patterns without list comprehensions. We found that the easiest thing to do in these cases was to send the data to pandas, and split and replace as shown in the first two steps below. An easier method from within datatable would be appreciated.</p>
-<p>In the third line of code, we felt like we were using an R data.table. Notice that we had to refer to variables with the datatable non-standard evaluation format (ie: <code>dt.f.trans</code> and <code>dt.f.speed</code>) if we wanted to avoid including quotation marks. In Python datatable, an extra step is required to <code>export_names</code> before this can be avoided (as we will show further down). We also have to call functions referring to the short name <code>dt</code> as we did with <code>dt.count()</code> and <code>dt.by()</code> even though we are within the frame. Two other differences, which we frequently forgot, was the need to refer to the row or column with a <code>:</code> even if we were not specifically giving instructions, because an error was thrown if not specified. Also, <code>dt.sort</code> and several other operations are done in a forth slot within the frame, unlike in data.table where they are done in <code>i</code> in the next frame.</p>
+<p>In the third line of code, we felt like we were using an R data.table. The <code>{}</code> is used to create the new variable without affecting the other variables as <code>:=</code> would be used within data.table. Notice that we had to refer to variables with the datatable non-standard evaluation format (ie: <code>dt.f.trans</code> and <code>dt.f.speed</code>) if we wanted to avoid including quotation marks. In Python datatable, an extra step is required to <code>export_names()</code> before this can be avoided (as we will show further down). We also have to call functions referring to the short name <code>dt</code> as we did with <code>dt.count()</code> and <code>dt.by()</code>, even though we are within the frame. Two other differences, which we frequently forgot, was the need to refer to the row or column with a <code>:</code> even if we were not specifically giving instructions, because an error was thrown if not specified. Also, <code>dt.sort</code> and several other operations are done in a forth slot within the frame, unlike in data.table where they are done in <code>i</code> in the next frame.</p>
 <pre class="python"><code>
 # Move to pandas to split &quot;trany&quot; variable
 big_mt[[&#39;trans&#39;, &#39;speed&#39;]] = big_mt.to_pandas().pop(&#39;trany&#39;).str.split(&#39;\s&#39;, 1, expand=True)
@@ -103,7 +105,7 @@ print(big_mt[:, {&#39;percent&#39; : dt.count()/big_mt.nrows}, dt.by(dt.f.trans,
 ##  9 | Automatic         0.0210514
 ## 
 ## [10 rows x 3 columns]</code></pre>
-<p>We also use piped our evMotor evaluation out to pandas in order to create an “is_ev” (electric) vehicle if the row had a battery given. We also had difficulty with row filtering at first, but got more used it over time. Above we showed how to filter with an expression set up outside the frame, but below <code>(dt.f.is_ev == 1)</code>, it is done within the frame. Without the parentheses, the expression won’t work. We sometimes also had difficulty if we wanted to use multiple expressions to filter one frame or if we wanted to filter, and then perform some operations in <code>j</code> or In the table, we show the number of electric vehicles rising from 3 in 1998 to 149 this year.</p>
+<p>We also use piped our <code>evMotor</code> evaluation out to pandas in order to create an <code>is_ev</code> (electric) vehicle if the row had a battery given. We also had difficulty with row filtering at first, but got more used it over time. Above we showed how to filter with an expression set up outside the frame, but below <code>(dt.f.is_ev == 1)</code> is used to filter within the frame. Without the parentheses, the expression won’t work whether it is set up within or outside the frame. We sometimes also had difficulty using multiple expressions to filter a frame, or if we wanted to filter, and then perform operations in <code>j</code> of the same frame. In the table below, we show the number of electric vehicles rising from 3 in 1998 to 149 this year.</p>
 <pre class="python"><code>
 # Use pandas to create is_ev using expression from dt
 big_mt[&#39;is_ev&#39;] = big_mt[:, dt.f.evMotor != &#39;&#39; ].to_pandas()
