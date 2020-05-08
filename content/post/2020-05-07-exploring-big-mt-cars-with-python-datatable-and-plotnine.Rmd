@@ -69,7 +69,6 @@ We downloaded the most recent version of the EPA data and took a look at the dim
 
 
 ```{python 'load-big-mt'}
-
 # Load vehicles
 #https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
 #big_mt_cars <- fread("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv")
@@ -84,7 +83,6 @@ Some of the most important variables are shown in the snipped code below, and ev
 
 
 ```{python 'first-look', echo=TRUE}
-
 # Key variables for year 2019
 year_filter = (dt.f.year == 2019)
 print(big_mt[year_filter, (dt.f.year, dt.f.make, dt.f.model, dt.f.trany, dt.f.evMotor, dt.f.VClass)])
@@ -97,7 +95,6 @@ In the third line of code, we felt like we were using an R data.table.  The `{}`
 
 
 ```{python 'split-trany', echo=TRUE}
-
 # Move to pandas to split "trany" variable
 big_mt[['trans', 'speed']] = big_mt.to_pandas().pop('trany').str.split('\s', 1, expand=True)
 
@@ -113,7 +110,6 @@ We also use piped our `evMotor` evaluation out to pandas in order to create an `
 
 
 ```{python 'flag-ev', echo=TRUE}
-
 # Use pandas to create is_ev using expression from dt
 big_mt['is_ev'] = big_mt[:, dt.f.evMotor != '' ].to_pandas()
 
@@ -125,7 +121,6 @@ print(big_mt[:, dt.count(), dt.by(dt.f.is_ev, dt.f.year)][(dt.f.is_ev == 1), ('y
 Next, we extract wheel-drive (2WD, AWD, 4WD, etc) and whether it the kind of engine (ie: V4, V6, etc). We see the total count in the table 
 
 ```{python 'wheel', echo=TRUE}
-
 # Convert model to str and split into wheel and engine
 models = [tup[0] for tup in big_mt[:, 'model'].to_tuples()]
 #np.where(re.search(r'\dWD|AWD', models), re.findall(r'\dWD|AWD', models), 'nan')
@@ -143,7 +138,6 @@ print(big_mt[(dt.f.wheel != 'nan'), ('make', 'model', 'drive', 'engine', 'cylind
 There was no such thing as SUVs or AWD back in the 80's, and we remember the big V8 Oldsmobile's and Cadillac's so were curious how it al evolved. Its likely that most of the nan's are 2WD, but it wasn't specified in the model. We can see the first AWD models starting in the late 80s, and the number of 8-cylinder cars fall by half. There are quite a bit fewer models in total now than in the 80s, but were also surprised how many fewer 4-cylinders.
 
 ```{python}
-
 # Summarize by year again having to move to pandas to pivot
 big_mt[:, dt.count(), dt.by(dt.f.wheel, dt.f.year)].to_pandas().pivot_table(index='wheel', columns='year', values='count')
 
@@ -177,7 +171,6 @@ Another variable which needed tranformation was `VClass` because it had 35 level
 
 
 ```{python 'clean-vclass'}
-
 # Take wheel info out of VClass and merge with wheel variable where missing
 vclasses = [tup[0] for tup in big_mt[:, 'VClass'].to_tuples()]
 big_mt['wheel1'] = dt.Frame([re.findall(r'\dWD|\dwd', x)[0] if re.search(r'WD$|wd$', x) is not None else 'nan' for x in vclasses])
@@ -201,7 +194,6 @@ print(big_mt[((dt.f.engine != 'nan') & (dt.f.wheel != 'nan')), ('make','model','
 We show some output of the split `VClass` and `model` above. Note that we only have both `engine` and `wheel` for a small number of cases. Below, we show how to `export_names()` in order to specify those variables as available for non-standard evaluation. We waited while we were transforming variables above to do this, but maybe it would make sense to do it along the way as new variables are created. This happens automatically in data.table, and is an added layer of inconvenience. 
 
 ```{python 'export-names', echo=TRUE}
-
 # List of cols to keep
 cols = ['make', 
         'model', 
@@ -237,7 +229,6 @@ Finally, we piped the datatable into pandas (above) in order to skim the table i
 
 
 ```{r 'skimr', echo=TRUE, message=FALSE, warning=FALSE}
-
 # Skimr
 skim_tee(py$big_mt_pandas)
 
@@ -247,7 +238,6 @@ In this last chunk, we show how to select columns from the big_mt names tuple by
 
 
 ```{python 'filter-examples', echo = TRUE}
-
 # Regex search for variable selection
 measures = [x for x in big_mt.names if re.search(r'08$|year|make|model', x)]
 
