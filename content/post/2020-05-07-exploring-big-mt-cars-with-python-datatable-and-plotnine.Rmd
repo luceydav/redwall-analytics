@@ -11,8 +11,6 @@ output:
 ---
 
 
-
-
 ```{r 'setup', message=FALSE, warning=FALSE, cache=FALSE, include=TRUE}
 # R Libraries
 library("reticulate")
@@ -49,6 +47,7 @@ lapply(c("plotnine", "datatable", "re"), function(package) {
 ```{python 'python-setup'}
 # Python libraries
 import datatable as dt
+from datatable import f, by, first, sort, count
 import numpy as np
 import re
 
@@ -77,23 +76,23 @@ big_mt.shape
 
 ```
 
-Some of the most important variables are shown in the code below, and even these needed significant cleaning. The first difference with R `data.table` is shown below with the `year_filter`. Using the filter in `i` (the first slot), the 1335 2019 models are shown below. Unlike R data.table, we refer to the `year` variable outside of the frame in an expression, and then call it within `i` in the frame. The columns can be selected within `()` or `[]` in `j` (the second slot) as shown below. We will discuss the `dt.f` syntax, which also was confusing at first, below. 
+Some of the most important variables are shown in the code below, and even these needed significant cleaning. The first difference with R `data.table` is shown below with the `year_filter`. Using the filter in `i` (the first slot), the 1335 2019 models are shown below. Unlike R data.table, we refer to the `year` variable outside of the frame in an expression, and then call it within `i` in the frame. The columns can be selected within `()` or `[]` in `j` (the second slot) as shown below. We will discuss the `f` syntax, which also was confusing at first, below. 
 
 We thought there might be duplicate rows, but there are no duplicated() or unique() functions yet in `datatable` [How to find unique values for a field in Pydatatable Data Frame](https://stackoverflow.com/questions/61578175/how-to-find-unique-values-for-a-field-in-pydatatable-data-frame). In order to work around this, identifying variables would have to be grouped, counted and filtered for equal to 1. In an unfamiliar dataset, there would still leave uncertainty if all the duplicates had been appropriately captured. After searching for ways to do it in `datatable`, we decided to pipe over to `pandas` to verify that there were no duplicates, but hope this important functionality will be added in the future.
 
 
 ```{python 'first-look', echo=TRUE}
 # Key variables for year 2019
-year_filter = (dt.f.year == 2019)
-print(big_mt[year_filter, (dt.f.year, dt.f.make, dt.f.model, dt.f.trany, dt.f.evMotor, dt.f.VClass)])
+year_filter = (f.year == 2019)
+print(big_mt[year_filter, (f.year, f.make, f.model, f.trany, f.evMotor, f.VClass)])
 
 ```
 
-We also struggled with column transformations, like separating to tidy variables, which seems a lot easier with `data.table`. To start with, `trany` has both the transmission-type and gear-speed variable within it. It may be that our Python ability is weaker, but the need to iterate over the nested list or tuples structure of `datatable` variables wouldn't allow us to split or extract regex patterns without drilling down on list comprehensions. We found that the easiest thing to do in these cases was again to send the field over to `pandas`, and then split and replace as shown in the first two steps below. An easier method from within the `datatable` frame would be appreciated, because this is a frequent operation for data cleaning.
+We also struggled with column transformations, like separating to tidy variables, which seems a lot easier with `data.table`. To start with, `trany` has both the transmission-type and gear-speed variable within it. It may be that our Python ability is weaker, but the need to iterate over the nested list or tuples structure of `datatable` variables wouldn't allow us to split or extract regex patterns without drilling down on list comprehensions. It looks like string module functions are not yet supported, but will be in a future version according to [SO](https://stackoverflow.com/questions/59631316/how-to-make-use-of-str-library-functions-to-pydatatable). For now, we found that the easiest thing to do in these cases was again to send the field over to `pandas`, and then split and replace as shown in the first two steps below. An easier method from within the `datatable` frame would be appreciated, because this is a frequent operation for data cleaning.
 
-In the third line of code, we felt like we were using an R `data.table`. The `{}` is used to create the new variable in-line, without affecting the other variables, similar to how `:=` is be used within `data.table` (though the result still has to be assigned). Notice that we had to refer to variables with the `datatable` non-standard evaluation (ie: `dt.f.trans` and `dt.f.speed`) if we wanted to avoid having to include quotation marks around the variable. In Python `datatable`, an extra step is required to `export_names()` to skip `dt.f` or the quotation marks (as we will show further down). We also have to call other functions by referring to the package short name `dt`, as we did with `dt.count()` and `dt.by()` below (even when working within the frame). 
+In the third line of code, we felt like we were using an R `data.table`. The `{}` is used to create the new variable in-line, without affecting the other variables, similar to how `:=` is be used within `data.table` (though the result still has to be assigned). Notice that we had to refer to variables with the `datatable` non-standard evaluation (ie: `f.trans` and `f.speed`) if we wanted to avoid having to include quotation marks around the variable. In Python `datatable`, an extra step is required to `export_names()` to skip `f` or the quotation marks (as we will show further down).
 
-With `datatable`, we frequently forgot the need to include `:` in `i` or `j` even if we were not specifically giving instructions for those slots. By default, `datatable` needs to specifically be instructed unlike `data.table` which assumes all rows or columns in `i` and `j` by default. Also, `dt.sort` and several other operations are done in the third slot within the frame (see print statement below), unlike in `data.table` where they are performed in `i` of a subsequent frame. A last difference which we discovered in SO, but didn't notice in the documentation was the option to use the `\` operator to chain a frame to the next line to try and show cleaner code (also shown in the print statement below).
+With `datatable`, we frequently forgot the need to include `:` in `i` or `j` even if we were not specifically giving instructions for those slots. By default, `datatable` needs to specifically be instructed unlike `data.table` which assumes all rows or columns in `i` and `j` by default. Also, `sort` is done in the third slot within the frame (see print statement below), unlike in `data.table` where they are performed in `i` of a subsequent frame. A last difference which we discovered in SO, but didn't notice in the documentation was the option to use the `\` operator to chain a frame to the next line to try and show cleaner code (also shown in the print statement below).
 
 
 ```{python 'split-trany', echo=TRUE}
@@ -104,8 +103,8 @@ big_mt[['trans', 'speed']] = big_mt.to_pandas().pop('trany').str.split('\s', 1, 
 big_mt['speed'] = big_mt.to_pandas().pop('speed').str.replace('\D*', '')
 
 # Summarize percent of instances by transmission and speed
-print(big_mt[:, {'percent' : dt.count()/big_mt.nrows}, dt.by(dt.f.trans, dt.f.speed)]\
-            [0:10, : ,dt.sort(-dt.f.percent)])
+print(big_mt[:, {'percent' : count()/big_mt.nrows}, by(f.trans, f.speed)]\
+            [0:10, : , sort(-f.percent)])
 
 ```
 
@@ -115,10 +114,11 @@ We wanted to create a boolean variable to denote if a vehicle had an electric mo
 
 ```{python 'flag-ev', echo=TRUE}
 # Use pandas to create is_ev using expression from dt
-big_mt['is_ev'] = big_mt[:, dt.f.evMotor != '' ].to_pandas()
+big_mt['is_ev'] = big_mt[:, f.evMotor != '' ].to_pandas()
 
 # Summarize number of ev models by year
-print(big_mt[:, dt.count(), dt.by(dt.f.is_ev, dt.f.year)][(dt.f.is_ev == 1), ('year', 'count')])
+print(big_mt[:, count(), by(f.is_ev, f.year)]\
+            [(f.is_ev == 1), ('year', 'count')])
 
 ```
 
@@ -137,21 +137,21 @@ big_mt.replace("\dwd", "\dWD")
 
 # Summarize total count for all years
 cols = ['make', 'model', 'drive', 'engine', 'cylinders', 'wheel', 'tCharger', 'sCharger']
-print(big_mt[(dt.f.wheel != 'nan'), cols]\
-            [:, dt.count(), dt.by(dt.f.engine, dt.f.wheel, dt.f.cylinders)]\
-            [0:13,:, dt.sort(-dt.f.count)])
+print(big_mt[(f.wheel != 'nan'), cols]\
+            [:, count(), by(f.engine, f.wheel, f.cylinders)]\
+            [0:13,:, sort(-f.count)])
 
 ```
 
 
-There was no such thing as an SUVs or AWD back in the 80's, and we remember the V8 Oldsmobile's and Cadillac's, so were curious how these models evolved over time. `datatable` doesn't yet have dcast() or melt(), so we had to pipe these out `to_pandas()` and then use `pivot_table()`. Its likely that a lot of the nan's were just 2WD before there was a need to specify in the model name. We can see the first AWD models starting in the late 80s, and the number of 8-cylinder cars fall by half. There are are a lot fewer annual new car models now than in the 80s, but were surprised how many fewer 4-cylinders.
+There was no such thing as an SUVs or AWD back in the 80's, and we remember the V8 Oldsmobile's and Cadillac's, so were curious how these models evolved over time. `datatable` doesn't yet have dcast() or melt(), so we had to pipe these out `to_pandas()` and then use `pivot_table()`. Its likely that a lot of the nan's were just 2WD before there was a need to specify in the model name. We would have liked to show these as integers, and there is a workaround in `datatable`, but once we pivoted in `pandas`, it reverted to float. We can see the first AWD models starting in the late 80s, and the number of 8-cylinder cars fall by half. There are are a lot fewer annual new car models now than in the 80s, but were surprised how many fewer 4-cylinders.
 
 
 ```{python 'models-over-time', echo=TRUE}
 # Summarize by year again having to move to pandas to pivot
-print(big_mt[:, dt.count(), dt.by(dt.f.wheel, dt.f.year)].to_pandas().pivot_table(index='wheel', columns='year', values='count'))
+print(big_mt[:, count(), by(f.wheel, f.year)].to_pandas().pivot_table(index='wheel', columns='year', values='count'))
 
-print(big_mt[:, dt.count(), dt.by(dt.f.cylinders, dt.f.year)].to_pandas().pivot_table(index='cylinders', columns='year', values='count'))
+print(big_mt[:, count(), by(f.cylinders, f.year)].to_pandas().pivot_table(index='cylinders', columns='year', values='count'))
 ```
 
 
@@ -187,14 +187,14 @@ In order to put the list back into the dt as `wheel1`, we had to call `dt.Frame(
 # Take wheel info out of VClass and merge with wheel variable where missing
 vclasses = [tup[0] for tup in big_mt[:, 'VClass'].to_tuples()]
 big_mt['wheel1'] = dt.Frame([re.findall(r'\dWD|\dwd', x)[0] if re.search(r'WD$|wd$', x) is not None else 'nan' for x in vclasses])
-big_mt['wheel'] = dt.Frame(big_mt[:, dt.f.wheel if not 'nan' else dt.f.wheel1])
+big_mt['wheel'] = dt.Frame(big_mt[:, f.wheel if not 'nan' else f.wheel1])
 
 # Clean up vehicle type from VClass
 big_mt['VClass'] = dt.Frame([re.sub('\s\dWD$|\/\dwd$|\s\-\s\dWD$', '', x) if re.search(r'WD$|wd$', x) is not None else x for x in vclasses])
 big_mt['VClass'] = dt.Frame([collapse_vclass(line[0]) for line in big_mt[:, 'VClass'].to_tuples()])
 
 # Show final VClass types
-print(big_mt[:, dt.f.VClass, dt.by(dt.f.VClass)]\
+print(big_mt[:, f.VClass, by(f.VClass)]\
             [0:11, 'VClass'].to_numpy())
 
 ```
@@ -206,7 +206,7 @@ We show the result of our efforts to clean `model` and `VClass` (below). After a
 
 ```{python 'engine=wheel-result', echo=TRUE}
 cols = ['make','model','year', 'VClass', 'engine', 'wheel']
-print(big_mt[((dt.f.engine != 'nan') & (dt.f.wheel != 'nan')), cols])
+print(big_mt[((f.engine != 'nan') & (f.wheel != 'nan')), cols])
 ```
 
 In this chunk (below), we show how to select columns from the big_mt names tuple by creating the `measures` filter using regex matches for '08'. Again, this seemed more complicated than to using .SD = patterns() and we couldn't do it in line within the frame. We show the frame with the `year_filter` which we set up earlier. 

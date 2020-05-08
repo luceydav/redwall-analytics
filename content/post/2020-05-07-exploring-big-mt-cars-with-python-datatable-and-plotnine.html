@@ -32,6 +32,7 @@ lapply(c(&quot;plotnine&quot;, &quot;datatable&quot;, &quot;re&quot;), function(
 })</code></pre>
 <pre class="python"><code># Python libraries
 import datatable as dt
+from datatable import f, by, first, sort, count
 import numpy as np
 import re</code></pre>
 <div id="introduction" class="section level1">
@@ -50,11 +51,11 @@ big_mt = dt.fread(&quot;~/Downloads/vehicles.csv&quot;)
 # Dimensions
 big_mt.shape</code></pre>
 <pre><code>## (42230, 83)</code></pre>
-<p>Some of the most important variables are shown in the code below, and even these needed significant cleaning. The first difference with R <code>data.table</code> is shown below with the <code>year_filter</code>. Using the filter in <code>i</code> (the first slot), the 1335 2019 models are shown below. Unlike R data.table, we refer to the <code>year</code> variable outside of the frame in an expression, and then call it within <code>i</code> in the frame. The columns can be selected within <code>()</code> or <code>[]</code> in <code>j</code> (the second slot) as shown below. We will discuss the <code>dt.f</code> syntax, which also was confusing at first, below.</p>
+<p>Some of the most important variables are shown in the code below, and even these needed significant cleaning. The first difference with R <code>data.table</code> is shown below with the <code>year_filter</code>. Using the filter in <code>i</code> (the first slot), the 1335 2019 models are shown below. Unlike R data.table, we refer to the <code>year</code> variable outside of the frame in an expression, and then call it within <code>i</code> in the frame. The columns can be selected within <code>()</code> or <code>[]</code> in <code>j</code> (the second slot) as shown below. We will discuss the <code>f</code> syntax, which also was confusing at first, below.</p>
 <p>We thought there might be duplicate rows, but there are no duplicated() or unique() functions yet in <code>datatable</code> <a href="https://stackoverflow.com/questions/61578175/how-to-find-unique-values-for-a-field-in-pydatatable-data-frame">How to find unique values for a field in Pydatatable Data Frame</a>. In order to work around this, identifying variables would have to be grouped, counted and filtered for equal to 1. In an unfamiliar dataset, there would still leave uncertainty if all the duplicates had been appropriately captured. After searching for ways to do it in <code>datatable</code>, we decided to pipe over to <code>pandas</code> to verify that there were no duplicates, but hope this important functionality will be added in the future.</p>
 <pre class="python"><code># Key variables for year 2019
-year_filter = (dt.f.year == 2019)
-print(big_mt[year_filter, (dt.f.year, dt.f.make, dt.f.model, dt.f.trany, dt.f.evMotor, dt.f.VClass)])</code></pre>
+year_filter = (f.year == 2019)
+print(big_mt[year_filter, (f.year, f.make, f.model, f.trany, f.evMotor, f.VClass)])</code></pre>
 <pre><code>##      | year  make            model                         trany              evMotor      VClass                            
 ## ---- + ----  --------------  ----------------------------  -----------------  -----------  ----------------------------------
 ##    0 | 2019  Jeep            Cherokee FWD                  Automatic 9-spd                 Small Sport Utility Vehicle 2WD   
@@ -80,9 +81,9 @@ print(big_mt[year_filter, (dt.f.year, dt.f.make, dt.f.model, dt.f.trany, dt.f.ev
 ## 1334 | 2019  Lincoln         Continental Coach             Automatic (S6)                  Large Cars                        
 ## 
 ## [1335 rows x 6 columns]</code></pre>
-<p>We also struggled with column transformations, like separating to tidy variables, which seems a lot easier with <code>data.table</code>. To start with, <code>trany</code> has both the transmission-type and gear-speed variable within it. It may be that our Python ability is weaker, but the need to iterate over the nested list or tuples structure of <code>datatable</code> variables wouldn’t allow us to split or extract regex patterns without drilling down on list comprehensions. We found that the easiest thing to do in these cases was again to send the field over to <code>pandas</code>, and then split and replace as shown in the first two steps below. An easier method from within the <code>datatable</code> frame would be appreciated, because this is a frequent operation for data cleaning.</p>
-<p>In the third line of code, we felt like we were using an R <code>data.table</code>. The <code>{}</code> is used to create the new variable in-line, without affecting the other variables, similar to how <code>:=</code> is be used within <code>data.table</code> (though the result still has to be assigned). Notice that we had to refer to variables with the <code>datatable</code> non-standard evaluation (ie: <code>dt.f.trans</code> and <code>dt.f.speed</code>) if we wanted to avoid having to include quotation marks around the variable. In Python <code>datatable</code>, an extra step is required to <code>export_names()</code> to skip <code>dt.f</code> or the quotation marks (as we will show further down). We also have to call other functions by referring to the package short name <code>dt</code>, as we did with <code>dt.count()</code> and <code>dt.by()</code> below (even when working within the frame).</p>
-<p>With <code>datatable</code>, we frequently forgot the need to include <code>:</code> in <code>i</code> or <code>j</code> even if we were not specifically giving instructions for those slots. By default, <code>datatable</code> needs to specifically be instructed unlike <code>data.table</code> which assumes all rows or columns in <code>i</code> and <code>j</code> by default. Also, <code>dt.sort</code> and several other operations are done in the third slot within the frame (see print statement below), unlike in <code>data.table</code> where they are performed in <code>i</code> of a subsequent frame. A last difference which we discovered in SO, but didn’t notice in the documentation was the option to use the <code>\</code> operator to chain a frame to the next line to try and show cleaner code (also shown in the print statement below).</p>
+<p>We also struggled with column transformations, like separating to tidy variables, which seems a lot easier with <code>data.table</code>. To start with, <code>trany</code> has both the transmission-type and gear-speed variable within it. It may be that our Python ability is weaker, but the need to iterate over the nested list or tuples structure of <code>datatable</code> variables wouldn’t allow us to split or extract regex patterns without drilling down on list comprehensions. It looks like string module functions are not yet supported, but will be in a future version according to <a href="https://stackoverflow.com/questions/59631316/how-to-make-use-of-str-library-functions-to-pydatatable">SO</a>. For now, we found that the easiest thing to do in these cases was again to send the field over to <code>pandas</code>, and then split and replace as shown in the first two steps below. An easier method from within the <code>datatable</code> frame would be appreciated, because this is a frequent operation for data cleaning.</p>
+<p>In the third line of code, we felt like we were using an R <code>data.table</code>. The <code>{}</code> is used to create the new variable in-line, without affecting the other variables, similar to how <code>:=</code> is be used within <code>data.table</code> (though the result still has to be assigned). Notice that we had to refer to variables with the <code>datatable</code> non-standard evaluation (ie: <code>f.trans</code> and <code>f.speed</code>) if we wanted to avoid having to include quotation marks around the variable. In Python <code>datatable</code>, an extra step is required to <code>export_names()</code> to skip <code>f</code> or the quotation marks (as we will show further down).</p>
+<p>With <code>datatable</code>, we frequently forgot the need to include <code>:</code> in <code>i</code> or <code>j</code> even if we were not specifically giving instructions for those slots. By default, <code>datatable</code> needs to specifically be instructed unlike <code>data.table</code> which assumes all rows or columns in <code>i</code> and <code>j</code> by default. Also, <code>sort</code> is done in the third slot within the frame (see print statement below), unlike in <code>data.table</code> where they are performed in <code>i</code> of a subsequent frame. A last difference which we discovered in SO, but didn’t notice in the documentation was the option to use the <code>\</code> operator to chain a frame to the next line to try and show cleaner code (also shown in the print statement below).</p>
 <pre class="python"><code># Move to pandas to split &quot;trany&quot; variable
 big_mt[[&#39;trans&#39;, &#39;speed&#39;]] = big_mt.to_pandas().pop(&#39;trany&#39;).str.split(&#39;\s&#39;, 1, expand=True)
 
@@ -90,8 +91,8 @@ big_mt[[&#39;trans&#39;, &#39;speed&#39;]] = big_mt.to_pandas().pop(&#39;trany&#
 big_mt[&#39;speed&#39;] = big_mt.to_pandas().pop(&#39;speed&#39;).str.replace(&#39;\D*&#39;, &#39;&#39;)
 
 # Summarize percent of instances by transmission and speed
-print(big_mt[:, {&#39;percent&#39; : dt.count()/big_mt.nrows}, dt.by(dt.f.trans, dt.f.speed)]\
-            [0:10, : ,dt.sort(-dt.f.percent)])</code></pre>
+print(big_mt[:, {&#39;percent&#39; : count()/big_mt.nrows}, by(f.trans, f.speed)]\
+            [0:10, : , sort(-f.percent)])</code></pre>
 <pre><code>##    | trans      speed    percent
 ## -- + ---------  -----  ---------
 ##  0 | Automatic  4      0.26718  
@@ -108,10 +109,11 @@ print(big_mt[:, {&#39;percent&#39; : dt.count()/big_mt.nrows}, dt.by(dt.f.trans,
 ## [10 rows x 3 columns]</code></pre>
 <p>We wanted to create a boolean variable to denote if a vehicle had an electric motor or not. In order to do this, we had to pipe our <code>evMotor</code> evaluation from <code>j</code> out to <code>pandas</code> in order to form a data structure we could assign back to the newly created <code>is_ev</code> variable (if the row identifying the battery was blank or not). We also had difficulty with row filtering at first, but got more used it over time. Above we showed how to filter with an expression set up outside the frame, but below <code>(dt.f.is_ev == 1)</code> is used to filter in <code>i</code> within the frame. Without the parentheses, the expression won’t work whether it is set up within or outside the frame. We sometimes also had difficulty using multiple expressions to filter a frame, or if we wanted to filter, and then perform operations in <code>j</code> of the same frame. In the table below, we show the number of electric vehicles rising from 3 in 1998 to 149 this year.</p>
 <pre class="python"><code># Use pandas to create is_ev using expression from dt
-big_mt[&#39;is_ev&#39;] = big_mt[:, dt.f.evMotor != &#39;&#39; ].to_pandas()
+big_mt[&#39;is_ev&#39;] = big_mt[:, f.evMotor != &#39;&#39; ].to_pandas()
 
 # Summarize number of ev models by year
-print(big_mt[:, dt.count(), dt.by(dt.f.is_ev, dt.f.year)][(dt.f.is_ev == 1), (&#39;year&#39;, &#39;count&#39;)])</code></pre>
+print(big_mt[:, count(), by(f.is_ev, f.year)]\
+            [(f.is_ev == 1), (&#39;year&#39;, &#39;count&#39;)])</code></pre>
 <pre><code>##    | year  count
 ## -- + ----  -----
 ##  0 | 1998      3
@@ -148,9 +150,9 @@ big_mt.replace(&quot;\dwd&quot;, &quot;\dWD&quot;)
 
 # Summarize total count for all years
 cols = [&#39;make&#39;, &#39;model&#39;, &#39;drive&#39;, &#39;engine&#39;, &#39;cylinders&#39;, &#39;wheel&#39;, &#39;tCharger&#39;, &#39;sCharger&#39;]
-print(big_mt[(dt.f.wheel != &#39;nan&#39;), cols]\
-            [:, dt.count(), dt.by(dt.f.engine, dt.f.wheel, dt.f.cylinders)]\
-            [0:13,:, dt.sort(-dt.f.count)])</code></pre>
+print(big_mt[(f.wheel != &#39;nan&#39;), cols]\
+            [:, count(), by(f.engine, f.wheel, f.cylinders)]\
+            [0:13,:, sort(-f.count)])</code></pre>
 <pre><code>##    | engine  wheel  cylinders  count
 ## -- + ------  -----  ---------  -----
 ##  0 | nan     2WD            8   2800
@@ -168,9 +170,9 @@ print(big_mt[(dt.f.wheel != &#39;nan&#39;), cols]\
 ## 12 | nan     AWD            5     57
 ## 
 ## [13 rows x 4 columns]</code></pre>
-<p>There was no such thing as an SUVs or AWD back in the 80’s, and we remember the V8 Oldsmobile’s and Cadillac’s, so were curious how these models evolved over time. <code>datatable</code> doesn’t yet have dcast() or melt(), so we had to pipe these out <code>to_pandas()</code> and then use <code>pivot_table()</code>. Its likely that a lot of the nan’s were just 2WD before there was a need to specify in the model name. We can see the first AWD models starting in the late 80s, and the number of 8-cylinder cars fall by half. There are are a lot fewer annual new car models now than in the 80s, but were surprised how many fewer 4-cylinders.</p>
+<p>There was no such thing as an SUVs or AWD back in the 80’s, and we remember the V8 Oldsmobile’s and Cadillac’s, so were curious how these models evolved over time. <code>datatable</code> doesn’t yet have dcast() or melt(), so we had to pipe these out <code>to_pandas()</code> and then use <code>pivot_table()</code>. Its likely that a lot of the nan’s were just 2WD before there was a need to specify in the model name. We would have liked to show these as integers, and there is a workaround in <code>datatable</code>, but once we pivoted in <code>pandas</code>, it reverted to float. We can see the first AWD models starting in the late 80s, and the number of 8-cylinder cars fall by half. There are are a lot fewer annual new car models now than in the 80s, but were surprised how many fewer 4-cylinders.</p>
 <pre class="python"><code># Summarize by year again having to move to pandas to pivot
-print(big_mt[:, dt.count(), dt.by(dt.f.wheel, dt.f.year)].to_pandas().pivot_table(index=&#39;wheel&#39;, columns=&#39;year&#39;, values=&#39;count&#39;))</code></pre>
+print(big_mt[:, count(), by(f.wheel, f.year)].to_pandas().pivot_table(index=&#39;wheel&#39;, columns=&#39;year&#39;, values=&#39;count&#39;))</code></pre>
 <pre><code>## year     1984    1985   1986   1987   1988  ...   2017   2018   2019   2020  2021
 ## wheel                                       ...                                  
 ## 2WD     472.0   430.0  338.0  310.0  262.0  ...   89.0   97.0  110.0   94.0   4.0
@@ -179,7 +181,7 @@ print(big_mt[:, dt.count(), dt.by(dt.f.wheel, dt.f.year)].to_pandas().pivot_tabl
 ## nan    1188.0  1063.0  698.0  734.0  679.0  ...  911.0  931.0  899.0  799.0  54.0
 ## 
 ## [4 rows x 38 columns]</code></pre>
-<pre class="python"><code>print(big_mt[:, dt.count(), dt.by(dt.f.cylinders, dt.f.year)].to_pandas().pivot_table(index=&#39;cylinders&#39;, columns=&#39;year&#39;, values=&#39;count&#39;))</code></pre>
+<pre class="python"><code>print(big_mt[:, count(), by(f.cylinders, f.year)].to_pandas().pivot_table(index=&#39;cylinders&#39;, columns=&#39;year&#39;, values=&#39;count&#39;))</code></pre>
 <pre><code>## year         1984   1985   1986   1987   1988  ...   2017   2018   2019   2020  2021
 ## cylinders                                      ...                                  
 ## 2.0           6.0    5.0    1.0    3.0    3.0  ...    1.0    2.0    2.0    2.0   NaN
@@ -198,14 +200,14 @@ print(big_mt[:, dt.count(), dt.by(dt.f.wheel, dt.f.year)].to_pandas().pivot_tabl
 <pre class="python"><code># Take wheel info out of VClass and merge with wheel variable where missing
 vclasses = [tup[0] for tup in big_mt[:, &#39;VClass&#39;].to_tuples()]
 big_mt[&#39;wheel1&#39;] = dt.Frame([re.findall(r&#39;\dWD|\dwd&#39;, x)[0] if re.search(r&#39;WD$|wd$&#39;, x) is not None else &#39;nan&#39; for x in vclasses])
-big_mt[&#39;wheel&#39;] = dt.Frame(big_mt[:, dt.f.wheel if not &#39;nan&#39; else dt.f.wheel1])
+big_mt[&#39;wheel&#39;] = dt.Frame(big_mt[:, f.wheel if not &#39;nan&#39; else f.wheel1])
 
 # Clean up vehicle type from VClass
 big_mt[&#39;VClass&#39;] = dt.Frame([re.sub(&#39;\s\dWD$|\/\dwd$|\s\-\s\dWD$&#39;, &#39;&#39;, x) if re.search(r&#39;WD$|wd$&#39;, x) is not None else x for x in vclasses])
 big_mt[&#39;VClass&#39;] = dt.Frame([collapse_vclass(line[0]) for line in big_mt[:, &#39;VClass&#39;].to_tuples()])
 
 # Show final VClass types
-print(big_mt[:, dt.f.VClass, dt.by(dt.f.VClass)]\
+print(big_mt[:, f.VClass, by(f.VClass)]\
             [0:11, &#39;VClass&#39;].to_numpy())</code></pre>
 <pre><code>## [[&#39;Large Car&#39;]
 ##  [&#39;Midsize Car&#39;]
@@ -219,7 +221,7 @@ print(big_mt[:, dt.f.VClass, dt.by(dt.f.VClass)]\
 <p>We printed out the result of our much smaller list of lumped factors (above), but should disclose that there are still problems with the result, because the cutoff for a “Small Pickup Truck” moved from 4,500 to 6,000 lbs in 2008. The EPA also used higher cut-off for “small” SUV’s starting in 2011, another head-scratcher of working with government data which probably can’t be rectified. As noted earlier, if we had the a weight field, we could have easily worked around this.</p>
 <p>We show the result of our efforts to clean <code>model</code> and <code>VClass</code> (below). After all that, we see we only have 218 rows where both <code>engine</code> and <code>wheel</code>are not ‘nan’, so if we hoped to use these variables in a future modeling step, we will have to look for other solutions.</p>
 <pre class="python"><code>cols = [&#39;make&#39;,&#39;model&#39;,&#39;year&#39;, &#39;VClass&#39;, &#39;engine&#39;, &#39;wheel&#39;]
-print(big_mt[((dt.f.engine != &#39;nan&#39;) &amp; (dt.f.wheel != &#39;nan&#39;)), cols])</code></pre>
+print(big_mt[((f.engine != &#39;nan&#39;) &amp; (f.wheel != &#39;nan&#39;)), cols])</code></pre>
 <pre><code>##     | make    model                 year  VClass                   engine  wheel
 ## --- + ------  --------------------  ----  -----------------------  ------  -----
 ##   0 | Toyota  RAV4 2WD              1998  Special Purpose Vehicle  V4      2WD  
