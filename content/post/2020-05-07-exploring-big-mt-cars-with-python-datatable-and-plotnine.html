@@ -32,17 +32,20 @@ lapply(c(&quot;plotnine&quot;, &quot;datatable&quot;, &quot;re&quot;), function(
 })</code></pre>
 <pre class="python"><code># Python libraries
 import datatable as dt
-from datatable import f, by, first, sort, count
+from datatable import *
 import numpy as np
-import re</code></pre>
+import re
+import pprint</code></pre>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>As mentioned in our last series <a href="https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/">Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract - Part 1</a> and <a href="https://redwallanalytics.com/2020/02/18/a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1/">A Walk Though of Accessing Financial Statements with XBRL in R - Part 1</a>, Redwall Analytics is going through this year, and solving problems previously encountered, but beyond our capabilities at the time. It is also doing this by combining R and Python tools as we did with <code>pdftools</code> and <code>tabulizer</code>. Although we have worked with some Python, we have been hoping to bridge our way into the language with the Python implementations leveraging the familiar syntax of two of our favorite R packages, <code>data.table</code> and <code>ggplot2</code>.</p>
-<p>The Python <code>datatable</code> was launched by h2o two years ago, and feels similar to the R version with some syntax differences and some also important pieces still missing as we will discuss. We could only find a handful of posts showing how to use <code>datatable</code>, and most of the examples we found were probably not written by regular users of R <code>data.table</code>. We use <code>data.table</code> every day and love the speed and consise syntax, so this walk-through analysis of the Big MT cars dataset will be from that perspective. As for <code>plotnine</code>, it feels more seemless with <code>ggplot2</code> with a few problems formatting plots in Rmarkdown.</p>
+<p>As mentioned in our last series <a href="https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/">Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract - Part 1</a> and <a href="https://redwallanalytics.com/2020/02/18/a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1/">A Walk Though of Accessing Financial Statements with XBRL in R - Part 1</a>, this is a year of clean-up. Redwall Analytics is going through this year, and solving problems previously encountered, but beyond our capabilities at the time. It is doing this by combining R and Python tools via <code>reticulate</code>, as we did with our series on <code>pdftools</code>, <code>tabulizer</code> and AWS <code>Textract</code>. Although we have worked with some Python, we have been hoping to leveraging the familiar syntax of two of our favorite R libraries, <code>data.table</code> and <code>ggplot2</code> to bridge our way into the language.</p>
+<p>Python’s <code>datatable</code> was launched by h2o two years ago, and feels similar to the R version, with a few syntax differences and also some important pieces still to be added (as we will discuss). We could only find a handful of posts showing how to use <code>datatable</code>, and most of the examples we found were probably not written by regular users of R <code>data.table</code>. We use <code>data.table</code> every day and love the speed and concise syntax, so this walk-through analysis of the EPA’s Big MT cars dataset will be from that perspective. As for <code>plotnine</code>, it feels more seemless with <code>ggplot2</code> with a few problems formatting plots in Rmarkdown.</p>
 </div>
 <div id="epas-big-mt-dataset" class="section level1">
 <h1>EPA’s Big MT Dataset</h1>
-<p>To make it interesting, we will use the <a href="%22https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv">Tidy Tuesday Big MT Cars</a> with 36 years of 42,230 new US car models. The data dictionary with 83 variables describing each annual new car model is found <a href="https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1">here</a>. Everyone loves cars and reminiscing about historical models. We have naturally been curious about this dataset, but in closer analysis, have discovered that there are several unfortunate missing pieces. When we have modeled <code>mtcars</code>, weight (<code>wt</code>) and horsepower (<code>hp</code>), and their interaction, have been most informative for predicting <code>mpg</code>. It would have been interesting to look at the evolution of these coefficients over time, but these variables are not unforunately not available. In addition, it is hard to get a sense of fleet mileage without the total annual sales of each new car model. Because of this, it is impossible to know the evolution of more fuel efficient electric vehicles relative to more fuel-hungry model sales. It is difficult to understand why these variables are not included, are that information must be available to the EPA. While the dataset is still of interest, including these fields would improve it considerably!</p>
+<p>To make it interesting, we will use the <a href="%22https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-10-15%22">Tidy Tuesday Big MT Cars</a> with 36 years of 42,230 new US car models. The data dictionary with 83 variables describing each annual new car model is found <a href="https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1">here</a>. Everyone loves cars and remembering historical models. We have naturally been curious about this dataset, but on closer analysis, have discovered that there are several unfortunate missing pieces.</p>
+<p>When we have modeled <code>mtcars</code>, weight (<code>wt</code>) and horsepower (<code>hp</code>), and their interaction, have been most informative for predicting <code>mpg</code>. It would have been interesting to look at the evolution of the <code>mtcars</code> coefficients over time, but these variables are not unforunately not available. In addition, it is hard to get a sense of fleet mileage without the total annual sales of each new car model. Because of this, it is impossible to know the evolution of more fuel efficient electric vehicles relative to more fuel-hungry model sales.</p>
+<p>It is difficult to understand why these variables are not included when that information must be available to the EPA, and it clearly says on page 6 of <a href="https://www.fueleconomy.gov/feg/pdfs/guides/FEG2020.pdf">Fuel Economy Guide 2020</a> that an extra 100 lbs decreases fuel economy by 1%. While the dataset is still of interest to practice for data cleaning, it starts looking less interesting if the objective is to replicate <code>mtcars</code> over time!</p>
 <pre class="python"><code># Load vehicles
 #https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
 #big_mt_cars &lt;- fread(&quot;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv&quot;)
@@ -51,37 +54,81 @@ big_mt = dt.fread(&quot;~/Downloads/vehicles.csv&quot;)
 # Dimensions
 big_mt.shape</code></pre>
 <pre><code>## (42230, 83)</code></pre>
-<p>Some of the most important variables are shown in the code below, and even these needed significant cleaning. The first difference with R <code>data.table</code> is shown below with the <code>year_filter</code>. Using the filter in <code>i</code> (the first slot), the 1335 2019 models are shown below. Unlike R data.table, we refer to the <code>year</code> variable outside of the frame in an expression, and then call it within <code>i</code> in the frame. The columns can be selected within <code>()</code> or <code>[]</code> in <code>j</code> (the second slot) as shown below. We will discuss the <code>f</code> syntax, which also was confusing at first, below.</p>
-<p>We thought there might be duplicate rows, but there are no duplicated() or unique() functions yet in <code>datatable</code> <a href="https://stackoverflow.com/questions/61578175/how-to-find-unique-values-for-a-field-in-pydatatable-data-frame">How to find unique values for a field in Pydatatable Data Frame</a>. In order to work around this, identifying variables would have to be grouped, counted and filtered for equal to 1. In an unfamiliar dataset, there would still leave uncertainty if all the duplicates had been appropriately captured. After searching for ways to do it in <code>datatable</code>, we decided to pipe over to <code>pandas</code> to verify that there were no duplicates, but hope this important functionality will be added in the future.</p>
+<p>We can see that there are several variables pertaining to fuel efficiency, emissions, fuel type, range, volume and some of the same attributes that we all know from <code>mtcars</code> (ie: cylinders, displacement, make, model and transmission). As mentioned, we are missing gross horsepower and weight, but also carburetors, acceleration and engine shape. We do get vehicle class information (VClass) not available in <code>mtcars</code>, but as we will discuss further down, changes to the weight cutoffs on some of the categories over time make this variable of questionable use.</p>
+<pre class="python"><code>pp = pprint.PrettyPrinter(width=80, compact=True)
+pp.pprint(big_mt.names)</code></pre>
+<pre><code>## (&#39;barrels08&#39;, &#39;barrelsA08&#39;, &#39;charge120&#39;, &#39;charge240&#39;, &#39;city08&#39;, &#39;city08U&#39;,
+##  &#39;cityA08&#39;, &#39;cityA08U&#39;, &#39;cityCD&#39;, &#39;cityE&#39;, &#39;cityUF&#39;, &#39;co2&#39;, &#39;co2A&#39;,
+##  &#39;co2TailpipeAGpm&#39;, &#39;co2TailpipeGpm&#39;, &#39;comb08&#39;, &#39;comb08U&#39;, &#39;combA08&#39;,
+##  &#39;combA08U&#39;, &#39;combE&#39;, &#39;combinedCD&#39;, &#39;combinedUF&#39;, &#39;cylinders&#39;, &#39;displ&#39;, &#39;drive&#39;,
+##  &#39;engId&#39;, &#39;eng_dscr&#39;, &#39;feScore&#39;, &#39;fuelCost08&#39;, &#39;fuelCostA08&#39;, &#39;fuelType&#39;,
+##  &#39;fuelType1&#39;, &#39;ghgScore&#39;, &#39;ghgScoreA&#39;, &#39;highway08&#39;, &#39;highway08U&#39;, &#39;highwayA08&#39;,
+##  &#39;highwayA08U&#39;, &#39;highwayCD&#39;, &#39;highwayE&#39;, &#39;highwayUF&#39;, &#39;hlv&#39;, &#39;hpv&#39;, &#39;id&#39;, &#39;lv2&#39;,
+##  &#39;lv4&#39;, &#39;make&#39;, &#39;model&#39;, &#39;mpgData&#39;, &#39;phevBlended&#39;, &#39;pv2&#39;, &#39;pv4&#39;, &#39;range&#39;,
+##  &#39;rangeCity&#39;, &#39;rangeCityA&#39;, &#39;rangeHwy&#39;, &#39;rangeHwyA&#39;, &#39;trany&#39;, &#39;UCity&#39;, &#39;UCityA&#39;,
+##  &#39;UHighway&#39;, &#39;UHighwayA&#39;, &#39;VClass&#39;, &#39;year&#39;, &#39;youSaveSpend&#39;, &#39;guzzler&#39;,
+##  &#39;trans_dscr&#39;, &#39;tCharger&#39;, &#39;sCharger&#39;, &#39;atvType&#39;, &#39;fuelType2&#39;, &#39;rangeA&#39;,
+##  &#39;evMotor&#39;, &#39;mfrCode&#39;, &#39;c240Dscr&#39;, &#39;charge240b&#39;, &#39;c240bDscr&#39;, &#39;createdOn&#39;,
+##  &#39;modifiedOn&#39;, &#39;startStop&#39;, &#39;phevCity&#39;, &#39;phevHwy&#39;, &#39;phevComb&#39;)</code></pre>
+<p>A few lines of some key variables are shown in the code below, and it is clear that they need significant cleaning to be of use. The first difference with R <code>data.table</code> is shown below with the filtering. Using our <code>year_filter</code> in <code>i</code> (the first slot), the 1204 2019 models are shown below. Unlike R <code>data.table</code>, we refer to <code>year</code> outside of the frame in an expression, and then call it within <code>i</code> of the frame. The columns can be selected within <code>()</code> or <code>[]</code> in <code>j</code> (the second slot) as shown below, and new columns can be created within <code>{}</code>. We will discuss the <code>f</code> syntax further below, which also was confusing at first, below.</p>
 <pre class="python"><code># Key variables for year 2019
-year_filter = (f.year == 2019)
+year_filter = (f.year == 2020)
 print(big_mt[year_filter, (f.year, f.make, f.model, f.trany, f.evMotor, f.VClass)])</code></pre>
-<pre><code>##      | year  make            model                         trany              evMotor      VClass                            
-## ---- + ----  --------------  ----------------------------  -----------------  -----------  ----------------------------------
-##    0 | 2019  Jeep            Cherokee FWD                  Automatic 9-spd                 Small Sport Utility Vehicle 2WD   
-##    1 | 2019  Jeep            Cherokee 4WD                  Automatic 9-spd                 Small Sport Utility Vehicle 4WD   
-##    2 | 2019  Jeep            Cherokee 4WD Active Drive II  Automatic 9-spd                 Small Sport Utility Vehicle 4WD   
-##    3 | 2019  Jeep            Cherokee Trailhawk 4WD        Automatic 9-spd                 Small Sport Utility Vehicle 4WD   
-##    4 | 2019  Chevrolet       Corvette                      Manual 7-spd                    Two Seaters                       
-##    5 | 2019  Chevrolet       Corvette                      Automatic (S8)                  Two Seaters                       
-##    6 | 2019  Chevrolet       Corvette Z06                  Automatic (S8)                  Two Seaters                       
-##    7 | 2019  Volkswagen      Jetta                         Automatic (S8)                  Compact Cars                      
-##    8 | 2019  Volkswagen      Jetta                         Manual 6-spd                    Compact Cars                      
-##    9 | 2019  Kia             Sorento FWD                   Automatic (S6)                  Small Sport Utility Vehicle 2WD   
-##   10 | 2019  Infiniti        QX50                          Automatic (AV-S8)               Small Sport Utility Vehicle 2WD   
-##   11 | 2019  Kia             Sorento FWD                   Automatic (S8)                  Small Sport Utility Vehicle 2WD   
-##   12 | 2019  Infiniti        QX50 AWD                      Automatic (AV-S8)               Small Sport Utility Vehicle 4WD   
-##   13 | 2019  Kia             Sorento AWD                   Automatic (S6)                  Small Sport Utility Vehicle 4WD   
-##   14 | 2019  Kia             Sorento AWD                   Automatic (S8)                  Small Sport Utility Vehicle 4WD   
-##    … |    …  …               …                             …                  …            …                                 
-## 1330 | 2019  RUF Automobile  RUFTURBO12/CTR3/CTR2017       Manual 7-spd                    Two Seaters                       
-## 1331 | 2019  Land Rover      Range Rover Sport MHEV        Automatic (S8)     48V Li-Ion   Standard Sport Utility Vehicle 4WD
-## 1332 | 2019  Land Rover      Range Rover PHEV              Automatic (S8)     105 kW PMSM  Standard Sport Utility Vehicle 4WD
-## 1333 | 2019  Land Rover      Range Rover Sport PHEV        Automatic (S8)     105 kW PMSM  Standard Sport Utility Vehicle 4WD
-## 1334 | 2019  Lincoln         Continental Coach             Automatic (S6)                  Large Cars                        
+<pre><code>##      | year  make     model                        trany                             evMotor             VClass                            
+## ---- + ----  -------  ---------------------------  --------------------------------  ------------------  ----------------------------------
+##    0 | 2020  Toyota   Corolla                      Automatic (AV-S10)                                    Compact Cars                      
+##    1 | 2020  Toyota   Corolla Hybrid               Automatic (variable gear ratios)  202V Ni-MH          Compact Cars                      
+##    2 | 2020  Toyota   Corolla                      Manual 6-spd                                          Compact Cars                      
+##    3 | 2020  Toyota   Corolla XSE                  Automatic (AV-S10)                                    Compact Cars                      
+##    4 | 2020  Toyota   Corolla                      Automatic (variable gear ratios)                      Compact Cars                      
+##    5 | 2020  Toyota   Corolla                      Manual 6-spd                                          Compact Cars                      
+##    6 | 2020  Toyota   Corolla XLE                  Automatic (variable gear ratios)                      Compact Cars                      
+##    7 | 2020  Kia      Soul                         Automatic (variable gear ratios)                      Small Station Wagons              
+##    8 | 2020  Kia      Soul Eco dynamics            Automatic (variable gear ratios)                      Small Station Wagons              
+##    9 | 2020  Kia      Soul                         Manual 6-spd                                          Small Station Wagons              
+##   10 | 2020  Kia      Soul                         Automatic (AM-S7)                                     Small Station Wagons              
+##   11 | 2020  Kia      Sportage FWD                 Automatic (S6)                                        Small Sport Utility Vehicle 2WD   
+##   12 | 2020  Kia      Sportage FWD                 Automatic (S6)                                        Small Sport Utility Vehicle 2WD   
+##   13 | 2020  Kia      Telluride FWD                Automatic (S8)                                        Small Sport Utility Vehicle 2WD   
+##   14 | 2020  Kia      Sportage AWD                 Automatic (S6)                                        Small Sport Utility Vehicle 4WD   
+##    … |    …  …        …                            …                                 …                   …                                 
+## 1199 | 2020  Porsche  718 Cayman GT4               Manual 6-spd                                          Two Seaters                       
+## 1200 | 2020  Bentley  Mulsanne                     Automatic (S8)                                        Midsize Cars                      
+## 1201 | 2020  Porsche  Cayenne e-Hybrid             Automatic (S8)                    99 kW DC Brushless  Standard Sport Utility Vehicle 4WD
+## 1202 | 2020  Porsche  Cayenne e-Hybrid Coupe       Automatic (S8)                    99 kW DC Brushless  Standard Sport Utility Vehicle 4WD
+## 1203 | 2020  Porsche  Taycan 4S Perf Battery Plus  Automatic (A2)                    120 kW ACPM         Large Cars                        
 ## 
-## [1335 rows x 6 columns]</code></pre>
-<p>We also struggled with column transformations, like separating to tidy variables, which seems a lot easier with <code>data.table</code>. To start with, <code>trany</code> has both the transmission-type and gear-speed variable within it. It may be that our Python ability is weaker, but the need to iterate over the nested list or tuples structure of <code>datatable</code> variables wouldn’t allow us to split or extract regex patterns without drilling down on list comprehensions. It looks like string module functions are not yet supported, but will be in a future version according to <a href="https://stackoverflow.com/questions/59631316/how-to-make-use-of-str-library-functions-to-pydatatable">SO</a>. For now, we found that the easiest thing to do in these cases was again to send the field over to <code>pandas</code>, and then split and replace as shown in the first two steps below. An easier method from within the <code>datatable</code> frame would be appreciated, because this is a frequent operation for data cleaning.</p>
+## [1204 rows x 6 columns]</code></pre>
+<p>We thought there might be duplicate rows, but there isn’t a duplicated() function yet in <code>datatable</code> <a href="https://stackoverflow.com/questions/61578175/how-to-find-unique-values-for-a-field-in-pydatatable-data-frame">How to find unique values for a field in Pydatatable Data Frame</a>. The <code>unique()</code> function doesn’t apply to groups yet, but not to check all coluns at once. In order to work around this, identifying variables would have to be grouped, counted and filtered for equal to 1, but this could still leave uncertainty if all the duplicates had been captured. After searching for ways to do it in <code>datatable</code>, we decided to pipe over to <code>pandas</code> to verify that there were no duplicates, but hope this function will be added in the future.</p>
+<p>This would require to filter where for example a row had ‘2WD’ or ‘4WD’ in model, and here we missed the <code>data.table</code> <code>%in%</code> and <code>%chin%</code> operators, and it seems that we are not alone. This <a href="https://stackoverflow.com/questions/61494957/how-to-filter-observations-for-the-multiple-values-passed-in-the-i-expression-of">SO post</a> identifies similar challenges we encountered when filtering on a potential list of possibilities instead of a single equality. The suggested solution iterating over all the possible combinations is sizeable friction for us migrating over from R and we wondered for any less experienced Python user, so hopefully the requested feature will be implemented soon. We see the total count in the table, and also that we are unfortunately missing engine information in most cases.</p>
+<p>We can see that ‘eng_dscr’ is unfortunately blank 38% of the time, and then has high cardinality for the rest of the levels. A very small percentage are marked “GUZZLER” and “FLEX FUELS”. We can see that a few of them are marked V-6 or V-8, which could be useful data as we will see later. <code>trans_dscr</code> is also blank more than 60% of the time, so it seems unlikely that we could clean up these variables to make it useful in an analysis, so will probably have to drop them.</p>
+<pre class="python"><code>big_mt[:, {&#39;percent&#39; : count()/big_mt.nrows }, by(f.eng_dscr)][:,:, sort(-f.percent)]</code></pre>
+<pre><code>## [1m    [0;90m|[0;1m eng_dscr                                percent[0m
+## [90m--- + --------------------------------  -------------[0m
+## [90m  0 |[0m                                     0.386739   
+## [90m  1 |[0m (FFS)                               0.209022   
+## [90m  2 |[0m SIDI                                0.145655   
+## [90m  3 |[0m (FFS) CA model                      0.0219275  
+## [90m  4 |[0m (FFS)      (MPFI)                   0.017381   
+## [90m  5 |[0m FFV                                 0.0166469  
+## [90m  6 |[0m (FFS,TRBO)                          0.0157708  
+## [90m  7 |[0m (350 V8) (FFS)                      0.00973242 
+## [90m  8 |[0m SIDI &amp; PFI                          0.00895098 
+## [90m  9 |[0m (GUZZLER)  (FFS)                    0.00866682 
+## [90m 10 |[0m SOHC                                0.00838267 
+## [90m 11 |[0m SIDI; FFV                           0.00729339 
+## [90m 12 |[0m (NO-CAT)                            0.0056358  
+## [90m 13 |[0m FLEX-FUEL                           0.00468861 
+## [90m 14 |[0m GUZZLER                             0.00461757 
+## [90m[0;2m...[0;90m |[0m [2m...[0m                               ...          
+## [90m556 |[0m Sport Transmission                  2.36798e-05
+## [90m557 |[0m V-6        (FFS)      (S-CHARGE)    2.36798e-05
+## [90m558 |[0m V-6 FFS                             2.36798e-05
+## [90m559 |[0m V8                                  2.36798e-05
+## [90m560 |[0m Z/28                                2.36798e-05
+## 
+## [2m[561 rows x 2 columns][0m</code></pre>
+<p>We struggled with column transformations, like separating to tidy variables, which seems a lot easier with <code>data.table</code>. To start with, <code>trany</code> has both the transmission-type and gear-speed variable within it. It may be that our Python ability is weaker, but the need to iterate over the nested list or tuples structure of <code>datatable</code> variables wouldn’t allow us to split or extract regex patterns without drilling down on list comprehensions. It looks like string module functions are not yet supported, but will be in a future version according to <a href="https://stackoverflow.com/questions/59631316/how-to-make-use-of-str-library-functions-to-pydatatable">SO</a>. For now, we found that the easiest thing to do in these cases was again to send the field over to <code>pandas</code>, and then split and replace as shown in the first two steps below. An easier method from within the <code>datatable</code> frame would be appreciated, because this is a frequent operation for data cleaning.</p>
 <p>In the third line of code, we felt like we were using an R <code>data.table</code>. The <code>{}</code> is used to create the new variable in-line, without affecting the other variables, similar to how <code>:=</code> is be used within <code>data.table</code> (though the result still has to be assigned). Notice that we had to refer to variables with the <code>datatable</code> non-standard evaluation (ie: <code>f.trans</code> and <code>f.speed</code>) if we wanted to avoid having to include quotation marks around the variable. In Python <code>datatable</code>, an extra step is required to <code>export_names()</code> to skip <code>f</code> or the quotation marks (as we will show further down).</p>
 <p>With <code>datatable</code>, we frequently forgot the need to include <code>:</code> in <code>i</code> or <code>j</code> even if we were not specifically giving instructions for those slots. By default, <code>datatable</code> needs to specifically be instructed unlike <code>data.table</code> which assumes all rows or columns in <code>i</code> and <code>j</code> by default. Also, <code>sort</code> is done in the third slot within the frame (see print statement below), unlike in <code>data.table</code> where they are performed in <code>i</code> of a subsequent frame. A last difference which we discovered in SO, but didn’t notice in the documentation was the option to use the <code>\</code> operator to chain a frame to the next line to try and show cleaner code (also shown in the print statement below).</p>
 <pre class="python"><code># Move to pandas to split &quot;trany&quot; variable
@@ -107,7 +154,7 @@ print(big_mt[:, {&#39;percent&#39; : count()/big_mt.nrows}, by(f.trans, f.speed)
 ##  9 | Automatic         0.0210514
 ## 
 ## [10 rows x 3 columns]</code></pre>
-<p>We wanted to create a boolean variable to denote if a vehicle had an electric motor or not. In order to do this, we had to pipe our <code>evMotor</code> evaluation from <code>j</code> out to <code>pandas</code> in order to form a data structure we could assign back to the newly created <code>is_ev</code> variable (if the row identifying the battery was blank or not). We also had difficulty with row filtering at first, but got more used it over time. Above we showed how to filter with an expression set up outside the frame, but below <code>(dt.f.is_ev == 1)</code> is used to filter in <code>i</code> within the frame. Without the parentheses, the expression won’t work whether it is set up within or outside the frame. We sometimes also had difficulty using multiple expressions to filter a frame, or if we wanted to filter, and then perform operations in <code>j</code> of the same frame. In the table below, we show the number of electric vehicles rising from 3 in 1998 to 149 this year.</p>
+<p>We wanted to create a boolean variable to denote if a vehicle had an electric motor or not. In order to do this, we had to pipe our <code>evMotor</code> evaluation from <code>j</code> out to <code>pandas</code> in order to form a data structure we could assign back to the newly created <code>is_ev</code> variable (if the row identifying the battery was blank or not). We also had difficulty with row filtering at first, but got more used it over time. Above we showed how to filter with an expression set up outside the frame, but below <code>(f.is_ev == 1)</code> is used to filter in <code>i</code> within the frame. Without the parentheses, the expression won’t work whether it is set up within or outside the frame. We sometimes also had difficulty using multiple expressions to filter a frame, or if we wanted to filter, and then perform operations in <code>j</code> of the same frame. In the table below, we show the number of electric vehicles rising from 3 in 1998 to 149 this year.</p>
 <pre class="python"><code># Use pandas to create is_ev using expression from dt
 big_mt[&#39;is_ev&#39;] = big_mt[:, f.evMotor != &#39;&#39; ].to_pandas()
 
@@ -138,7 +185,13 @@ print(big_mt[:, count(), by(f.is_ev, f.year)]\
 ## 19 | 2021      6
 ## 
 ## [20 rows x 2 columns]</code></pre>
-<p>Next, we wanted to extract wheel-drive (2WD, AWD, 4WD, etc) and engine type (ie: V4, V6, etc) from <code>model</code>. This would require to filter where for example a row had ‘2WD’ or ‘4WD’ in model, and here we sorely missed the <code>data.table</code> <code>%in%</code> and <code>%chin%</code> operators, and it seems that we are not alone. This <a href="https://stackoverflow.com/questions/61494957/how-to-filter-observations-for-the-multiple-values-passed-in-the-i-expression-of">SO post</a> identifies similar challenges we encountered when filtering on a potential list of possibilities instead of a single equality. The suggested solution iterating over all the possible combinations is sizeable friction for us migrating over from R and we wondered for any less experienced Python user, so hopefully the requested feature will be implemented soon. We see the total count in the table, and also that we are unfortunately missing engine information in most cases.</p>
+<p>Next, we wanted to extract wheel-drive (2WD, AWD, 4WD, etc) and engine type (ie: V4, V6, etc) from <code>model</code>. The <code>re_match()</code> function is helpful in filtering rows in <code>i</code>. As shown below, we found almost 17k matches for wheel drive, but only 600 for the engine size. When we went to try to extract the strings in <code>j</code> with <code>re.findall()</code>, it wasn’t possible because we were evaluating a list instead of a string.</p>
+<pre class="python"><code># Regex match with re_match()
+big_mt[dt.f.model.re_match(&#39;.*(A|F|\d)WD.*&#39;), f.model].nrows</code></pre>
+<pre><code>## 16831</code></pre>
+<pre class="python"><code>big_mt[dt.f.model.re_match(&#39;.*V\d+.*&#39;), f.model].nrows</code></pre>
+<pre><code>## 600</code></pre>
+<p>Its possible that there is a simpler way, but the workaround we found was first to extract the strings in the <code>models</code> tuple below, and then to iterate, extracting <code>wheel</code> and <code>engine</code> with regex. There is probably a simpler way, but so far we haven’t been able to figure it out. We found that there were some cases where the 2WD and 4WD were recorded as 2wd and 4wd. The <code>replace()</code> function was an efficient solution to this problem.</p>
 <pre class="python"><code># Convert model to str and split into wheel and engine
 models = [tup[0] for tup in big_mt[:, &#39;model&#39;].to_tuples()]
 #np.where(re.search(r&#39;\dWD|AWD&#39;, models), re.findall(r&#39;\dWD|AWD&#39;, models), &#39;nan&#39;)
@@ -207,17 +260,20 @@ big_mt[&#39;VClass&#39;] = dt.Frame([re.sub(&#39;\s\dWD$|\/\dwd$|\s\-\s\dWD$&#39
 big_mt[&#39;VClass&#39;] = dt.Frame([collapse_vclass(line[0]) for line in big_mt[:, &#39;VClass&#39;].to_tuples()])
 
 # Show final VClass types
-print(big_mt[:, f.VClass, by(f.VClass)]\
-            [0:11, &#39;VClass&#39;].to_numpy())</code></pre>
-<pre><code>## [[&#39;Large Car&#39;]
-##  [&#39;Midsize Car&#39;]
-##  [&#39;Minivan&#39;]
-##  [&#39;Small Car&#39;]
-##  [&#39;Small Pickup and SUV&#39;]
-##  [&#39;Special Purpose Vehicle&#39;]
-##  [&#39;Sport Utility Vehicle&#39;]
-##  [&#39;Standard Pickup Trucks&#39;]
-##  [&#39;Vans&#39;]]</code></pre>
+print(dt.unique(big_mt[&quot;VClass&quot;]))</code></pre>
+<pre><code>##    | VClass                 
+## -- + -----------------------
+##  0 | Large Car              
+##  1 | Midsize Car            
+##  2 | Minivan                
+##  3 | Small Car              
+##  4 | Small Pickup and SUV   
+##  5 | Special Purpose Vehicle
+##  6 | Sport Utility Vehicle  
+##  7 | Standard Pickup Trucks 
+##  8 | Vans                   
+## 
+## [9 rows x 1 column]</code></pre>
 <p>We printed out the result of our much smaller list of lumped factors (above), but should disclose that there are still problems with the result, because the cutoff for a “Small Pickup Truck” moved from 4,500 to 6,000 lbs in 2008. The EPA also used higher cut-off for “small” SUV’s starting in 2011, another head-scratcher of working with government data which probably can’t be rectified. As noted earlier, if we had the a weight field, we could have easily worked around this.</p>
 <p>We show the result of our efforts to clean <code>model</code> and <code>VClass</code> (below). After all that, we see we only have 218 rows where both <code>engine</code> and <code>wheel</code>are not ‘nan’, so if we hoped to use these variables in a future modeling step, we will have to look for other solutions.</p>
 <pre class="python"><code>cols = [&#39;make&#39;,&#39;model&#39;,&#39;year&#39;, &#39;VClass&#39;, &#39;engine&#39;, &#39;wheel&#39;]
@@ -253,31 +309,31 @@ measures = [x for x in big_mt.names if re.search(r&#39;08$|year|make|model&#39;,
 
 # Print remaining cols with measures filter
 print(big_mt[year_filter,  measures])</code></pre>
-<pre><code>##      | barrels08  barrelsA08  city08  cityA08  comb08  combA08  fuelCost08  fuelCostA08  highway08  highwayA08  make            model                         year
-## ---- + ---------  ----------  ------  -------  ------  -------  ----------  -----------  ---------  ----------  --------------  ----------------------------  ----
-##    0 |  14.3309      0            20        0      23        0        1500            0         29           0  Jeep            Cherokee FWD                  2019
-##    1 |  14.9823      0            19        0      22        0        1550            0         27           0  Jeep            Cherokee 4WD                  2019
-##    2 |  15.6957      0            18        0      21        0        1650            0         26           0  Jeep            Cherokee 4WD Active Drive II  2019
-##    3 |  15.6957      0            18        0      21        0        1650            0         24           0  Jeep            Cherokee Trailhawk 4WD        2019
-##    4 |  17.3479      0            16        0      19        0        2000            0         25           0  Chevrolet       Corvette                      2019
-##    5 |  18.3117      0            15        0      18        0        2100            0         25           0  Chevrolet       Corvette                      2019
-##    6 |  19.3888      0            14        0      17        0        2200            0         23           0  Chevrolet       Corvette Z06                  2019
-##    7 |   9.69441     0            30        0      34        0         800            0         40           0  Volkswagen      Jetta                         2019
-##    8 |   9.69441     0            30        0      34        0         800            0         40           0  Volkswagen      Jetta                         2019
-##    9 |  13.1844      0            22        0      25        0        1100            0         29           0  Kia             Sorento FWD                   2019
-##   10 |  12.2078      0            24        0      27        0        1400            0         31           0  Infiniti        QX50                          2019
-##   11 |  14.9823      0            19        0      22        0        1250            0         26           0  Kia             Sorento FWD                   2019
-##   12 |  12.6773      0            24        0      26        0        1450            0         30           0  Infiniti        QX50 AWD                      2019
-##   13 |  14.3309      0            21        0      23        0        1200            0         26           0  Kia             Sorento AWD                   2019
-##   14 |  15.6957      0            19        0      21        0        1300            0         24           0  Kia             Sorento AWD                   2019
-##    … |         …           …       …        …       …        …           …            …          …           …  …               …                                …
-## 1330 |  18.3117      0            16        0      18        0        2100            0         20           0  RUF Automobile  RUFTURBO12/CTR3/CTR2017       2019
-## 1331 |  15.6957      0            19        0      21        0        1800            0         25           0  Land Rover      Range Rover Sport MHEV        2019
-## 1332 |   9.7524      7.84786      18       42      19       42        2000            0         21          42  Land Rover      Range Rover PHEV              2019
-## 1333 |   9.7524      7.84786      18       42      19       42        2000            0         21          42  Land Rover      Range Rover Sport PHEV        2019
-## 1334 |  17.3479      0            16        0      19        0        1450            0         24           0  Lincoln         Continental Coach             2019
+<pre><code>##      | barrels08  barrelsA08  city08  cityA08  comb08  combA08  fuelCost08  fuelCostA08  highway08  highwayA08  make     model                        year
+## ---- + ---------  ----------  ------  -------  ------  -------  ----------  -----------  ---------  ----------  -------  ---------------------------  ----
+##    0 |   9.69441       0          31        0      34        0         800            0         40           0  Toyota   Corolla                      2020
+##    1 |   6.33865       0          53        0      52        0         500            0         52           0  Toyota   Corolla Hybrid               2020
+##    2 |  10.3003        0          29        0      32        0         850            0         36           0  Toyota   Corolla                      2020
+##    3 |   9.69441       0          31        0      34        0         800            0         38           0  Toyota   Corolla XSE                  2020
+##    4 |   9.98818       0          30        0      33        0         800            0         38           0  Toyota   Corolla                      2020
+##    5 |   9.98818       0          29        0      33        0         800            0         39           0  Toyota   Corolla                      2020
+##    6 |  10.3003        0          29        0      32        0         850            0         37           0  Toyota   Corolla XLE                  2020
+##    7 |  10.987         0          27        0      30        0         900            0         33           0  Kia      Soul                         2020
+##    8 |  10.6326        0          29        0      31        0         900            0         35           0  Kia      Soul Eco dynamics            2020
+##    9 |  12.2078        0          25        0      27        0        1000            0         31           0  Kia      Soul                         2020
+##   10 |  11.3659        0          27        0      29        0         950            0         32           0  Kia      Soul                         2020
+##   11 |  12.6773        0          23        0      26        0        1050            0         30           0  Kia      Sportage FWD                 2020
+##   12 |  14.3309        0          20        0      23        0        1200            0         28           0  Kia      Sportage FWD                 2020
+##   13 |  14.3309        0          20        0      23        0        1200            0         26           0  Kia      Telluride FWD                2020
+##   14 |  14.3309        0          22        0      23        0        1200            0         26           0  Kia      Sportage AWD                 2020
+##    … |         …           …       …        …       …        …           …            …          …           …  …        …                               …
+## 1199 |  17.3479        0          16        0      19        0        2000            0         23           0  Porsche  718 Cayman GT4               2020
+## 1200 |  27.4675        0          10        0      12        0        3150            0         16           0  Bentley  Mulsanne                     2020
+## 1201 |  10.5064        0.426      20       45      21       41        1800         1400         22          37  Porsche  Cayenne e-Hybrid             2020
+## 1202 |  10.5064        0.426      20       45      21       41        1800         1400         22          37  Porsche  Cayenne e-Hybrid Coupe       2020
+## 1203 |   0.294         0          68        0      69        0         950            0         71           0  Porsche  Taycan 4S Perf Battery Plus  2020
 ## 
-## [1335 rows x 13 columns]</code></pre>
+## [1204 rows x 13 columns]</code></pre>
 <p>Below, we show how to <code>export_names()</code> in order to prepare the specifid variables to be available for non-standard evaluation within the frame. We waited while we were transforming variables above to do this, but it may make sense to do it each time a new variable is created to avoid confusion over when NSE was needed or not. If possible, to have this transformation as a default feature (as it does in R <code>data.table</code>) after generating a new variable seems like it would eliminate a extra step and confusion in most cases.</p>
 <pre class="python"><code># List of cols to keep
 cols = [&#39;make&#39;, 
