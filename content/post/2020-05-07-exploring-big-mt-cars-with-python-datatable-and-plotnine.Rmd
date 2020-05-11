@@ -124,8 +124,8 @@ We can see that below that 'eng_dscr' is unfortunately blank 38% of the time, an
 
 
 ```{python 'eng_dscr', echo=TRUE}
-big_mt[:, {'percent' : count()/big_mt.nrows }, by(eng_dscr)]\
-      [:,:, sort(-f.percent)]
+print(big_mt[:, {'percent' : int32(count() * 100/big_mt.nrows) }, by(eng_dscr)]\
+            [:,:, sort(-f.percent)])
 ```
 
 As shown above, `trany` has both the transmission-type and gear-speed variables within it, so we extracted the variable from big_mt with `to_list`, drilled down one level, and used regex to extract the transmission and gear information needed out into `trans` and `gear`. Notice that we needed to convert the lists back into columns with dt.Frame before assigning as new variables in big_mt.
