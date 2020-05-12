@@ -27,7 +27,7 @@ reticulate::use_condaenv(
   required = TRUE
   )</code></pre>
 <pre class="r"><code># Install Python packages
-lapply(c(&quot;plotnine&quot;, &quot;datatable&quot;, &quot;re&quot;), function(package) {
+lapply(c(&quot;plotnine&quot;, &quot;datatable&quot;), function(package) {
        conda_install(&quot;datatable&quot;, package, pip = TRUE)
 })</code></pre>
 <pre class="python"><code># Python libraries
@@ -39,13 +39,13 @@ import pprint</code></pre>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>As mentioned in our last series <a href="https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/">Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract - Part 1</a> and <a href="https://redwallanalytics.com/2020/02/18/a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1/">A Walk Though of Accessing Financial Statements with XBRL in R - Part 1</a>, this is a year of clean-up. Redwall Analytics is going through this year, and solving problems previously encountered, but beyond our capabilities at the time. It is doing this by combining R and Python tools via <code>reticulate</code>, as we did with our series on <code>pdftools</code>, <code>tabulizer</code> and AWS <code>Textract</code>. Although we have worked with some Python, we have been hoping to leveraging the familiar syntax of two of our favorite R libraries, <code>data.table</code> and <code>ggplot2</code> to bridge our way into the language.</p>
-<p>Python’s <code>datatable</code> was launched by h2o two years ago, and feels similar to the R version, with a few syntax differences and also some important pieces still to be added (as we will discuss). We could only find a handful of posts showing how to use <code>datatable</code>, and most of the examples we found were probably not written by regular users of R <code>data.table</code>. We use <code>data.table</code> every day and love the speed and concise syntax, so this walk-through analysis of the EPA’s Big MT cars dataset will be from that perspective. As for <code>plotnine</code>, it feels more seemless with <code>ggplot2</code> with a few problems formatting plots in Rmarkdown.</p>
+<p>Python’s <code>datatable</code> was launched by <code>h2o</code> two years ago, and feels similar to the R version, with a few syntax differences and also some important pieces still to be added (as we will discuss). We could only find a handful of posts showing how to use <code>datatable</code>, and most of the examples we found were probably not written by regular users of R <code>data.table</code>. We use <code>data.table</code> every day and love the speed and concise syntax, so this walk-through analysis of the EPA’s Big MT cars dataset will be from that perspective. As for <code>plotnine</code>, it feels more seemless with <code>ggplot2</code> with a few problems formatting plots in Rmarkdown.</p>
 </div>
 <div id="epas-big-mt-dataset" class="section level1">
 <h1>EPA’s Big MT Dataset</h1>
-<p>To make it interesting, we will use the <a href="%22https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-10-15%22">Tidy Tuesday Big MT Cars</a> with 36 years of 42,230 new US car models. The data dictionary with 83 variables describing each annual new car model is found <a href="https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1">here</a>. Everyone loves cars and remembering historical models. We have naturally been curious about this dataset, but on closer analysis, have discovered that there are several unfortunate missing pieces.</p>
-<p>When we have modeled <code>mtcars</code>, weight (<code>wt</code>) and horsepower (<code>hp</code>), and their interaction, have been most informative for predicting <code>mpg</code>. It would have been interesting to look at the evolution of the <code>mtcars</code> coefficients over time, but these variables are not unforunately not available. In addition, it is hard to get a sense of fleet mileage without the total annual sales of each new car model. Because of this, it is impossible to know the evolution of more fuel efficient electric vehicles relative to more fuel-hungry model sales.</p>
-<p>It is difficult to understand why these variables are not included when that information must be available to the EPA, and it clearly says on page 6 of <a href="https://www.fueleconomy.gov/feg/pdfs/guides/FEG2020.pdf">Fuel Economy Guide 2020</a> that an extra 100 lbs decreases fuel economy by 1%. While the dataset is still of interest to practice for data cleaning, it starts looking less interesting if the objective is to replicate <code>mtcars</code> over time!</p>
+<p>To make it a little interesting, we will use the <a href="%22https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-10-15%22">Tidy Tuesday Big MT Cars</a> with 36 years of 42,230 new US car models. The data dictionary with 83 variables describing each annual new car model is found <a href="https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1">here</a>. Everyone loves cars and remembering historical models. We have naturally been curious about this dataset, but on closer analysis, have discovered that there are some unfortunate missing pieces.</p>
+<p>When we have modeled <code>mtcars</code>, weight (<code>wt</code>) and horsepower (<code>hp</code>), and their interaction, have been most informative for predicting <code>mpg</code>. It would have been interesting to look at the evolution of the <code>mtcars</code> coefficients over time, but these variables are not unfortunately not available. In addition, it is hard to get a sense of fleet mileage without the annual unit-volume of each new car model. Because of this, it is impossible to know the evolution of more fuel efficient electric vehicles relative to more fuel-hungry model sales.</p>
+<p>It is difficult to understand why these variables are not included when that information must be available to the EPA, and it clearly says on page 6 of <a href="https://www.fueleconomy.gov/feg/pdfs/guides/FEG2020.pdf">Fuel Economy Guide 2020</a> that an extra 100 lbs decreases fuel economy by 1%. While the dataset is still of interest to practice for data cleaning, it doesn’t look likely that we will be able replicate <code>mtcars</code> over time!</p>
 <pre class="python"><code># Load vehicles
 #https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
 #big_mt_cars &lt;- fread(&quot;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv&quot;)
@@ -54,10 +54,14 @@ big_mt = dt.fread(&quot;~/Downloads/vehicles.csv&quot;)
 # Dimensions
 big_mt.shape</code></pre>
 <pre><code>## (42230, 83)</code></pre>
-<p>We can see that there are several variables pertaining to fuel efficiency, emissions, fuel type, range, volume and some of the same attributes that we all know from <code>mtcars</code> (ie: cylinders, displacement, make, model and transmission). As mentioned, we are missing gross horsepower and weight, but also carburetors, acceleration and engine shape. We do get vehicle class information (VClass) not available in <code>mtcars</code>, but as we will discuss further down, changes to the weight cutoffs on some of the categories over time make this variable of questionable use.</p>
-<pre class="python"><code>pp = pprint.PrettyPrinter(width=80, compact=True)
-pp.pprint(big_mt.names)</code></pre>
-<pre><code>## (&#39;barrels08&#39;, &#39;barrelsA08&#39;, &#39;charge120&#39;, &#39;charge240&#39;, &#39;city08&#39;, &#39;city08U&#39;,
+<p>The list of all 83 variables below, and we can see that there are several pertaining to fuel efficiency, emissions, fuel type, range, volume and some of the same attributes that we all know from <code>mtcars</code> (ie: cylinders, displacement, make, model and transmission). As mentioned, gross horsepower and weight are missing, but carburetors, acceleration and engine shape are also absent. We have all classes of vehicles sold, so get vehicle class information (VClass) not available in <code>mtcars</code> which is only cars. We will discuss further down, changes to the weight cutoffs on some of the categories over time make <code>VClass</code> of questionable use.</p>
+<pre class="python"><code># Extract names as list for further processing in next chunk
+names = [name for name in big_mt.names]
+
+# Set up pprint params and print
+pp = pprint.PrettyPrinter(width=80, compact = True)
+pp.pprint(names)</code></pre>
+<pre><code>## [&#39;barrels08&#39;, &#39;barrelsA08&#39;, &#39;charge120&#39;, &#39;charge240&#39;, &#39;city08&#39;, &#39;city08U&#39;,
 ##  &#39;cityA08&#39;, &#39;cityA08U&#39;, &#39;cityCD&#39;, &#39;cityE&#39;, &#39;cityUF&#39;, &#39;co2&#39;, &#39;co2A&#39;,
 ##  &#39;co2TailpipeAGpm&#39;, &#39;co2TailpipeGpm&#39;, &#39;comb08&#39;, &#39;comb08U&#39;, &#39;combA08&#39;,
 ##  &#39;combA08U&#39;, &#39;combE&#39;, &#39;combinedCD&#39;, &#39;combinedUF&#39;, &#39;cylinders&#39;, &#39;displ&#39;, &#39;drive&#39;,
@@ -69,11 +73,12 @@ pp.pprint(big_mt.names)</code></pre>
 ##  &#39;UHighway&#39;, &#39;UHighwayA&#39;, &#39;VClass&#39;, &#39;year&#39;, &#39;youSaveSpend&#39;, &#39;guzzler&#39;,
 ##  &#39;trans_dscr&#39;, &#39;tCharger&#39;, &#39;sCharger&#39;, &#39;atvType&#39;, &#39;fuelType2&#39;, &#39;rangeA&#39;,
 ##  &#39;evMotor&#39;, &#39;mfrCode&#39;, &#39;c240Dscr&#39;, &#39;charge240b&#39;, &#39;c240bDscr&#39;, &#39;createdOn&#39;,
-##  &#39;modifiedOn&#39;, &#39;startStop&#39;, &#39;phevCity&#39;, &#39;phevHwy&#39;, &#39;phevComb&#39;)</code></pre>
-<p>A few lines of some key variables are shown in the code below, and it is clear that they need significant cleaning to be of use. The first difference with R <code>data.table</code> is shown below with the filtering. Using our <code>year_filter</code> in <code>i</code> (the first slot), the 1204 2019 models are shown below. Unlike R <code>data.table</code>, we refer to <code>year</code> outside of the frame in an expression, and then call it within <code>i</code> of the frame. The columns can be selected within <code>()</code> or <code>[]</code> in <code>j</code> (the second slot) as shown below, and new columns can be created within <code>{}</code>. We will discuss the <code>f</code> syntax further below, which also was confusing at first, below.</p>
+##  &#39;modifiedOn&#39;, &#39;startStop&#39;, &#39;phevCity&#39;, &#39;phevHwy&#39;, &#39;phevComb&#39;]</code></pre>
+<p>There were a couple of things about the set-up for <code>datatable</code>, which weren’t apparent coming over from <code>data.table</code> as an R user. The first was to use &quot;from dt import *&quot; at the outset to avoid having to reference the package short name every time within the frame. The second was to use <code>export_names()</code> in order to skip having to use the <code>f</code> operator or quotation marks to reference variables. In order to do this, we had to create a dictionary of names using the <code>names</code> list from above, and each of their <code>f</code> expressions extracted with <code>export_names</code> in a second list. We then used update from the local environment to assign all of the dictionary values to their keys as variables. From then on, we can refer to those variable without quotation marks or the <code>f</code> operator (although any new variables created would still need <code>f</code> or quotation marks). We weren’t sure why this is not the default behavior, but it is easily worked around. These two steps brought the feel of <code>datatable</code> a lot closer to the usual R <code>data.table</code> (ie: without the package and expression short codes).</p>
+<p>A few lines of some key variables are shown in the code below, and it is clear that they need significant cleaning to be of use. One difference with R <code>data.table</code> can be seen below with filtering. Using our <code>year_filter</code> in <code>i</code> (the first slot), the 1204 2019 models are shown below. Unlike R <code>data.table</code>, we refer to <code>year</code> outside of the frame in an expression, and then call it within <code>i</code> of the frame. The columns can be selected within <code>()</code> or <code>[]</code> in <code>j</code> (the second slot) as shown below, and new columns can be created within <code>{}</code>.</p>
 <pre class="python"><code># Key variables for year 2019
-year_filter = (f.year == 2020)
-print(big_mt[year_filter, (f.year, f.make, f.model, f.trany, f.evMotor, f.VClass)])</code></pre>
+year_filter = (year == 2020)
+print(big_mt[year_filter, (year, make, model, trany, evMotor, VClass)])</code></pre>
 <pre><code>##      | year  make     model                        trany                             evMotor             VClass                            
 ## ---- + ----  -------  ---------------------------  --------------------------------  ------------------  ----------------------------------
 ##    0 | 2020  Toyota   Corolla                      Automatic (AV-S10)                                    Compact Cars                      
@@ -99,142 +104,156 @@ print(big_mt[year_filter, (f.year, f.make, f.model, f.trany, f.evMotor, f.VClass
 ## 1203 | 2020  Porsche  Taycan 4S Perf Battery Plus  Automatic (A2)                    120 kW ACPM         Large Cars                        
 ## 
 ## [1204 rows x 6 columns]</code></pre>
-<p>We thought there might be duplicate rows, but there isn’t a duplicated() function yet in <code>datatable</code> <a href="https://stackoverflow.com/questions/61578175/how-to-find-unique-values-for-a-field-in-pydatatable-data-frame">How to find unique values for a field in Pydatatable Data Frame</a>. The <code>unique()</code> function doesn’t apply to groups yet, but not to check all coluns at once. In order to work around this, identifying variables would have to be grouped, counted and filtered for equal to 1, but this could still leave uncertainty if all the duplicates had been captured. After searching for ways to do it in <code>datatable</code>, we decided to pipe over to <code>pandas</code> to verify that there were no duplicates, but hope this function will be added in the future.</p>
-<p>This would require to filter where for example a row had ‘2WD’ or ‘4WD’ in model, and here we missed the <code>data.table</code> <code>%in%</code> and <code>%chin%</code> operators, and it seems that we are not alone. This <a href="https://stackoverflow.com/questions/61494957/how-to-filter-observations-for-the-multiple-values-passed-in-the-i-expression-of">SO post</a> identifies similar challenges we encountered when filtering on a potential list of possibilities instead of a single equality. The suggested solution iterating over all the possible combinations is sizeable friction for us migrating over from R and we wondered for any less experienced Python user, so hopefully the requested feature will be implemented soon. We see the total count in the table, and also that we are unfortunately missing engine information in most cases.</p>
-<p>We can see that ‘eng_dscr’ is unfortunately blank 38% of the time, and then has high cardinality for the rest of the levels. A very small percentage are marked “GUZZLER” and “FLEX FUELS”. We can see that a few of them are marked V-6 or V-8, which could be useful data as we will see later. <code>trans_dscr</code> is also blank more than 60% of the time, so it seems unlikely that we could clean up these variables to make it useful in an analysis, so will probably have to drop them.</p>
-<pre class="python"><code>big_mt[:, {&#39;percent&#39; : count()/big_mt.nrows }, by(f.eng_dscr)][:,:, sort(-f.percent)]</code></pre>
-<pre><code>## [1m    [0;90m|[0;1m eng_dscr                                percent[0m
-## [90m--- + --------------------------------  -------------[0m
-## [90m  0 |[0m                                     0.386739   
-## [90m  1 |[0m (FFS)                               0.209022   
-## [90m  2 |[0m SIDI                                0.145655   
-## [90m  3 |[0m (FFS) CA model                      0.0219275  
-## [90m  4 |[0m (FFS)      (MPFI)                   0.017381   
-## [90m  5 |[0m FFV                                 0.0166469  
-## [90m  6 |[0m (FFS,TRBO)                          0.0157708  
-## [90m  7 |[0m (350 V8) (FFS)                      0.00973242 
-## [90m  8 |[0m SIDI &amp; PFI                          0.00895098 
-## [90m  9 |[0m (GUZZLER)  (FFS)                    0.00866682 
-## [90m 10 |[0m SOHC                                0.00838267 
-## [90m 11 |[0m SIDI; FFV                           0.00729339 
-## [90m 12 |[0m (NO-CAT)                            0.0056358  
-## [90m 13 |[0m FLEX-FUEL                           0.00468861 
-## [90m 14 |[0m GUZZLER                             0.00461757 
-## [90m[0;2m...[0;90m |[0m [2m...[0m                               ...          
-## [90m556 |[0m Sport Transmission                  2.36798e-05
-## [90m557 |[0m V-6        (FFS)      (S-CHARGE)    2.36798e-05
-## [90m558 |[0m V-6 FFS                             2.36798e-05
-## [90m559 |[0m V8                                  2.36798e-05
-## [90m560 |[0m Z/28                                2.36798e-05
+<p>We usually like to make a quick check if there are any duplicated rows across the whole our dataFrame, but there isn’t a duplicated() function yet in <code>datatable</code>. According to <a href="https://stackoverflow.com/questions/61578175/how-to-find-unique-values-for-a-field-in-pydatatable-data-frame">How to find unique values for a field in Pydatatable Data Frame</a>, the <code>unique()</code> function also doesn’t apply to groups yet. In order to work around this, identifying variables would have to be grouped, counted and filtered for equal to 1, but we weren’t sure yet exactly which variables to group on. We decided to pipe over to <code>pandas</code> to verify with a simple line of code that there were no duplicates, but hope this function will be added in the future.</p>
+<p>We can see that below that ‘eng_dscr’ is unfortunately blank 38% of the time, and high cardinality for the rest of the levels. A small percentage are marked “GUZZLER” and “FLEX FUELS”. in a few cases, potentially helpful information about engine like V-6 or V-8 are included with very low frequency, but not consistently enough to make sense try to extract. Another potentially informative variable, <code>trans_dscr</code> is similarly blank more than 60% of the time. It seems unlikely that we could clean rhese up to make it useful in an analysis, so will probably have to drop them.</p>
+<pre class="python"><code>print(big_mt[:, {&#39;percent&#39; : int32(count() * 100/big_mt.nrows) }, by(eng_dscr)]\
+            [:,:, sort(-f.percent)])</code></pre>
+<pre><code>##     | eng_dscr                      percent
+## --- + ----------------------------  -------
+##   0 |                                    38
+##   1 | (FFS)                              20
+##   2 | SIDI                               14
+##   3 | (FFS) CA model                      2
+##   4 | (FFS)      (MPFI)                   1
+##   5 | (FFS,TRBO)                          1
+##   6 | FFV                                 1
+##   7 | (121)      (FFS)                    0
+##   8 | (122)      (FFS)                    0
+##   9 | (16 VALVE) (FFS)      (MPFI)        0
+##  10 | (16-VALVE) (FFS)                    0
+##  11 | (16-VALVE) (FFS)      (MPFI)        0
+##  12 | (16-VALVE) (FFS,TRBO)               0
+##  13 | (164S)     (FFS)      (MPFI)        0
+##  14 | (16VALVES) (FFS)                    0
+##   … | …                                   …
+## 556 | VTEC       (FFS)                    0
+## 557 | VTEC-E                              0
+## 558 | VTEC-E     (FFS)                    0
+## 559 | Z/28                                0
+## 560 | new body style                      0
 ## 
-## [2m[561 rows x 2 columns][0m</code></pre>
-<p>We struggled with column transformations, like separating to tidy variables, which seems a lot easier with <code>data.table</code>. To start with, <code>trany</code> has both the transmission-type and gear-speed variable within it. It may be that our Python ability is weaker, but the need to iterate over the nested list or tuples structure of <code>datatable</code> variables wouldn’t allow us to split or extract regex patterns without drilling down on list comprehensions. It looks like string module functions are not yet supported, but will be in a future version according to <a href="https://stackoverflow.com/questions/59631316/how-to-make-use-of-str-library-functions-to-pydatatable">SO</a>. For now, we found that the easiest thing to do in these cases was again to send the field over to <code>pandas</code>, and then split and replace as shown in the first two steps below. An easier method from within the <code>datatable</code> frame would be appreciated, because this is a frequent operation for data cleaning.</p>
-<p>In the third line of code, we felt like we were using an R <code>data.table</code>. The <code>{}</code> is used to create the new variable in-line, without affecting the other variables, similar to how <code>:=</code> is be used within <code>data.table</code> (though the result still has to be assigned). Notice that we had to refer to variables with the <code>datatable</code> non-standard evaluation (ie: <code>f.trans</code> and <code>f.speed</code>) if we wanted to avoid having to include quotation marks around the variable. In Python <code>datatable</code>, an extra step is required to <code>export_names()</code> to skip <code>f</code> or the quotation marks (as we will show further down).</p>
-<p>With <code>datatable</code>, we frequently forgot the need to include <code>:</code> in <code>i</code> or <code>j</code> even if we were not specifically giving instructions for those slots. By default, <code>datatable</code> needs to specifically be instructed unlike <code>data.table</code> which assumes all rows or columns in <code>i</code> and <code>j</code> by default. Also, <code>sort</code> is done in the third slot within the frame (see print statement below), unlike in <code>data.table</code> where they are performed in <code>i</code> of a subsequent frame. A last difference which we discovered in SO, but didn’t notice in the documentation was the option to use the <code>\</code> operator to chain a frame to the next line to try and show cleaner code (also shown in the print statement below).</p>
-<pre class="python"><code># Move to pandas to split &quot;trany&quot; variable
-big_mt[[&#39;trans&#39;, &#39;speed&#39;]] = big_mt.to_pandas().pop(&#39;trany&#39;).str.split(&#39;\s&#39;, 1, expand=True)
-
-# Again move to pandas to remove non digit chars
-big_mt[&#39;speed&#39;] = big_mt.to_pandas().pop(&#39;speed&#39;).str.replace(&#39;\D*&#39;, &#39;&#39;)
+## [561 rows x 2 columns]</code></pre>
+<p>As shown above, <code>trany</code> has both the transmission-type and gear-speed variables within it, so we extracted the variable from big_mt with <code>to_list</code>, drilled down one level, and used regex to extract the transmission and gear information needed out into <code>trans</code> and <code>gear</code>. Notice that we needed to convert the lists back into columns with dt.Frame before assigning as new variables in big_mt.</p>
+<p>In the third line of code, we felt like we were using an R <code>data.table</code>. The <code>{}</code> is used group by <code>trans</code> and <code>gear</code>, and then to create the new <code>percent</code> variable in-line, without affecting the other variables in big_mt. We tried to round the decimals in percent, but couldn’t figure it out so far. Our understanding is that there is no <code>round()</code> method yet for <code>datatable</code>, so we multipled by 100 and converted to integer. We again called <code>export_names()</code>, to be consistent in using non-standard evaluation with the two new variables.</p>
+<pre class="python"><code>big_mt[&#39;trans&#39;] = dt.Frame([re.sub(&#39;[\s\(].*$&#39;,&#39;&#39;, s) for s in big_mt[:, &#39;trany&#39;].to_list()[0]])
+big_mt[&#39;gear&#39;] = dt.Frame([re.sub(&#39;A\w+\s|M\w+\s&#39;,&#39;&#39;, s) for s in big_mt[:, &#39;trany&#39;].to_list()[0]])
+gear, trans= big_mt[:, (&#39;gear&#39;, &#39;trans&#39;)].export_names()
 
 # Summarize percent of instances by transmission and speed
-print(big_mt[:, {&#39;percent&#39; : count()/big_mt.nrows}, by(f.trans, f.speed)]\
-            [0:10, : , sort(-f.percent)])</code></pre>
-<pre><code>##    | trans      speed    percent
-## -- + ---------  -----  ---------
-##  0 | Automatic  4      0.26718  
-##  1 | Manual     5      0.198153 
-##  2 | Automatic  6      0.127066 
-##  3 | Automatic  3      0.0746626
-##  4 | Automatic  5      0.0722946
-##  5 | Manual     6      0.0668719
-##  6 | Automatic  8      0.061615 
-##  7 | Automatic  7      0.0468151
-##  8 | Manual     4      0.0355198
-##  9 | Automatic         0.0210514
+print(big_mt[:, { &#39;percent&#39; : int32(count() * 100 /big_mt.nrows) }, by(trans, gear)]\
+            [0:13, : , sort(-f.percent)])</code></pre>
+<pre><code>##    | trans      gear                    percent
+## -- + ---------  ----------------------  -------
+##  0 | Automatic  4-spd                        26
+##  1 | Manual     5-spd                        19
+##  2 | Automatic  (S6)                          7
+##  3 | Automatic  3-spd                         7
+##  4 | Manual     6-spd                         6
+##  5 | Automatic  5-spd                         5
+##  6 | Automatic  (S8)                          4
+##  7 | Automatic  6-spd                         3
+##  8 | Manual     4-spd                         3
+##  9 | Automatic  (variable gear ratios)        2
+## 10 | Automatic  (AM-S7)                       1
+## 11 | Automatic  (S5)                          1
+## 12 | Automatic  7-spd                         1
 ## 
-## [10 rows x 3 columns]</code></pre>
-<p>We wanted to create a boolean variable to denote if a vehicle had an electric motor or not. In order to do this, we had to pipe our <code>evMotor</code> evaluation from <code>j</code> out to <code>pandas</code> in order to form a data structure we could assign back to the newly created <code>is_ev</code> variable (if the row identifying the battery was blank or not). We also had difficulty with row filtering at first, but got more used it over time. Above we showed how to filter with an expression set up outside the frame, but below <code>(f.is_ev == 1)</code> is used to filter in <code>i</code> within the frame. Without the parentheses, the expression won’t work whether it is set up within or outside the frame. We sometimes also had difficulty using multiple expressions to filter a frame, or if we wanted to filter, and then perform operations in <code>j</code> of the same frame. In the table below, we show the number of electric vehicles rising from 3 in 1998 to 149 this year.</p>
-<pre class="python"><code># Use pandas to create is_ev using expression from dt
-big_mt[&#39;is_ev&#39;] = big_mt[:, f.evMotor != &#39;&#39; ].to_pandas()
-
-# Summarize number of ev models by year
-print(big_mt[:, count(), by(f.is_ev, f.year)]\
-            [(f.is_ev == 1), (&#39;year&#39;, &#39;count&#39;)])</code></pre>
-<pre><code>##    | year  count
-## -- + ----  -----
-##  0 | 1998      3
-##  1 | 1999      7
-##  2 | 2000      4
-##  3 | 2001      5
-##  4 | 2002      2
-##  5 | 2003      1
-##  6 | 2008     23
-##  7 | 2009     27
-##  8 | 2010     34
-##  9 | 2011     49
-## 10 | 2012     55
-## 11 | 2013     68
-## 12 | 2014     77
-## 13 | 2015     76
-## 14 | 2016     95
-## 15 | 2017     92
-## 16 | 2018    103
-## 17 | 2019    133
-## 18 | 2020    149
-## 19 | 2021      6
+## [13 rows x 3 columns]</code></pre>
+<p>We wanted to create a boolean variable to denote if a vehicle had an electric motor or not. We again used <code>{}</code> to create the variable in the frame, but don’t think it is possible to update by reference so still had to assign to <code>is_ev</code>. In the table below, we show the number of electric vehicles rising from 3 in 1998 to 149 this year. Unfortunately,</p>
+<pre class="python"><code># Create &#39;is_ev&#39; within the frame
+big_mt[&#39;is_ev&#39;] = big_mt[:, { &#39;is_ev&#39; : evMotor != &#39;&#39; }]
+is_ev = big_mt[:, &#39;is_ev&#39;].export_names()
+ann_models = big_mt[:, {&#39;all_models&#39; : count()}, by(year)]
+ev_models = big_mt[:, {&#39;ev_models&#39; : count() }, by(&#39;year&#39;, &#39;is_ev&#39;)]\
+                  [(f.is_ev == 1), (&#39;year&#39;, &#39;ev_models&#39;)]
+ev_models.key = &quot;year&quot;
+print(ann_models[:, :, join(ev_models)]\
+                [:, { &#39;all_models&#39; : f.all_models, 
+                      &#39;ev_models&#39; : f.ev_models, 
+                      &#39;percent&#39; : int32(f.ev_models * 100 / f.all_models) }, 
+                      by(year)]\
+                [(year &gt; 1996), :])</code></pre>
+<pre><code>##    | year  all_models  ev_models  percent
+## -- + ----  ----------  ---------  -------
+##  0 | 1997         762         NA       NA
+##  1 | 1998         812          3        0
+##  2 | 1999         852          7        0
+##  3 | 2000         840          4        0
+##  4 | 2001         911          5        0
+##  5 | 2002         975          2        0
+##  6 | 2003        1044          1        0
+##  7 | 2004        1122         NA       NA
+##  8 | 2005        1166         NA       NA
+##  9 | 2006        1104         NA       NA
+## 10 | 2007        1126         NA       NA
+## 11 | 2008        1187         23        1
+## 12 | 2009        1184         27        2
+## 13 | 2010        1109         34        3
+## 14 | 2011        1130         49        4
+## 15 | 2012        1152         55        4
+## 16 | 2013        1184         68        5
+## 17 | 2014        1225         77        6
+## 18 | 2015        1283         76        5
+## 19 | 2016        1262         95        7
+## 20 | 2017        1293         92        7
+## 21 | 2018        1344        103        7
+## 22 | 2019        1335        133        9
+## 23 | 2020        1204        149       12
+## 24 | 2021          73          6        8
 ## 
-## [20 rows x 2 columns]</code></pre>
-<p>Next, we wanted to extract wheel-drive (2WD, AWD, 4WD, etc) and engine type (ie: V4, V6, etc) from <code>model</code>. The <code>re_match()</code> function is helpful in filtering rows in <code>i</code>. As shown below, we found almost 17k matches for wheel drive, but only 600 for the engine size. When we went to try to extract the strings in <code>j</code> with <code>re.findall()</code>, it wasn’t possible because we were evaluating a list instead of a string.</p>
+## [25 rows x 4 columns]</code></pre>
+<p>Next, we hoped to extract wheel-drive (2WD, AWD, 4WD, etc) and engine type (ie: V4, V6, etc) from <code>model</code>. The <code>re_match()</code> function is helpful in filtering rows in <code>i</code>. As shown below, we found almost 17k matches for wheel drive, but only 600 for the engine size. Given that we have over 42k rows, we will extract the wheels and give up on the engine data. It still may not be enough data for <code>wheels</code> to be a helpful variable.</p>
 <pre class="python"><code># Regex match with re_match()
-big_mt[dt.f.model.re_match(&#39;.*(A|F|\d)WD.*&#39;), f.model].nrows</code></pre>
-<pre><code>## 16831</code></pre>
-<pre class="python"><code>big_mt[dt.f.model.re_match(&#39;.*V\d+.*&#39;), f.model].nrows</code></pre>
-<pre><code>## 600</code></pre>
-<p>Its possible that there is a simpler way, but the workaround we found was first to extract the strings in the <code>models</code> tuple below, and then to iterate, extracting <code>wheel</code> and <code>engine</code> with regex. There is probably a simpler way, but so far we haven’t been able to figure it out. We found that there were some cases where the 2WD and 4WD were recorded as 2wd and 4wd. The <code>replace()</code> function was an efficient solution to this problem.</p>
-<pre class="python"><code># Convert model to str and split into wheel and engine
-models = [tup[0] for tup in big_mt[:, &#39;model&#39;].to_tuples()]
-#np.where(re.search(r&#39;\dWD|AWD&#39;, models), re.findall(r&#39;\dWD|AWD&#39;, models), &#39;nan&#39;)
-big_mt[:, &#39;wheel&#39;] = dt.Frame([re.findall(r&#39;\dWD|AWD&#39;, x)[0] if re.search(r&#39;\dWD|AWD&#39;, x) is not None else &#39;nan&#39; for x in models])
-big_mt[:, &#39;engine&#39;] = dt.Frame([re.findall(r&#39;V\d&#39;, x)[0] if re.search(r&#39;V\d&#39;, x) is not None else &#39;nan&#39; for x in models])
+print(&#39;%d of rows with wheels info.&#39; % (big_mt[model.re_match(&#39;.*(A|F|\d)WD.*&#39;), model].nrows))</code></pre>
+<pre><code>## 16831 of rows with wheels info.</code></pre>
+<pre class="python"><code>print(&#39;%d of rows with engine info.&#39; % (big_mt[model.re_match(&#39;.*V\d+.*&#39;), model].nrows))</code></pre>
+<pre><code>## 600 of rows with engine info.</code></pre>
+<p>We used regex to extract whether the model was 2WD, 4WD, etc as <code>wheels</code> from <code>model</code>, but most of the time, it was giving the same information to <code>drive</code>. It is possible that our weakness in Python is at play, but this would have been a lot simpler in R, because we wouldn’t have iterated over every row in order to extract the regex. We found that there were some cases where the 2WD and 4WD were recorded as 2wd and 4wd. The <code>replace()</code> function was an efficient solution to this problem.</p>
+<pre class="python"><code># Extract &#39;wheels&#39; and &#39;engine&#39; from &#39;model&#39;
+reg = re.compile(r&#39;(.*)(.WD|4x4)(.*)&#39;, re.IGNORECASE)
+big_mt[&#39;wheels&#39;] = dt.Frame([reg.match(s).group(2) if reg.search(s) else &#39;&#39; for s in big_mt[:, model].to_list()[0]])
 
 # Fix problem notations
 big_mt.replace(&quot;\dwd&quot;, &quot;\dWD&quot;)
 
 # Summarize total count for all years
-cols = [&#39;make&#39;, &#39;model&#39;, &#39;drive&#39;, &#39;engine&#39;, &#39;cylinders&#39;, &#39;wheel&#39;, &#39;tCharger&#39;, &#39;sCharger&#39;]
-print(big_mt[(f.wheel != &#39;nan&#39;), cols]\
-            [:, count(), by(f.engine, f.wheel, f.cylinders)]\
-            [0:13,:, sort(-f.count)])</code></pre>
-<pre><code>##    | engine  wheel  cylinders  count
-## -- + ------  -----  ---------  -----
-##  0 | nan     2WD            8   2800
-##  1 | nan     2WD            6   2772
-##  2 | nan     4WD            6   2073
-##  3 | nan     4WD            8   1860
-##  4 | nan     2WD            4   1693
-##  5 | nan     4WD            4   1274
-##  6 | nan     AWD            6   1126
-##  7 | nan     AWD            4    962
-##  8 | nan     AWD            8    315
-##  9 | V1      4WD            8     86
-## 10 | nan     4WD            5     71
-## 11 | nan     2WD            5     62
-## 12 | nan     AWD            5     57
+cols = [&#39;make&#39;, &#39;model&#39;, &#39;cylinders&#39;, &#39;wheels&#39;, &#39;drive&#39;]
+print(big_mt[(f.wheels != &#39;&#39;), cols]\
+            [:, count(), by(f.wheels, f.cylinders, drive)]\
+            [0:14:, :, sort(-f.count)])</code></pre>
+<pre><code>##    | wheels  cylinders  drive                       count
+## -- + ------  ---------  --------------------------  -----
+##  0 | 2WD             8  Rear-Wheel Drive             2616
+##  1 | 2WD             6  Rear-Wheel Drive             2255
+##  2 | 4WD             6  4-Wheel or All-Wheel Drive   1637
+##  3 | 4WD             8  4-Wheel or All-Wheel Drive   1481
+##  4 | 2WD             4  Rear-Wheel Drive             1063
+##  5 | 4WD             4  4-Wheel or All-Wheel Drive    984
+##  6 | AWD             6  All-Wheel Drive               771
+##  7 | FWD             4  Front-Wheel Drive             638
+##  8 | AWD             4  All-Wheel Drive               629
+##  9 | 2WD             4  Front-Wheel Drive             508
+## 10 | FWD             6  Front-Wheel Drive             497
+## 11 | 2WD             6  Front-Wheel Drive             416
+## 12 | AWD             4  4-Wheel or All-Wheel Drive    368
+## 13 | 4WD             8  4-Wheel Drive                 361
 ## 
-## [13 rows x 4 columns]</code></pre>
-<p>There was no such thing as an SUVs or AWD back in the 80’s, and we remember the V8 Oldsmobile’s and Cadillac’s, so were curious how these models evolved over time. <code>datatable</code> doesn’t yet have dcast() or melt(), so we had to pipe these out <code>to_pandas()</code> and then use <code>pivot_table()</code>. Its likely that a lot of the nan’s were just 2WD before there was a need to specify in the model name. We would have liked to show these as integers, and there is a workaround in <code>datatable</code>, but once we pivoted in <code>pandas</code>, it reverted to float. We can see the first AWD models starting in the late 80s, and the number of 8-cylinder cars fall by half. There are are a lot fewer annual new car models now than in the 80s, but were surprised how many fewer 4-cylinders.</p>
+## [14 rows x 4 columns]</code></pre>
+<p>There was no such thing as an SUVs or AWD back in the 80’s, and we remember the big Oldsmobile’s and Cadillac’s, so were curious how these models evolved over time. <code>datatable</code> doesn’t yet have dcast() or melt(), so we had to pipe these out <code>to_pandas()</code> and then use <code>pivot_table()</code>. Its likely that a lot of the the many models where wheel-drive was unspecified were 2WD, which is still the majority of models. We would have liked to show these as whole numbers, and there is a workaround in <code>datatable</code> to convert to integer, but once we pivoted in <code>pandas</code>, it reverted to float. We can see the first AWD models starting in the late 80s, and the number of 8-cylinder cars fall by half. There are are a lot fewer annual new car models now than in the 80s, but were surprised how many fewer 4-cylinders.</p>
 <pre class="python"><code># Summarize by year again having to move to pandas to pivot
-print(big_mt[:, count(), by(f.wheel, f.year)].to_pandas().pivot_table(index=&#39;wheel&#39;, columns=&#39;year&#39;, values=&#39;count&#39;))</code></pre>
-<pre><code>## year     1984    1985   1986   1987   1988  ...   2017   2018   2019   2020  2021
-## wheel                                       ...                                  
-## 2WD     472.0   430.0  338.0  310.0  262.0  ...   89.0   97.0  110.0   94.0   4.0
-## 4WD     304.0   208.0  174.0  201.0  187.0  ...  107.0  119.0  131.0  131.0   5.0
-## AWD       NaN     NaN    NaN    2.0    2.0  ...  186.0  197.0  195.0  180.0  10.0
-## nan    1188.0  1063.0  698.0  734.0  679.0  ...  911.0  931.0  899.0  799.0  54.0
+print(big_mt[:, count(), by(f.wheels, year)].to_pandas().pivot_table(index=&#39;wheels&#39;, columns=&#39;year&#39;, values=&#39;count&#39;))</code></pre>
+<pre><code>## year      1984    1985   1986   1987   1988  ...   2017   2018   2019   2020  2021
+## wheels                                       ...                                  
+##         1184.0  1057.0  698.0  732.0  677.0  ...  798.0  821.0  797.0  706.0  46.0
+## 2WD      472.0   430.0  338.0  310.0  262.0  ...   89.0   97.0  110.0   94.0   4.0
+## 4WD      304.0   208.0  174.0  201.0  187.0  ...  107.0  119.0  131.0  131.0   5.0
+## 4x4        NaN     NaN    NaN    2.0    2.0  ...    1.0    1.0    NaN    NaN   NaN
+## AWD        NaN     NaN    NaN    2.0    2.0  ...  186.0  197.0  195.0  180.0  10.0
+## FWD        1.0     4.0    NaN    NaN    NaN  ...  104.0   96.0   88.0   78.0   5.0
+## RWD        3.0     2.0    NaN    NaN    NaN  ...    8.0   13.0   14.0   15.0   3.0
 ## 
-## [4 rows x 38 columns]</code></pre>
-<pre class="python"><code>print(big_mt[:, count(), by(f.cylinders, f.year)].to_pandas().pivot_table(index=&#39;cylinders&#39;, columns=&#39;year&#39;, values=&#39;count&#39;))</code></pre>
+## [7 rows x 38 columns]</code></pre>
+<pre class="python"><code>print(big_mt[:, count(), by(cylinders, year)].to_pandas().pivot_table(index=&#39;cylinders&#39;, columns=&#39;year&#39;, values=&#39;count&#39;))</code></pre>
 <pre><code>## year         1984   1985   1986   1987   1988  ...   2017   2018   2019   2020  2021
 ## cylinders                                      ...                                  
 ## 2.0           6.0    5.0    1.0    3.0    3.0  ...    1.0    2.0    2.0    2.0   NaN
@@ -248,14 +267,9 @@ print(big_mt[:, count(), by(f.wheel, f.year)].to_pandas().pivot_table(index=&#39
 ## 16.0          NaN    NaN    NaN    NaN    NaN  ...    NaN    1.0    1.0    1.0   NaN
 ## 
 ## [9 rows x 38 columns]</code></pre>
-<p>With 35 levels often referring to similar vehicles, <code>VClass</code> also needed to be cleaned up. Again, these kinds of operations were where we really struggled. Even in R <code>data.table</code>, we have been keenly awaiting the implemention of <code>fcase</code>, which is expected to channel <code>dplyr</code> <code>case_when()</code> functionality for nested control-flow statements. We made a separate 16-line function to check the factor levels (not shown). In the first line below, we created the <code>vclasses</code> list to drill down on the <code>VClass</code> tuples elements as strings. In the second line, we had to iterate over the resulting strings from the 0-index of the tuples to extract wheel-drive from a list-comprehension.</p>
-<p>In order to put the list back into the dt as <code>wheel1</code>, we had to call <code>dt.Frame()</code> on the list, which is required to assign a variable (a list, tuples or array can’t be assigned ). Within the frame, we needed another expression to merge our <code>wheel1</code> column with the existing <code>wheel</code> from above and then again assign with <code>dt.Frame()</code>. This would have been a simple <code>fcoalesce</code> or <code>fifelse()</code> in <code>j</code> of the original big_mt frame of the R <code>data.table</code>. We had the same complicated steps to remove wheel-drive from the remaining <code>VClass</code> in the next code. Again, if anybody knows of more succinct ways of accomplishing these operations, we would be grateful to know.</p>
-<pre class="python"><code># Take wheel info out of VClass and merge with wheel variable where missing
+<p>With 35 distinct levels often referring to similar vehicles, <code>VClass</code> also needed to be cleaned up. Even in R <code>data.table</code>, we have been keenly awaiting the implemention of <code>fcase</code>, which is expected to replicate the <code>dplyr</code> <code>case_when()</code> function for nested control-flow statements. We made a separate 16-line function to lump factor levels (not shown). In the first line below, we created the <code>vclasses</code> list to drill down on the <code>VClass</code> tuples elements as strings. In the second line, we had to iterate over the resulting strings from the 0-index of the tuples to extract wheel-drive from a list-comprehension. We printed out the result of our much smaller list of lumped factors, but there are still problems with the result. The EPA changed the cutoff for a “Small Pickup Truck” from 4,500 to 6,000 lbs in 2008, and also used a higher cut-off for “small” SUV’s starting in 2011. This will make it pretty hard to us VClass as a consistent variable for modeling, at least for Pickups and SUVs. As noted earlier, if we had the a weight field, we could have easily worked around this.</p>
+<pre class="python"><code># Clean up vehicle type from VClass
 vclasses = [tup[0] for tup in big_mt[:, &#39;VClass&#39;].to_tuples()]
-big_mt[&#39;wheel1&#39;] = dt.Frame([re.findall(r&#39;\dWD|\dwd&#39;, x)[0] if re.search(r&#39;WD$|wd$&#39;, x) is not None else &#39;nan&#39; for x in vclasses])
-big_mt[&#39;wheel&#39;] = dt.Frame(big_mt[:, f.wheel if not &#39;nan&#39; else f.wheel1])
-
-# Clean up vehicle type from VClass
 big_mt[&#39;VClass&#39;] = dt.Frame([re.sub(&#39;\s\dWD$|\/\dwd$|\s\-\s\dWD$&#39;, &#39;&#39;, x) if re.search(r&#39;WD$|wd$&#39;, x) is not None else x for x in vclasses])
 big_mt[&#39;VClass&#39;] = dt.Frame([collapse_vclass(line[0]) for line in big_mt[:, &#39;VClass&#39;].to_tuples()])
 
@@ -274,38 +288,37 @@ print(dt.unique(big_mt[&quot;VClass&quot;]))</code></pre>
 ##  8 | Vans                   
 ## 
 ## [9 rows x 1 column]</code></pre>
-<p>We printed out the result of our much smaller list of lumped factors (above), but should disclose that there are still problems with the result, because the cutoff for a “Small Pickup Truck” moved from 4,500 to 6,000 lbs in 2008. The EPA also used higher cut-off for “small” SUV’s starting in 2011, another head-scratcher of working with government data which probably can’t be rectified. As noted earlier, if we had the a weight field, we could have easily worked around this.</p>
-<p>We show the result of our efforts to clean <code>model</code> and <code>VClass</code> (below). After all that, we see we only have 218 rows where both <code>engine</code> and <code>wheel</code>are not ‘nan’, so if we hoped to use these variables in a future modeling step, we will have to look for other solutions.</p>
-<pre class="python"><code>cols = [&#39;make&#39;,&#39;model&#39;,&#39;year&#39;, &#39;VClass&#39;, &#39;engine&#39;, &#39;wheel&#39;]
-print(big_mt[((f.engine != &#39;nan&#39;) &amp; (f.wheel != &#39;nan&#39;)), cols])</code></pre>
-<pre><code>##     | make    model                 year  VClass                   engine  wheel
-## --- + ------  --------------------  ----  -----------------------  ------  -----
-##   0 | Toyota  RAV4 2WD              1998  Special Purpose Vehicle  V4      2WD  
-##   1 | Toyota  RAV4 2WD              1998  Special Purpose Vehicle  V4      2WD  
-##   2 | Toyota  RAV4 Soft Top 2WD     1998  Special Purpose Vehicle  V4      2WD  
-##   3 | Toyota  RAV4 Soft Top 2WD     1998  Special Purpose Vehicle  V4      2WD  
-##   4 | Toyota  RAV4 4WD              1998  Special Purpose Vehicle  V4      4WD  
-##   5 | Toyota  RAV4 4WD              1998  Special Purpose Vehicle  V4      4WD  
-##   6 | Toyota  RAV4 Soft Top 4WD     1998  Special Purpose Vehicle  V4      4WD  
-##   7 | Toyota  RAV4 Soft Top 4WD     1998  Special Purpose Vehicle  V4      4WD  
-##   8 | Nissan  Frontier V6 4WD       1999  Standard Pickup Trucks   V6      4WD  
-##   9 | Nissan  Frontier V6 4WD       1999  Standard Pickup Trucks   V6      4WD  
-##  10 | Toyota  RAV4 2WD              1999  Sport Utility Vehicle    V4      2WD  
-##  11 | Toyota  RAV4 2WD              1999  Sport Utility Vehicle    V4      2WD  
-##  12 | Toyota  RAV4 Soft Top 2WD     1999  Sport Utility Vehicle    V4      2WD  
-##  13 | Toyota  RAV4 Soft Top 2WD     1999  Sport Utility Vehicle    V4      2WD  
-##  14 | Toyota  RAV4 4WD              1999  Sport Utility Vehicle    V4      4WD  
-##   … | …       …                        …  …                        …       …    
-## 213 | Toyota  RAV4 AWD              2020  Small Pickup and SUV     V4      4WD  
-## 214 | Toyota  RAV4 AWD              2020  Small Pickup and SUV     V4      4WD  
-## 215 | Toyota  RAV4 Hybrid AWD       2020  Small Pickup and SUV     V4      4WD  
-## 216 | Toyota  RAV4 AWD TRD OFFROAD  2020  Small Pickup and SUV     V4      4WD  
-## 217 | Toyota  RAV4 AWD LE           2020  Small Pickup and SUV     V4      4WD  
+<p>We show the result of our efforts to clean <code>model</code> and <code>VClass</code> (below). After all that, we have about 17k rows where <code>wheel</code> is populated, so if we hoped to use these variables in a future modeling step, we will have to look for other solutions.</p>
+<pre class="python"><code>cols = [&#39;make&#39;,&#39;model&#39;,&#39;year&#39;, &#39;VClass&#39;, &#39;wheels&#39;]
+print(big_mt[(f.wheels != &#39;&#39;), cols])</code></pre>
+<pre><code>##       | make    model                   year  VClass     wheels
+## ----- + ------  ----------------------  ----  ---------  ------
+##     0 | Dodge   B150/B250 Wagon 2WD     1985  Vans       2WD   
+##     1 | Subaru  Legacy AWD Turbo        1993  Small Car  AWD   
+##     2 | Dodge   B150/B250 Wagon 2WD     1985  Vans       2WD   
+##     3 | Dodge   B150/B250 Wagon 2WD     1985  Vans       2WD   
+##     4 | Dodge   B150/B250 Wagon 2WD     1985  Vans       2WD   
+##     5 | Dodge   B150/B250 Wagon 2WD     1985  Vans       2WD   
+##     6 | Dodge   B350 Wagon 2WD          1985  Vans       2WD   
+##     7 | Dodge   B350 Wagon 2WD          1985  Vans       2WD   
+##     8 | Dodge   B350 Wagon 2WD          1985  Vans       2WD   
+##     9 | GMC     G15/25 Rally 2WD        1985  Vans       2WD   
+##    10 | GMC     G15/25 Rally 2WD        1985  Vans       2WD   
+##    11 | GMC     G15/25 Rally 2WD        1985  Vans       2WD   
+##    12 | Subaru  Legacy Wagon AWD        1993  Small Car  AWD   
+##    13 | Subaru  Legacy Wagon AWD        1993  Small Car  AWD   
+##    14 | Subaru  Legacy Wagon AWD Turbo  1993  Small Car  AWD   
+##     … | …       …                          …  …          …     
+## 16960 | Dodge   B150/B250 Wagon 2WD     1985  Vans       2WD   
+## 16961 | Dodge   B150/B250 Wagon 2WD     1985  Vans       2WD   
+## 16962 | Subaru  Legacy AWD              1993  Small Car  AWD   
+## 16963 | Subaru  Legacy AWD              1993  Small Car  AWD   
+## 16964 | Subaru  Legacy AWD Turbo        1993  Small Car  AWD   
 ## 
-## [218 rows x 6 columns]</code></pre>
-<p>In this chunk (below), we show how to select columns from the big_mt names tuple by creating the <code>measures</code> filter using regex matches for ‘08’. Again, this seemed more complicated than to using .SD = patterns() and we couldn’t do it in line within the frame. We show the frame with the <code>year_filter</code> which we set up earlier.</p>
+## [16965 rows x 5 columns]</code></pre>
+<p>In this chunk (below), we show how to select columns from the big_mt names tuple by creating the <code>measures</code> filter using regex matches the key identifier columns and for columns matching ‘08’. Again, this seemed more complicated than to using .SD = patterns() and we couldn’t do it in line within the frame. We show the frame with the <code>year_filter</code> which we set up earlier.</p>
 <pre class="python"><code># Regex search for variable selection
-measures = [x for x in big_mt.names if re.search(r&#39;08$|year|make|model&#39;, x)]
+measures = [x for x in big_mt.names if re.search(r&#39;make|model|year|08$&#39;, x)]
 
 # Print remaining cols with measures filter
 print(big_mt[year_filter,  measures])</code></pre>
@@ -334,7 +347,7 @@ print(big_mt[year_filter,  measures])</code></pre>
 ## 1203 |   0.294         0          68        0      69        0         950            0         71           0  Porsche  Taycan 4S Perf Battery Plus  2020
 ## 
 ## [1204 rows x 13 columns]</code></pre>
-<p>Below, we show how to <code>export_names()</code> in order to prepare the specifid variables to be available for non-standard evaluation within the frame. We waited while we were transforming variables above to do this, but it may make sense to do it each time a new variable is created to avoid confusion over when NSE was needed or not. If possible, to have this transformation as a default feature (as it does in R <code>data.table</code>) after generating a new variable seems like it would eliminate a extra step and confusion in most cases.</p>
+<p>Below, we again run <code>export_names()</code> in order to also prepare the newly generated variables for non-standard evaluation within the frame, and then filtered for the 21 columns we wanted to keep.</p>
 <pre class="python"><code># List of cols to keep
 cols = [&#39;make&#39;, 
         &#39;model&#39;, 
@@ -350,8 +363,8 @@ cols = [&#39;make&#39;,
         &#39;cylinders&#39;, 
         &#39;displ&#39;,
         &#39;trans&#39;, 
-        &#39;speed&#39;,
-        &#39;wheel&#39;,
+        &#39;gear&#39;,
+        &#39;wheels&#39;,
         &#39;is_ev&#39;,
         &#39;evMotor&#39;, 
         &#39;guzzler&#39;,
@@ -359,13 +372,13 @@ cols = [&#39;make&#39;,
         &#39;sCharger&#39;]
         
 # Export_names of key variables so can be called without dt.f prefix. (Note: only works if cols selected)
-make, model, year, city08, highway08, comb08, VClass, drive, fuelType1, hlv, hpv, cylinders, displ, trans, speed, wheel, is_ev, evMotor, guzzler, tCharger, sCharger = big_mt[:, cols].export_names()
+make, model, year, city08, highway08, comb08, VClass, drive, fuelType1, hlv, hpv, cylinders, displ, trans, gear, wheels, is_ev, evMotor, guzzler, tCharger, sCharger = big_mt[:, cols].export_names()
 
 # Select cols and create pandas version
 big_mt = big_mt[:, cols]
 big_mt_pandas = big_mt.to_pandas()</code></pre>
-<p>We looked for a Python version of <code>skimr</code>, but it doesn’t seem like there is an analogous library as is often the case. We tried out <code>pandas profiling</code>, but that had a lot of dependencies and seemed like overkill for the purposes of our blog. Finally, we decided to use <code>skim_tee</code> on the table in the R chunk (below). It was necessary to convert to <code>pandas</code> in the Python chunk (above), because we couldn’t figure out how to translate a <code>datatable</code> back to a data.frame via <code>reticulate</code> in the R chunk. When we did convert, we discovered there were some problems mapping NA’s which we will show below.</p>
-<p>We suspect it isn’t possible to pass a <code>datatable</code> to <code>data.table</code>, and this might be the first functionality we would vote to add. There is a sizeable community of <code>data.table</code> users who are used to the syntax, and as we are, might be looking to port into Python (rather than learn <code>pandas</code> directly). As <code>reticulate</code> develops, opening this door seems to make so much sense.</p>
+<p>We looked for a Python version of <code>skimr</code>, but it doesn’t seem like there is an similar library (as is often the case). We tried out <code>pandas profiling</code>, but that had a lot of dependencies and seemed like overkill for our purposes. Finally, we decided to use <code>skim_tee</code> on the table in the R chunk (below). It was necessary to convert to <code>pandas</code> in the Python chunk (above), because we couldn’t figure out how to translate a <code>datatable</code> back to a data.frame via <code>reticulate</code> in the R chunk.</p>
+<p>When we did convert, we discovered there were some problems mapping NA’s which we will show below. We suspect it isn’t possible to pass a <code>datatable</code> to <code>data.table</code>, and this might be the first functionality we would vote to add. There is a sizeable community of <code>data.table</code> users who are used to the syntax, and as we are, might be looking to port into Python (rather than learn <code>pandas</code> directly). As <code>reticulate</code> develops, opening this door seems to make so much sense.</p>
 <pre class="r"><code># Skimr
 skim_tee(py$big_mt_pandas)</code></pre>
 <pre><code>## ── Data Summary ────────────────────────
@@ -375,8 +388,7 @@ skim_tee(py$big_mt_pandas)</code></pre>
 ## Number of columns          21    
 ## _______________________          
 ## Column type frequency:           
-##   character                11    
-##   list                     1     
+##   character                12    
 ##   logical                  1     
 ##   numeric                  8     
 ## ________________________         
@@ -390,15 +402,12 @@ skim_tee(py$big_mt_pandas)</code></pre>
 ##  4 drive                 0             1     0    26  1189        8          0
 ##  5 fuelType1             0             1     6    17     0        6          0
 ##  6 trans                 0             1     0     9    11        3          0
-##  7 wheel                 0             1     3     3     0        5          0
-##  8 evMotor               0             1     0    51 41221      171          0
-##  9 guzzler               0             1     0     1 39747        4          0
-## 10 tCharger              0             1     0     1 34788        2          0
-## 11 sCharger              0             1     0     1 41352        2          0
-## 
-## ── Variable type: list ─────────────────────────────────────────────────────────
-##   skim_variable n_missing complete_rate n_unique min_length max_length
-## 1 speed                11          1.00       11          1          1
+##  7 gear                  0             1     0    22    11       34          0
+##  8 wheels                0             1     0     3 25265        7          0
+##  9 evMotor               0             1     0    51 41221      171          0
+## 10 guzzler               0             1     0     1 39747        4          0
+## 11 tCharger              0             1     0     1 34788        2          0
+## 12 sCharger              0             1     0     1 41352        2          0
 ## 
 ## ── Variable type: logical ──────────────────────────────────────────────────────
 ##   skim_variable n_missing complete_rate   mean count                
@@ -423,10 +432,10 @@ skim_tee(py$big_mt_pandas)</code></pre>
 ## 6  195   ▇▁▁▁▁
 ## 7   16   ▇▇▅▁▁
 ## 8    8.4 ▁▇▅▂▁</code></pre>
-<p>In the result above, we see a lot of challenges if we had hoped to have appropriate data to build a model to predict mpg over time. Many variables, such as <code>evMotor</code>, <code>tCharger</code>, <code>sCharger</code> and <code>guzzler</code>, are only available in a small minority of rows. We know that there are many cases where the we had ‘nan’ in <code>wheel</code> and <code>engine</code>, but these didn’t get translated back as missing (NA’s) in R, which is a significant problem. When we set out on this series, we hoped we would be able to experiment with modeling mpg, but that seems unlikely based on what we know now.</p>
+<p>In the result above, we see a lot of challenges if we had hoped to have appropriate data to build a model to predict mpg over time. Many variables, such as <code>evMotor</code>, <code>tCharger</code>, <code>sCharger</code> and <code>guzzler</code>, are only available in a small number of rows. When we set out on this series, we hoped we would be able to experiment with modeling gas mileage for every year just like <code>mtcars</code>, but that seems unlikely based on the available variables.</p>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>It took us a couple of months to get up and running with <code>data.table</code>, and even with daily usage, we are still learning its nuance a year later. We think the up-front investment in learning the syntax, which can be a little confusing at first, but is worth in the long run. It is also less well documented than <code>dplyr</code> or <code>pandas</code>. We learned so much about <code>data.table</code> from a few blog posts such as <a href="http://brooksandrew.github.io/simpleblog/articles/advanced-data-table/">Advanced tips and tricks with data.table</a> and <a href="https://atrebas.github.io/post/2019-03-03-datatable-dplyr/">A data.table and dplyr tour</a>. The goal of this post is to help to similarly fill the documentation gap for <code>datatable</code>.</p>
-<p>Python <code>datatable</code> is promising, and we are grateful for it as familiar territory as we bridge over to Python. We can’t tell how much of our difficulty has been because the package still seems incomplete compared to the mature <code>data.table</code> or our weakness with Python. The need to manually set variables for non-standard evaluation, to revert to pandas to accomplish many tasks or the challenges extracting and filtering data from nested columns. Also, it would be appreciated to seemlessly translate between a <code>datatable</code> in Python and <code>data.table</code> in R. We have been in awe of the <code>data.table</code> team and can only imagine how much goes into maintaining a package like this. In the next post, we will continue to use Big MT Cars data to try out <code>plotnine</code>, the Python version of <code>ggplot</code>.</p>
+<p>It took us a couple of months to get up and running with R <code>data.table</code>, and even with daily usage, we are still learning nuance a year later. We think the up-front investment in learning the syntax, which can be a little confusing at first, has been worth it. It is also less well documented than <code>dplyr</code> or <code>pandas</code>. We learned so much about <code>data.table</code> from a few blog posts such as <a href="http://brooksandrew.github.io/simpleblog/articles/advanced-data-table/">Advanced tips and tricks with data.table</a> and <a href="https://atrebas.github.io/post/2019-03-03-datatable-dplyr/">A data.table and dplyr tour</a>. The goal of this post is to help to similarly fill the gap for <code>datatable</code>.</p>
+<p>Python <code>datatable</code> is promising, and we are grateful for it as familiar territory as we learn Python. We can’t tell how much of our difficulty has been because the package is not quite complete compared to mature <code>data.table</code> or our just weakness with Python. The need to manually set variables for non-standard evaluation, to revert to pandas to accomplish many tasks or the challenges extracting and filtering data from nested columns. Also, it would be appreciated to seemlessly translate between a <code>datatable</code> and <code>data.table</code>. In the next post, we will continue to use Big MT Cars data to try out <code>plotnine</code>, the Python version of <code>ggplot</code>.</p>
 </div>
