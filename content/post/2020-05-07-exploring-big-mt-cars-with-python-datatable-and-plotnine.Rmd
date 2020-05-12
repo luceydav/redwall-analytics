@@ -4,7 +4,7 @@ author: David Lucey
 date: '2020-05-07'
 slug: exploring-big-mt-cars-with-python-datatable-and-plotnine-part-1
 categories: ["R", "Code-Oriented"]
-tags: ["data.table", "datatable", "plotnine"]
+tags: ["data.table", "datatable", "plotnine", "reticulate"]
 output:
   html_document:
     code_folding: 'hide'
