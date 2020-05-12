@@ -76,10 +76,12 @@ We tried to download both the origin zipped data directly from the EPA website (
 
 
 ```{python 'load-big-mt'}
-# Load vehicles
+# Data dictionary, EPA vehicles zip and Tidy Tuesday vehicles csv links
 #https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
 #https://www.fueleconomy.gov/feg/epadata/vehicles.csv.zip
 #https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv
+
+# Load vehicles
 big_mt = fread("~/Desktop/David/Projects/general_working/mt_cars/vehicles.csv")
 
 # Dimensions
@@ -143,7 +145,7 @@ print(big_mt[:, {'percent' : int32(count() * 100/big_mt.nrows) }, by(eng_dscr)]\
 ```
 
 
-# Separating and Assign New Variables
+# Separate and Assign New Variables
 
 As shown above, `trany` has both the transmission-type and gear-speed variables within it, so we extracted the variable from big_mt with `to_list()`, drilled down one level, and used regex to extract the transmission and gear information needed out into `trans` and `gear`. Notice that we needed to convert the lists back into columns with dt.Frame before assigning as new variables in big_mt.
 

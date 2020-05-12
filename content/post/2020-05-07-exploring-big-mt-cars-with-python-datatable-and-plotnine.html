@@ -50,10 +50,12 @@ import pprint</code></pre>
 <div id="loading-data-with-fread" class="section level1">
 <h1>Loading Data with fread</h1>
 <p>We tried to download both the origin zipped data directly from the EPA website (see link below), and the .csv from the Tidy Tuesday website, but were unsuccessful in both cases using Python and R versions of <code>fread</code>. We were able to download the Tidy Tuesday .csv link with <code>data.table</code>, but not with the <code>datatable</code> <code>fread</code>, and the error message didn’t give us enough information to figure it out. The documentation for <code>data.table</code> fread is among the best of any function we know of, while there is not much documentation for <code>datatable</code>’s version yet. In the end, we downloaded the file from the EPA’s website and uploaded from our local drive.</p>
-<pre class="python"><code># Load vehicles
+<pre class="python"><code># Data dictionary, EPA vehicles zip and Tidy Tuesday vehicles csv links
 #https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
 #https://www.fueleconomy.gov/feg/epadata/vehicles.csv.zip
 #https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv
+
+# Load vehicles
 big_mt = fread(&quot;~/Desktop/David/Projects/general_working/mt_cars/vehicles.csv&quot;)
 
 # Dimensions
@@ -148,8 +150,8 @@ print(big_mt[year_filter, (year, make, model, trany, evMotor, VClass)])</code></
 ## 
 ## [561 rows x 2 columns]</code></pre>
 </div>
-<div id="separating-and-assign-new-variables" class="section level1">
-<h1>Separating and Assign New Variables</h1>
+<div id="separate-and-assign-new-variables" class="section level1">
+<h1>Separate and Assign New Variables</h1>
 <p>As shown above, <code>trany</code> has both the transmission-type and gear-speed variables within it, so we extracted the variable from big_mt with <code>to_list()</code>, drilled down one level, and used regex to extract the transmission and gear information needed out into <code>trans</code> and <code>gear</code>. Notice that we needed to convert the lists back into columns with dt.Frame before assigning as new variables in big_mt.</p>
 <p>In the third line of code, we felt like we were using an R <code>data.table</code>. The <code>{}</code> is used group by <code>trans</code> and <code>gear</code>, and then to create the new <code>percent</code> variable in-line, without affecting the other variables in big_mt. We tried to round the decimals in percent, but couldn’t figure it out so far. Our understanding is that there is no <code>round()</code> method yet for <code>datatable</code>, so we multiplied by 100 and converted to integer. We again called <code>export_names()</code>, to be consistent in using non-standard evaluation with the two new variables.</p>
 <pre class="python"><code>big_mt[&#39;trans&#39;] = dt.Frame([re.sub(&#39;[\s\(].*$&#39;,&#39;&#39;, s) for s in big_mt[:, &#39;trany&#39;].to_list()[0]])
