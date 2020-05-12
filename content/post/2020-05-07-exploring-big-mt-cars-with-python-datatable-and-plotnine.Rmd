@@ -119,6 +119,7 @@ print(big_mt[year_filter, (year, make, model, trany, evMotor, VClass)])
 
 ```
 
+
 We usually like to make a quick check if there are any duplicated rows across the whole our dataFrame, but there isn't a duplicated() function yet in `datatable`. According to [How to find unique values for a field in Pydatatable Data Frame](https://stackoverflow.com/questions/61578175/how-to-find-unique-values-for-a-field-in-pydatatable-data-frame), the `unique()` function also doesn't apply to groups yet. In order to work around this, identifying variables would have to be grouped, counted and filtered for equal to 1, but we weren't sure yet exactly which variables to group on. We decided to pipe over to `pandas` to verify with a simple line of code that there were no duplicates, but hope this function will be added in the future.
 
 We can see that below that 'eng_dscr' is unfortunately blank 38% of the time, and high cardinality for the rest of the levels. A small percentage are marked "GUZZLER" and "FLEX FUELS". in a few cases, potentially helpful information about engine like V-6 or V-8 are included with very low frequency, but not consistently enough to make sense try to extract. Another potentially informative variable, `trans_dscr` is similarly blank more than 60% of the time. It seems unlikely that we could clean rhese up to make it useful in an analysis, so will probably have to drop them.
