@@ -1,8 +1,8 @@
 ---
-title: Exploring Big MT Cars with Python datatable and plotnine
+title: Exploring Big MT Cars with Python datatable and plotnine-Part 1
 author: David Lucey
 date: '2020-05-07'
-slug: exploring-big-mt-cars-with-python-datatable-and-plotnine
+slug: exploring-big-mt-cars-with-python-datatable-and-plotnine-part-1
 categories: ["R", "Code-Oriented"]
 tags: ["data.table", "datatable", "plotnine"]
 output:
@@ -58,7 +58,7 @@ import pprint
 
 As mentioned in our last series [Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract - Part 1](https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/) and [A Walk Though of Accessing Financial Statements with XBRL in R - Part 1](https://redwallanalytics.com/2020/02/18/a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1/), this is a year of clean-up. Redwall Analytics is going through this year, and solving problems previously encountered, but beyond our capabilities at the time. It is doing this by combining R and Python tools via `reticulate`, as we did with our series on `pdftools`, `tabulizer` and AWS `Textract`. Although we have worked with some Python, we have been hoping to leveraging the familiar syntax of two of our favorite R libraries, `data.table` and `ggplot2` to bridge our way into the language. 
 
-Python's `datatable` was launched by `h2o` two years ago, and feels similar to the R version, with a few syntax differences and also some important pieces still to be added (as we will discuss). We could only find a handful of posts showing how to use `datatable`, and most of the examples we found were probably not written by regular users of R `data.table`. We use `data.table` every day and love the speed and concise syntax, so this walk-through analysis of the EPA's Big MT cars data set will be from that perspective. As for `plotnine`, it feels more seamless with `ggplot2` with a few problems formatting plots in Rmarkdown. 
+Python's `datatable` was launched by `h2o` two years ago, and feels similar to the R version, with a few syntax differences and also some important pieces still to be added (as we will discuss). We could only find a handful of posts showing how to use `datatable`, and most of the examples we were probably not written by regular users of R `data.table`, and were focused on its efficiency relative to `pandas`. We use `data.table` every day and love the speed and concise syntax, so this walk-through analysis of the EPA's Big MT cars data set will be on the syntax of most frequent actual data exploration operations. As for `plotnine`, it feels more seamless with `ggplot2` with a few problems formatting plots in Rmarkdown. 
 
 
 # EPA's Big MT Dataset
@@ -67,12 +67,12 @@ To make it a little interesting, we will use the [Tidy Tuesday Big MT Cars]("htt
 
 When we have modeled `mtcars`, weight (`wt`) and horsepower (`hp`), and their interaction, have been most informative for predicting `mpg`. It would have been interesting to look at the evolution of the `mtcars` coefficients over time, but these variables are not unfortunately not available. In addition, it is hard to get a sense of fleet mileage without the annual unit-volume of each new car model. Because of this, it is impossible to know the evolution of more fuel efficient electric vehicles relative to more fuel-hungry model sales. 
 
-It is difficult to understand why these variables are not included when that information must be available to the EPA, and it clearly says on page 6 of [Fuel Economy Guide 2020](https://www.fueleconomy.gov/feg/pdfs/guides/FEG2020.pdf) that an extra 100 lbs decreases fuel economy by 1%. While the data set is still of interest to practice for data cleaning, it doesn't look likely that we will be able replicate `mtcars` over time!
+It is difficult to understand why these variables are not included when that information must be available to the EPA, and it clearly says on page 6 of [Fuel Economy Guide 2020](https://www.fueleconomy.gov/feg/pdfs/guides/FEG2020.pdf) that an extra 100 lbs decreases fuel economy by 1%. While the data set is still of interest to practice for data cleaning, it doesn't look likely that we will be able replicate `mtcars` over time unless we can find more variables.
 
 
 # Loading Data with fread
 
-We tried to download both the origin zipped data directly from the EPA website (see link below), and the .csv from the Tidy Tuesday website, but were unsuccessful in both cases using Python and R versions of `fread`. We were able to download the Tidy Tuesday .csv link with `data.table`, but not with the `datatable` `fread`, and the error message didn't give us enough information to figure it out. The documentation for `data.table` fread is among the best of any function we know of, while there is not much documentation for `datatable`'s version yet. In the end, we downloaded the file from the EPA's website and uploaded from our local drive.
+We tried to download both the origin zipped data directly from the EPA website (see link below), and the .csv from the Tidy Tuesday website, but were unsuccessful in both cases using Python and R versions of `fread`. We were able to download the Tidy Tuesday .csv link with `fread` in `data.table` but not `datatable`, and the error message didn't give us enough information to figure it out. The documentation for `data.table` `fread` is among the most extensive of any function we know, while still thin for `datatable's` version so far. In the end, we manually downloaded and unzipped the file from the EPA's website, and uploaded from our local drive.
 
 
 ```{python 'load-big-mt'}
