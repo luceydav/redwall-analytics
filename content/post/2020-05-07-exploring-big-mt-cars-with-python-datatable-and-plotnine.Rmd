@@ -58,7 +58,7 @@ import pprint
 
 As mentioned in our last series [Parsing Mass Municipal PDF CAFRs with Tabulizer, pdftools and AWS Textract - Part 1](https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/) and [A Walk Though of Accessing Financial Statements with XBRL in R - Part 1](https://redwallanalytics.com/2020/02/18/a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1/), this is a year of clean-up. Redwall Analytics is going through this year, and solving problems previously encountered, but beyond our capabilities at the time. It is doing this by combining R and Python tools via `reticulate`, as we did with our series on `pdftools`, `tabulizer` and AWS `Textract`. Although we have worked with some Python, we have been hoping to leveraging the familiar syntax of two of our favorite R libraries, `data.table` and `ggplot2` to bridge our way into the language. 
 
-Python's `datatable` was launched by `h2o` two years ago, and feels similar to the R version, with a few syntax differences and also some important pieces still to be added (as we will discuss). We could only find a handful of posts showing how to use `datatable`, and most of the examples we were probably not written by regular users of R `data.table`, and were focused on its efficiency relative to `pandas`. We use `data.table` every day and love the speed and concise syntax, so this walk-through analysis of the EPA's Big MT cars data set will be on the syntax of most frequent actual data exploration operations. As for `plotnine`, it feels more seamless with `ggplot2` with a few problems formatting plots in Rmarkdown. 
+Python's `datatable` was launched by `h2o` two years ago and is still in alpha stage with cautions that it may still be unstable and features may be missing or incomplete. We found that it feels very similar to the R version, with a few syntax differences and also some important pieces still to be added (as we will discuss). We could only find a handful of posts showing how to use `datatable`, and many of the examples we were probably not written by regular users of R `data.table`, and were often focused on its efficiency and ability to scale relative to `pandas`. We use R `data.table` every day and love the speed and concise syntax, so this walk-through analysis of the EPA's Big MT cars data set will be on the syntax of the most frequent actual data exploration operations. As for `plotnine`, it feels more seamless with `ggplot2` with a few problems formatting plots in Rmarkdown. 
 
 
 # EPA's Big MT Dataset
@@ -77,9 +77,9 @@ We tried to download both the origin zipped data directly from the EPA website (
 
 ```{python 'load-big-mt'}
 # Data dictionary, EPA vehicles zip and Tidy Tuesday vehicles csv links
-#https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
-#https://www.fueleconomy.gov/feg/epadata/vehicles.csv.zip
-#https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv
+#Data dictionary https://www.fueleconomy.gov/feg/ws/index.shtml#fuelType1
+#EPA zip data set https://www.fueleconomy.gov/feg/epadata/vehicles.csv.zip
+#Tidy Tuesday csv data set https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv
 
 # Load vehicles
 big_mt = fread("~/Desktop/David/Projects/general_working/mt_cars/vehicles.csv")
@@ -119,7 +119,7 @@ locals().update(names_dict)
 ```
 
 
-# Basic Filter and Select
+# Basic Filter and Select Operations
 
 A few lines of some key variables are shown in the code below, and it is clear that they need significant cleaning to be of use. One difference with R `data.table` can be seen below with filtering. Using our `year_filter` in `i` (the first slot), the 1204 2019 models are shown below. Unlike R `data.table`, we refer to `year` outside of the frame in an expression, and then call it within `i` of the frame. The columns can be selected within `()` or `[]` in `j` (the second slot) as shown below, and new columns can be created within `{}`.
 
