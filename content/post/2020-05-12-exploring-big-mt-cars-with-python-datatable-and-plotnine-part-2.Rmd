@@ -6,8 +6,7 @@ slug: exploring-big-mt-cars-with-python-datatable-and-plotnine-part-2
 categories: ["R", "Code-Oriented"]
 tags: ["data.table", "datatable", "plotnine", "reticulate"]
 output:
-  html_document:
-    code_folding: 'hide'
+  blogdown::html_page
 ---
 
 ```{r 'setup', message=FALSE, warning=FALSE, include=TRUE}
@@ -109,11 +108,11 @@ def collapse_make(make):
 vclass = big_mt[:, VClass].to_list()[0]
 big_mt[:, 'vehicle_type'] = dt.Frame(['Cars' if re.findall('Car', item) else 'Trucks' for item in vclass]).to_numpy()
 
-
 # Consolidate make under parents
 #manufacturers = [tup[0] for tup in big_mt[:, 'make'].to_tuples()]
 big_mt[:,'manufacturer'] = Frame([collapse_make(line[0]) for line in big_mt[:, 'make'].to_tuples()])
 
+# Assign expressions to new variables
 vehicle_type, manufacturer = big_mt[:, ('vehicle_type', 'manufacturer')].export_names()
 ```
 
@@ -122,16 +121,18 @@ vehicle_type, manufacturer = big_mt[:, ('vehicle_type', 'manufacturer')].export_
 
 Here, we selected the largest volume brands in two steps, first creating an numpy vector of makes which sold more than 1500 separate models over the full period, and then creating an expression to filter for the most popular. Then, we iterated over our vector and classified vehicles as 'Cars' or 'Trucks' based on regex matches to build a new `vehicle_type` variable. We would love to know streamlined way to accomplish these operations, because they would surely be easier for us using `data.table`. Excluding EV's, we found the combined mean mpg by `year` and `make` for both cars and trucks. It could be that we are missing something, but it also feels more verbose than it would have been in `data.table`, where we probably could have nested the filtering expressions within the frames, but again this could be our weakness in Python.
 
-Our `plotnine` code and graph looks very similar to one generated from `ggplot`, but we struggled with sizing the plot on the page and avoiding cutting off axis and legend labels. We tried to put the legend on the right, but the labels were partially cut off unless we squeezed the charts too much. When we put it at the bottom with horizontal labels, the x-axis for the 'Cars' facet was still partially blocked by the legend title. We couldn't find much written on how to make the charts bigger or to change the aspect ratio or figure size parameters. We remember these struggles while learning `ggplot`, but it felt like we could figure it out more quickly.
+Our `plotnine` code and graph looks very similar to one generated from `ggplot`, but we struggled with sizing the plot on the page and avoiding cutting off axis and legend labels. We tried to put the legend on the right, but the labels were partially cut off unless we squeezed the charts too much. When we put it at the bottom with horizontal labels, the x-axis for the 'Cars' facet was still partially blocked by the legend title. We couldn't find much written on how to make the charts bigger or to change the aspect ratio or figure size parameters. We remember these struggles while learning `ggplot`, but it felt like we could figure it out more quickly. 
+
+It is also important to mention that confidence intervals are not implemented yet for lowess smoothing in `plotnine`. This probably isn't such a big deal for our purposes in this graph where there are a large number of models, but it does detract from Figure \@ref(fig:ev-vs-gas-powered) below, where it the uncertainty about the true mean efficiency of cars with batteries in the early years is high because there were so few models.
 
 
 
-```{python 'mpg-top-manufacturers', echo=TRUE, fig.fullwidth=TRUE, fig.height=20, fig.width=8, message=FALSE, warning=FALSE}
+```{python mpg-top-manufacturers, echo=TRUE, fig.fullwidth=TRUE, fig.height=20, fig.width=8, message=FALSE, warning=FALSE}
 # Filter for brands with most models over full period
 most_popular_vector = big_mt[:, count(), by(manufacturer)][(f.count > 1500), 'manufacturer'].to_numpy()
-
 most_popular = np.isin(big_mt[:, manufacturer], most_popular_vector)
 
+# Create data set for charts
 data = big_mt[ most_popular, :] \
              [ (is_ev == 0), :] \
              [:, { 'mean_combined' : mean(comb08),
@@ -140,6 +141,7 @@ data = big_mt[ most_popular, :] \
                          manufacturer,
                          vehicle_type)]
 
+# Smoothed line chart of efficiency by manufacturer
 (p9.ggplot(data.to_pandas(),
           p9.aes(x = 'year', 
                  y= 'mean_combined', 
@@ -165,15 +167,17 @@ data = big_mt[ most_popular, :] \
 
 ```
 
-One thing to note is that it is difficult to tell which line maps to which Make just by the colors. The original plan was to pipe this into `plotly` as we would do in R, but this functionality is not available. While the `plotnine` functionality is pretty close to `ggplot`, the lack of support of `plotly` is a pretty serious shortcoming.
+One thing to note is that it is difficult to tell which line maps to which `make` just by the colors. The original plan was to pipe this into `plotly` as we would do in R, but this functionality is not available. While the `plotnine` functionality is pretty close to `ggplot`, the lack of support of `plotly` is a pretty serious shortcoming.
 
 From what we can see in the chart, we can see that "Other Asian" started out well in the beginning of the period, and made remarkable progress leaving Toyota behind as the leader in cars and trucks. Our family has driven Highlanders over the last 20 years, and seen the size of that model go from moderate to large, so it is not surprising to see Toyota trucks going from 2nd most to 2nd least efficient. BMW made the most progress of all producers in cars, and also made gains since introducing trucks in 2000. As a general comment, relative efficiency seems more dispersed and stable for cars than for trucks.
 
 
 
+
 ```{python 'models-by-manufacturer', echo=TRUE, fig.height=8, fig.width=20, message=FALSE, warning=FALSE}
 
-(p9.ggplot(data.to_pandas(),
+# Stacked line of number of models per manufacturer
+(p9.ggplot(data[year < 2020, :].to_pandas(),
           p9.aes(x = 'year', 
                  y= 'num_models', 
                  fill = 'manufacturer')) + 
@@ -197,19 +201,20 @@ From what we can see in the chart, we can see that "Other Asian" started out wel
 )
 ```
 
-When we look number of models by Manufacturer above, we were surprised to see that there are so many more truck models than cars for most producers (note that the scale of the y-axis is not the same for the two graphs in this case). In addition to becoming much more fuel efficient, BMW has increased the number of models to an astonishing degree over the period, even while most other European imports have started to tail off (except Mercedes). We would be interested to know the story behind such a big move by a still niche US player. GM has trimmed its offering sharply across cars and trucks. It is important to remember that these numbers are not vehicles sold, just models introduced in a given year.
+When we look number of models by Manufacturer , we can see that the number of models declined steadily from 1984 though the late 1990s, but has been rising since. Although the number of truck models appear to be competitive with cars, note that the graphs have different scales so there are about 2/3 as many in most years. In addition to becoming much more fuel efficient, BMW has increased the number of models to an astonishing degree over the period, even while most other European imports have started to tail off (except Mercedes). We would be interested to know the story behind such a big move by a still niche US player. GM had a very large number of car and truck models at the beginning of the period, but now has a much more streamlined range. It is important to remember that these numbers are not vehicles sold or market share, just models tested for fuel efficiency in a given year.
 
 
 # Electric Vehicles Unsurprisingly Get Drastically Better Mileage
 
-After the chart of efficiency by manufacturer, we had a double-take when we saw the chart below. While progress for gas-powered vehicles looked respectable above, in the context of cars with batteries, gas-only vehicles are about half as efficient on average. Though the mean improved, the mileage of the most efficient gas powered vehicle in any given year steadily lost ground over the period. 
+After the looking at the efficiency by manufacturer in Figure \@ref(fig:mpg-top-manufacturers) above, we had a double-take when we saw the chart Figure \@ref(fig:ev-vs-gas-powered) below. While progress for gas-powered vehicles looked respectable above, in the context of cars with batteries, gas-only vehicles are about half as efficient on average. Though the mean improved, the mileage of the most efficient gas powered vehicle in any given year steadily lost ground over the period. 
 
 Meanwhile, vehicles with batteries are not really comparable because plug-in vehicles don't use any gas. The EPA imputes energy equivalence for those vehicles. The EPA website explains in [Electric Vehicles: Learn More About the Label](https://www.fueleconomy.gov/feg/label/learn-more-electric-label.shtml) that a calculation of equivalent electricity to travel 100 miles for plug-in vehicles. This seems like a crude comparison as electricity prices vary around the country. Still, the most efficient battery-powered car (recently a Tesla) improved to an incredible degree. 
 
 Around 2000, there were only a handful of battery-powered cars so the error bars would be wide if included, and we are counting all cars with any battery as one category when there are hybrids and plug-ins. In any case, caution should be used in interpreting the trend, but there was a period where the average actually declined, and really hasn't improved over 20-years with the most efficient.
 
 
-```{python echo=TRUE, fig.height=8, fig.width=20, message=FALSE, warning=FALSE}
+```{python 'ev-vs-gas-powered', echo=TRUE, fig.height=8, fig.width=20, message=FALSE, warning=FALSE}
+# Prepare data for charting by gas and battery-powered
 data = big_mt[ (vehicle_type == "Cars"), :][:,
                 { "maximum": dt.max(comb08),
                   "mean" : dt.mean(comb08),
@@ -217,6 +222,7 @@ data = big_mt[ (vehicle_type == "Cars"), :][:,
                   "num_models" : dt.count() },
                     by(year, is_ev)]
 
+# Reshape 
 data = data.to_pandas().melt(
                   id_vars=["year", 
                            "is_ev",
@@ -227,6 +233,7 @@ data = data.to_pandas().melt(
                   var_name = "Description",
                   value_name = "MPG")
 
+# Facet plot smoothed line for gas and battery-powered
 (p9.ggplot(
     data, 
     p9.aes('year', 
@@ -251,16 +258,18 @@ data = data.to_pandas().melt(
 
 # Efficiency of Most Vehicle Types Started Improving in 2005
 
-We were surprised to see the fuel efficiency of mid-sized overtake even small cars as the most efficient around 2012. Small pickups and SUV's also made a lot of progress as did standard pick-up trucks. Sport Utility Vehicles were left behind by the improvement most categories saw since 2005, while vans steadily lost efficiency over the whole period. As mentioned earlier, we noticed that the same model SUV that we owned got about 20% larger over the period. It seems like most families in our area have at least oneSUV, but they didn't really exist before 2000. 
+In Figure We were surprised to see the fuel efficiency of mid-sized overtake even small cars as the most efficient around 2012. Small pickups and SUV's also made a lot of progress as did standard pick-up trucks. Sport Utility Vehicles were left behind by the improvement most categories saw since 2005, while vans steadily lost efficiency over the whole period. As mentioned earlier, we noticed that the same model SUV that we owned got about 20% larger over the period. It seems like most families in our area have at least oneSUV, but they didn't really exist before 2000. 
 
 
 ```{python echo=TRUE, fig.height=8, fig.width=20, message=FALSE, warning=FALSE}
+# Prepare data for plotting smoothed line by VClass
 data = big_mt[(is_ev == False), :][:, 
                 {'mean' : dt.mean(comb08),
                  'num_models' : count() },
                     by(year, VClass, is_ev)] \
              [(is_ev == False),:].to_pandas()
 
+# Plot smoothed line of efficiency by VClass
 (p9.ggplot(
     data,
     p9.aes('year', 
@@ -288,13 +297,15 @@ We can see that fuel efficiency of electric vehicles almost doubled over the per
 
 
 ```{python 'fuel-type-efficiency', echo=TRUE, fig.height=8, fig.width=20, message=FALSE, warning=FALSE}
+# Prepare data for plotting by fuelType1
 data = big_mt[: , 
               { 'maximum': dt.max(comb08), 
                 'minimum': dt.min(comb08), 
                 'num_models' : count(), 
                 'mpg' : dt.mean(comb08) }, 
                   by(year, fuelType1)].to_pandas()
-                  
+
+# Plot smoothed line of efficiency by fuelType1 by VClass              
 (p9.ggplot(data, 
             p9.aes('year', 
                    'mpg', 
@@ -317,21 +328,22 @@ data = big_mt[: ,
 
 ```
 
-We didn't realize that there had been such a sharp increase in models requiring premium instead of regular gasoline. Our understanding was that premium gasoline had more to do with the and we can see that vehicles requiring other fuel types remain a small fraction of the market.
+We don't know if fuelType1 refers to the recommended or required fuel, but didn't realize that there had been such a sharp increase in premium over the period. Our understanding was that premium gasoline had more to do with the engine performance than gas efficiency. it is notable that despite all the talk about alternative fuels, they can still be used in only a small minority of new models.
 
 
 ```{python 'number-premium-regular'}
-(p9.ggplot(data, 
+# Plot stacked line of share of fuelType1 by VClass
+(p9.ggplot(data[data['year'] < 2020],
             p9.aes('year', 
                    'num_models', 
                    fill = 'fuelType1')) + 
             p9.geom_area(position = 'stack') +
             p9.theme_bw() +
             p9.labs(
-                title = "Number of Models Requiring Premium Overtakes Regular",
+                title = "Number of Cars and Trucks Requiring Premium Overtakes Regular",
                 y = 'Number of Models',
                 x = 'Year',
-                color = 'Fuel Type') +
+                fill = 'Fuel Type') +
             p9.theme(    
               subplots_adjust={'right': 0.75},
               figure_size=(10, 4), # inches
@@ -343,6 +355,6 @@ We didn't realize that there had been such a sharp increase in models requiring 
 
 # Conclusion
 
-We need to be honest that there is a lot of complexity here and a lot more going on than are likely to comprehend in a short exploration. We know there is a regulatory response to the CAFE standards which tightened in 2005, and that at least one significant producer may not have had honest numbers during the period. We also don't know how many vehicles of each brand was sold, so don't know producers might jockey to sell more profitable models within the framework. There can be a fine line between a light truck and a car, and the taxation on both can be different. Also, the weight cutoffs for trucks changed in 2008, so most truck categories are not a consistent weight over the whole period. Still, 
+There is a lot of complexity in this system and more going on than we are likely to comprehend in a short exploration. We know there is a regulatory response to the CAFE standards which tightened in 2005, and that at least one significant producer may not have had accurate efficiency numbers during the period. The oil price fluctuated widely during the period, but not enough to cause real change in behavior in the same way it did during the 1970s. We also don't know how many vehicles of each brand were sold, so don't know how producers might jockey to sell more profitable models within the framework of overall fleet efficiency constraints. There can be a fine line between a light truck and a car, and the taxation differentials importation of cars vs light trucks are significant. Also, the weight cutoffs for trucks changed in 2008, so most truck categories are not a consistent weight over the whole period. That is all for now, but a future post might involve scraping CAFE standards, where there is also long term data available, to see if some of the blanks about volumes and weights could be filled in to support a more meaningful analysis.
 
 
