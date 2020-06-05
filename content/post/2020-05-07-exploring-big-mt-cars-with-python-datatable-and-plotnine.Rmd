@@ -1,5 +1,5 @@
 ---
-title: Exploring Big MT Cars with Python datatable and plotnine-Part 1
+title: Exploring Big MT Cars with Python datatable-Part 1
 author: David Lucey
 date: '2020-05-07'
 slug: exploring-big-mt-cars-with-python-datatable-and-plotnine-part-1
@@ -24,21 +24,20 @@ knitr::opts_chunk$set(
 ```
 
 
-```{r 'reticulate', echo=TRUE, message=FALSE, warning=FALSE}
+```{r 'reticulate', eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 # Choose Python 3.7 miniconda
 reticulate::use_condaenv(
-  condaenv = "datatable",
-  conda = "/Users/davidlucey/opt/anaconda3/bin/conda",
+  condaenv = "r-reticulate",
   required = TRUE
   )
 
 ```
 
 
-```{r 'install-conda', message=FALSE, warning=FALSE, eval = FALSE}
+```{r 'install-conda', eval=FALSE, message=FALSE, warning=FALSE}
 # Install Python packages
-lapply(c("plotnine", "datatable"), function(package) {
-       conda_install("datatable", package, pip = TRUE)
+lapply(c("datatable", "pandas"), function(package) {
+       conda_install("r-reticulate", package, pip = TRUE)
 })
 
 ```
@@ -46,13 +45,13 @@ lapply(c("plotnine", "datatable"), function(package) {
 
 ```{python 'python-setup'}
 # Python libraries
-import datatable as dt
 from datatable import *
 import numpy as np
 import re
 import pprint
 
 ```
+
 
 # Introduction
 
@@ -92,27 +91,25 @@ big_mt.shape
 The list of all 83 variables below, and we can see that there are several pertaining to fuel efficiency, emissions, fuel type, range, volume and some of the same attributes that we all know from `mtcars` (ie: cylinders, displacement, make, model and transmission). As mentioned, gross horsepower and weight are missing, but carburetors, acceleration and engine shape are also absent. We have all classes of vehicles sold, so get vehicle class information (`VClass`) not available in `mtcars` which is only cars. We will discuss further down, changes to the weight cutoffs on some of the categories over time make `VClass` of questionable use.
 
 
-```{python 'names', echo=TRUE}
-# Extract names as list for further processing in next chunk
-names = [name for name in big_mt.names]
 
+```{python 'names', echo=TRUE}
 # Set up pprint params and print
 pp = pprint.PrettyPrinter(width=80, compact = True)
-pp.pprint(names)
+pp.pprint(big_mt.names)
 ```
 
 
 # Set-up Thoughts from R Perspective
 
-There were a couple of things about the set-up for `datatable`, which weren't apparent coming over from `data.table` as an R user. The first was to use `from dt import *` at the outset to avoid having to reference the package short name every time within the frame. The second was to use `export_names()` in order to skip having to use the `f` operator or quotation marks to reference variables. In order to do this, we had to create a dictionary of names using the `names` list from above, and each of their `f` expressions extracted with `export_names` in a second list. We then used update from the local environment to assign all of the dictionary values to their keys as variables. From then on, we can refer to those variable without quotation marks or the `f` operator (although any new variables created would still need `f` or quotation marks). We weren't sure why this is not the default behavior, but it is easily worked around. These two steps brought the feel of `datatable` a lot closer to the usual R `data.table` (ie: without the package and expression short codes).
+There were a couple of things about the set-up for `datatable`, which weren't apparent coming over from `data.table` as an R user. The first was to use `from dt import *` at the outset to avoid having to reference the package short name every time within the frame. From a Python perspective, this is considered bad practice, but we are only going to do it for that one package because it makes us feel more at home. The second was to use `export_names()` in order to skip having to use the `f` operator or quotation marks to reference variables. In order to do this, we had to create a dictionary of names using the `names` list from above, and each of their `f` expressions extracted with `export_names` in a second list. We then used update from the local environment to assign all of the dictionary values to their keys as variables. From then on, we can refer to those variable without quotation marks or the `f` operator (although any new variables created would still need `f` or quotation marks). We weren't sure why this is not the default behavior, but it is easily worked around for our purposes. These two possibly not "Pythonic" steps brought the feel of `datatable` a lot closer to the usual R `data.table` (ie: without the package and expression short codes).
 
 
 ```{python 'export-all-names', include=FALSE}
 # Export names to list to add to dictionary
 expr = [exp for exp in big_mt.export_names()]
+names = big_mt.names
 
 # Assign all exported name expressions to variable names
-names_dict = {}
 names_dict = { names[i]: expr[i] for i in range(len(names)) } 
 locals().update(names_dict)
 
@@ -136,7 +133,7 @@ We usually like to make a quick check if there are any duplicated rows across th
 
 # Aggregate New Variable and Sort
 
-We can see that below that 'eng_dscr' is unfortunately blank 38% of the time, and high cardinality for the rest of the levels. A small percentage are marked "GUZZLER" and "FLEX FUELS". in a few cases, potentially helpful information about engine like V-6 or V-8 are included with very low frequency, but not consistently enough to make sense try to extract. Another potentially informative variable, `trans_dscr` is similarly blank more than 60% of the time. It seems unlikely that we could clean these up to make it useful in an analysis, so will probably have to drop them.
+We can see that below that `eng_dscr` is unfortunately blank 38% of the time, and high cardinality for the rest of the levels. A small percentage are marked "GUZZLER" and "FLEX FUELS". in a few cases, potentially helpful information about engine like V-6 or V-8 are included with very low frequency, but not consistently enough to make sense try to extract. Another potentially informative variable, `trans_dscr` is similarly blank more than 60% of the time. It seems unlikely that we could clean these up to make it useful in an analysis, so will probably have to drop them.
 
 
 ```{python 'eng_dscr', echo=TRUE}
@@ -225,6 +222,7 @@ There was no such thing as an 4-wheel drive SUVs back in the 80's, and we rememb
 
 
 ```{python 'models-over-time', echo=TRUE}
+
 # Summarize by year again having to move to pandas to pivot
 print(big_mt[:, count(), by(f.wheels, year)].to_pandas().pivot_table(index='wheels', columns='year', values='count'))
 
@@ -258,7 +256,7 @@ def collapse_vclass(type):
 
 # Combining Levels of Variables with High Cardinality
 
-With 35 distinct levels often referring to similar vehicles, `VClass` also needed to be cleaned up. Even in R `data.table`, we have been keenly awaiting the implemention of `fcase`, which is expected to replicate the `dplyr` `case_when()` function for nested control-flow statements. We made a separate 16-line function to lump factor levels (not shown). In the first line below, we created the `vclasses` list to drill down on the `VClass` tuple elements as strings. In the second line, we had to iterate over the resulting strings from the 0-index of the tuple to extract wheel-drive from a list-comprehension. We printed out the result of our much smaller list of lumped factors, but there are still problems with the result. The EPA changed the cutoff for a "Small Pickup Truck" from 4,500 to 6,000 lbs in 2008, and also used a higher cut-off for "small" SUV's starting in 2011. This will make it pretty hard to us VClass as a consistent variable for modeling, at least for Pickups and SUVs. As noted earlier, if we had the a weight field, we could have easily worked around this.
+With 35 distinct levels often referring to similar vehicles, `VClass` also needed to be cleaned up. Even in R `data.table`, we have been keenly awaiting the implementation of `fcase`, a `data.table` version of the `dplyr` `case_when()` function for nested control-flow statements. We made a separate 16-line function to lump factor levels (not shown). In the first line below, we created the `vclasses` list to drill down on the `VClass` tuple elements as strings. In the second line, we had to iterate over the resulting strings from the 0-index of the tuple to extract wheel-drive from a list-comprehension. We printed out the result of our much smaller list of lumped factors, but there are still problems with the result. The EPA changed the cutoff for a "Small Pickup Truck" from 4,500 to 6,000 lbs in 2008, and also used a higher cut-off for "small" SUV's starting in 2011. This will make it pretty hard to us VClass as a consistent variable for modeling, at least for Pickups and SUVs. As noted earlier, if we had the a weight field, we could have easily worked around this.
 
 
 ```{python}
@@ -267,8 +265,8 @@ vclasses = [tup[0] for tup in big_mt[:, 'VClass'].to_tuples()]
 big_mt['VClass'] = dt.Frame([re.sub('\s\dWD$|\/\dwd$|\s\-\s\dWD$', '', x) if re.search(r'WD$|wd$', x) is not None else x for x in vclasses])
 big_mt['VClass'] = dt.Frame([collapse_vclass(line[0]) for line in big_mt[:, 'VClass'].to_tuples()])
 
-# Show final VClass types
-print(dt.unique(big_mt["VClass"]))
+# Show final VClass types and counts
+print(big_mt[:, count(), VClass][:,:, sort(-f.count)])
 
 ```
 
@@ -280,7 +278,7 @@ In the chunk (below), we show how to select columns from the big_mt names tuple 
 
 ```{python 'filter-examples', echo = TRUE}
 # Regex search for variable selection
-measures = [x for x in big_mt.names if re.search(r'make|model|year|08$', x)]
+measures = [name for name in big_mt.names if re.search(r'make|model|year|08$', name)]
 
 # Print remaining cols with measures filter
 print(big_mt[year_filter,  measures])
