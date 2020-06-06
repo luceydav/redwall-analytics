@@ -150,8 +150,8 @@ In the third line of code, we felt like we were using an R `data.table`. The `{}
 
 
 ```{python 'split-trany', echo=TRUE}
-big_mt['trans'] = dt.Frame([re.sub('[\s\(].*$','', s) for s in big_mt[:, 'trany'].to_list()[0]])
-big_mt['gear'] = dt.Frame([re.sub('A\w+\s|M\w+\s','', s) for s in big_mt[:, 'trany'].to_list()[0]])
+big_mt['trans'] = Frame([re.sub('[\s\(].*$','', s) for s in big_mt[:, 'trany'].to_list()[0]])
+big_mt['gear'] = Frame([re.sub('A\w+\s|M\w+\s','', s) for s in big_mt[:, 'trany'].to_list()[0]])
 gear, trans= big_mt[:, ('gear', 'trans')].export_names()
 
 # Summarize percent of instances by transmission and speed
@@ -201,7 +201,7 @@ We used regex to extract whether the model was 2WD, 4WD, etc as `wheels` from `m
 ```{python 'wheel-engine', echo=TRUE}
 # Extract 'wheels' and 'engine' from 'model'
 reg = re.compile(r'(.*)(.WD|4x4)(.*)', re.IGNORECASE)
-big_mt[:, 'wheels'] = dt.Frame([reg.match(s).group(2) if reg.search(s) else '' for s in big_mt[:, model].to_list()[0]])
+big_mt[:, 'wheels'] = Frame([reg.match(s).group(2) if reg.search(s) else '' for s in big_mt[:, model].to_list()[0]])
 wheels = big_mt[:, 'wheels'].export_names()
 
 # Fix problem notations
@@ -262,8 +262,8 @@ With 35 distinct levels often referring to similar vehicles, `VClass` also neede
 ```{python}
 # Clean up vehicle type from VClass
 vclasses = [tup[0] for tup in big_mt[:, 'VClass'].to_tuples()]
-big_mt['VClass'] = dt.Frame([re.sub('\s\dWD$|\/\dwd$|\s\-\s\dWD$', '', x) if re.search(r'WD$|wd$', x) is not None else x for x in vclasses])
-big_mt['VClass'] = dt.Frame([collapse_vclass(line[0]) for line in big_mt[:, 'VClass'].to_tuples()])
+big_mt['VClass'] = Frame([re.sub('\s\dWD$|\/\dwd$|\s\-\s\dWD$', '', x) if re.search(r'WD$|wd$', x) is not None else x for x in vclasses])
+big_mt['VClass'] = Frame([collapse_vclass(line[0]) for line in big_mt[:, 'VClass'].to_tuples()])
 
 # Show final VClass types and counts
 print(big_mt[:, count(), VClass][:,:, sort(-f.count)])

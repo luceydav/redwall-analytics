@@ -144,8 +144,8 @@ print(big_mt[year_filter, (year, make, model, trany, evMotor, VClass)])</code></
 <h1>Separate and Assign New Variables</h1>
 <p>As shown above, <code>trany</code> has both the transmission-type and gear-speed variables within it, so we extracted the variable from big_mt with <code>to_list()</code>, drilled down one level, and used regex to extract the transmission and gear information needed out into <code>trans</code> and <code>gear</code>. Notice that we needed to convert the lists back into columns with dt.Frame before assigning as new variables in big_mt.</p>
 <p>In the third line of code, we felt like we were using an R <code>data.table</code>. The <code>{}</code> is used group by <code>trans</code> and <code>gear</code>, and then to create the new <code>percent</code> variable in-line, without affecting the other variables in big_mt. We tried to round the decimals in percent, but couldn’t figure it out so far. Our understanding is that there is no <code>round()</code> method yet for <code>datatable</code>, so we multiplied by 100 and converted to integer. We again called <code>export_names()</code>, to be consistent in using non-standard evaluation with the two new variables.</p>
-<pre class="python"><code>big_mt[&#39;trans&#39;] = dt.Frame([re.sub(&#39;[\s\(].*$&#39;,&#39;&#39;, s) for s in big_mt[:, &#39;trany&#39;].to_list()[0]])
-big_mt[&#39;gear&#39;] = dt.Frame([re.sub(&#39;A\w+\s|M\w+\s&#39;,&#39;&#39;, s) for s in big_mt[:, &#39;trany&#39;].to_list()[0]])
+<pre class="python"><code>big_mt[&#39;trans&#39;] = Frame([re.sub(&#39;[\s\(].*$&#39;,&#39;&#39;, s) for s in big_mt[:, &#39;trany&#39;].to_list()[0]])
+big_mt[&#39;gear&#39;] = Frame([re.sub(&#39;A\w+\s|M\w+\s&#39;,&#39;&#39;, s) for s in big_mt[:, &#39;trany&#39;].to_list()[0]])
 gear, trans= big_mt[:, (&#39;gear&#39;, &#39;trans&#39;)].export_names()
 
 # Summarize percent of instances by transmission and speed
@@ -226,7 +226,7 @@ print(&#39;%d of rows with wheels info.&#39; % (big_mt[model.re_match(&#39;.*(.W
 <p>We used regex to extract whether the model was 2WD, 4WD, etc as <code>wheels</code> from <code>model</code>, but most of the time, it was the same information as we already had in <code>drive</code>. It is possible that our weakness in Python is at play, but this would have been a lot simpler in R, because we wouldn’t have iterated over every row in order to extract part of the row with regex. We found that there were some cases where the 2WD and 4WD were recorded as 2wd and 4wd. The <code>replace()</code> function was an efficient solution to this problem, replacing matches of ‘wd’ with ‘WD’ over the entire frame.</p>
 <pre class="python"><code># Extract &#39;wheels&#39; and &#39;engine&#39; from &#39;model&#39;
 reg = re.compile(r&#39;(.*)(.WD|4x4)(.*)&#39;, re.IGNORECASE)
-big_mt[:, &#39;wheels&#39;] = dt.Frame([reg.match(s).group(2) if reg.search(s) else &#39;&#39; for s in big_mt[:, model].to_list()[0]])
+big_mt[:, &#39;wheels&#39;] = Frame([reg.match(s).group(2) if reg.search(s) else &#39;&#39; for s in big_mt[:, model].to_list()[0]])
 wheels = big_mt[:, &#39;wheels&#39;].export_names()
 
 # Fix problem notations
@@ -293,8 +293,8 @@ print(big_mt[:, count(), by(f.wheels, year)].to_pandas().pivot_table(index=&#39;
 <p>With 35 distinct levels often referring to similar vehicles, <code>VClass</code> also needed to be cleaned up. Even in R <code>data.table</code>, we have been keenly awaiting the implementation of <code>fcase</code>, a <code>data.table</code> version of the <code>dplyr</code> <code>case_when()</code> function for nested control-flow statements. We made a separate 16-line function to lump factor levels (not shown). In the first line below, we created the <code>vclasses</code> list to drill down on the <code>VClass</code> tuple elements as strings. In the second line, we had to iterate over the resulting strings from the 0-index of the tuple to extract wheel-drive from a list-comprehension. We printed out the result of our much smaller list of lumped factors, but there are still problems with the result. The EPA changed the cutoff for a “Small Pickup Truck” from 4,500 to 6,000 lbs in 2008, and also used a higher cut-off for “small” SUV’s starting in 2011. This will make it pretty hard to us VClass as a consistent variable for modeling, at least for Pickups and SUVs. As noted earlier, if we had the a weight field, we could have easily worked around this.</p>
 <pre class="python"><code># Clean up vehicle type from VClass
 vclasses = [tup[0] for tup in big_mt[:, &#39;VClass&#39;].to_tuples()]
-big_mt[&#39;VClass&#39;] = dt.Frame([re.sub(&#39;\s\dWD$|\/\dwd$|\s\-\s\dWD$&#39;, &#39;&#39;, x) if re.search(r&#39;WD$|wd$&#39;, x) is not None else x for x in vclasses])
-big_mt[&#39;VClass&#39;] = dt.Frame([collapse_vclass(line[0]) for line in big_mt[:, &#39;VClass&#39;].to_tuples()])
+big_mt[&#39;VClass&#39;] = Frame([re.sub(&#39;\s\dWD$|\/\dwd$|\s\-\s\dWD$&#39;, &#39;&#39;, x) if re.search(r&#39;WD$|wd$&#39;, x) is not None else x for x in vclasses])
+big_mt[&#39;VClass&#39;] = Frame([collapse_vclass(line[0]) for line in big_mt[:, &#39;VClass&#39;].to_tuples()])
 
 # Show final VClass types and counts
 print(big_mt[:, count(), VClass][:,:, sort(-f.count)])</code></pre>

@@ -106,7 +106,7 @@ def collapse_make(make):
 
 # Set up vclass of categories list for iteration
 vclass = big_mt[:, VClass].to_list()[0]
-big_mt[:, 'vehicle_type'] = dt.Frame(['Cars' if re.findall('Car', item) else 'Trucks' for item in vclass]).to_numpy()
+big_mt[:, 'vehicle_type'] = Frame(['Cars' if re.findall('Car', item) else 'Trucks' for item in vclass]).to_numpy()
 
 # Consolidate make under parents
 #manufacturers = [tup[0] for tup in big_mt[:, 'make'].to_tuples()]
@@ -268,8 +268,7 @@ In Figure We were surprised to see the fuel efficiency of mid-sized overtake eve
 data = big_mt[(is_ev == False), :][:, 
                 {'mean' : dt.mean(comb08),
                  'num_models' : count() },
-                    by(year, VClass, is_ev)] \
-             [(is_ev == False),:].to_pandas()
+                    by(year, VClass, is_ev)].to_pandas()
 
 # Plot smoothed line of efficiency by VClass
 (p9.ggplot(
