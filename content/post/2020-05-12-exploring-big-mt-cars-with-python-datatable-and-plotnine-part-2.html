@@ -24,7 +24,7 @@ reticulate::use_condaenv(
   required = TRUE
   )</code></pre>
 <pre class="r"><code># Install Python packages
-lapply(c(&quot;plotnine&quot;, &quot;plotly&quot;), function(package) {
+lapply(c(&quot;plotnine&quot;), function(package) {
        conda_install(&quot;r-reticulate&quot;, package, pip = TRUE)
 })</code></pre>
 <pre class="python"><code># Python libraries
@@ -90,8 +90,6 @@ vehicle_type, manufacturer = big_mt[:, (&#39;vehicle_type&#39;, &#39;manufacture
 <div id="imports-started-ahead-and-improved-efficency-more" class="section level1">
 <h1>Imports Started Ahead and Improved Efficency More</h1>
 <p>Here, we selected the largest volume brands in two steps, first creating an numpy vector of makes which sold more than 1500 separate models over the full period, and then creating an expression to filter for the most popular. Then, we iterated over our vector and classified vehicles as ‘Cars’ or ‘Trucks’ based on regex matches to build a new <code>vehicle_type</code> variable. We would love to know streamlined way to accomplish these operations, because they would surely be easier for us using <code>data.table</code>. Excluding EV’s, we found the combined mean mpg by <code>year</code> and <code>make</code> for both cars and trucks. It could be that we are missing something, but it also feels more verbose than it would have been in <code>data.table</code>, where we probably could have nested the filtering expressions within the frames, but again this could be our weakness in Python.</p>
-<p>Our <code>plotnine</code> code and graph looks very similar to one generated from <code>ggplot</code>, but we struggled with sizing the plot on the page and avoiding cutting off axis and legend labels. We tried to put the legend on the right, but the labels were partially cut off unless we squeezed the charts too much. When we put it at the bottom with horizontal labels, the x-axis for the ‘Cars’ facet was still partially blocked by the legend title. We couldn’t find much written on how to make the charts bigger or to change the aspect ratio or figure size parameters. We remember these struggles while learning <code>ggplot</code>, but it felt like we could figure it out more quickly.</p>
-<p>It is also important to mention that confidence intervals are not implemented yet for lowess smoothing in <code>plotnine</code>. This probably isn’t such a big deal for our purposes in this graph where there are a large number of models, but it does detract from Figure <a href="#fig:ev-vs-gas-powered"><strong>??</strong></a> below, where it the uncertainty about the true mean efficiency of cars with batteries in the early years is high because there were so few models.</p>
 <pre class="python"><code># Filter for brands with most models over full period
 most_popular_vector = big_mt[:, count(), by(manufacturer)][(f.count &gt; 1500), &#39;manufacturer&#39;].to_numpy()
 most_popular = np.isin(big_mt[:, manufacturer], most_popular_vector)
@@ -103,9 +101,10 @@ data = big_mt[ most_popular, :] \
                    &#39;num_models&#39; : count() }, 
                       by(year, 
                          manufacturer,
-                         vehicle_type)]
-
-# Smoothed line chart of efficiency by manufacturer
+                         vehicle_type)]</code></pre>
+<p>Our <code>plotnine</code> code and graph below looks very similar to one generated from <code>ggplot</code>, but we struggled with sizing the plot on the page and avoiding cutting off axis and legend labels. We tried to put the legend on the right, but the labels were partially cut off unless we squeezed the charts too much. When we put it at the bottom with horizontal labels, the x-axis for the ‘Cars’ facet was still partially blocked by the legend title. We couldn’t find much written on how to make the charts bigger or to change the aspect ratio or figure size parameters, so the size looks a bit smaller than we would like. We remember these struggles while learning <code>ggplot</code>, but it felt like we could figure it out more quickly.</p>
+<p>It is also important to mention that confidence intervals are not implemented yet for lowess smoothing with <code>geom_smooth()</code> in <code>plotnine</code>. This probably isn’t such a big deal for our purposes in this graph, where there are a large number of models in each year. However, it detracts from Figure <a href="#fig:ev-vs-gas-powered"><strong>??</strong></a> below, where it the uncertainty about the true mean efficiency of cars with batteries in the early years is high because there were so few models.</p>
+<pre class="python"><code># Smoothed line chart of efficiency by manufacturer
 (p9.ggplot(data.to_pandas(),
           p9.aes(x = &#39;year&#39;, 
                  y= &#39;mean_combined&#39;, 
@@ -128,11 +127,11 @@ data = big_mt[ most_popular, :] \
             legend_position=&#39;bottom&#39;,
             legend_direction=&#39;horizontal&#39;) 
 )</code></pre>
-<pre><code>## &lt;ggplot: (304774604)&gt;
+<pre><code>## &lt;ggplot: (312535009)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
-<p><img src="/post/2020-05-12-exploring-big-mt-cars-with-python-datatable-and-plotnine-part-2_files/figure-html/mpg-top-manufacturers-1.png" width="100%" /></p>
+<p><img src="/post/2020-05-12-exploring-big-mt-cars-with-python-datatable-and-plotnine-part-2_files/figure-html/plot-mpg-top-manu-1.png" width="100%" /></p>
 <p>One thing to note is that it is difficult to tell which line maps to which <code>make</code> just by the colors. The original plan was to pipe this into <code>plotly</code> as we would do in R, but this functionality is not available. While the <code>plotnine</code> functionality is pretty close to <code>ggplot</code>, the lack of support of <code>plotly</code> is a pretty serious shortcoming.</p>
 <p>From what we can see in the chart, we can see that “Other Asian” started out well in the beginning of the period, and made remarkable progress leaving Toyota behind as the leader in cars and trucks. Our family has driven Highlanders over the last 20 years, and seen the size of that model go from moderate to large, so it is not surprising to see Toyota trucks going from 2nd most to 2nd least efficient. BMW made the most progress of all producers in cars, and also made gains since introducing trucks in 2000. As a general comment, relative efficiency seems more dispersed and stable for cars than for trucks.</p>
 <pre class="python"><code>
@@ -143,7 +142,7 @@ data = big_mt[ most_popular, :] \
                  fill = &#39;manufacturer&#39;)) + 
           p9.geom_area(position = &#39;stack&#39;) +
           p9.theme_bw() + 
-          p9.labs(title = &#39;BMW Making a Lot of Car Models, While GM Cuts Streamlines&#39;,
+          p9.labs(title = &#39;BMW Making a Lot of Car Models, While GM Streamlines&#39;,
                     x = &#39;Year&#39;,
                     y = &#39;Number of Models&#39;,
                     caption = &#39;EPA&#39;,
@@ -159,13 +158,13 @@ data = big_mt[ most_popular, :] \
             legend_position=&#39;bottom&#39;,
             legend_direction=&#39;horizontal&#39;) 
 )</code></pre>
-<pre><code>## &lt;ggplot: (-9223372036549958677)&gt;</code></pre>
+<pre><code>## &lt;ggplot: (-9223372036541285884)&gt;</code></pre>
 <p><img src="/post/2020-05-12-exploring-big-mt-cars-with-python-datatable-and-plotnine-part-2_files/figure-html/models-by-manufacturer-1.png" width="100%" /></p>
 <p>When we look number of models by Manufacturer , we can see that the number of models declined steadily from 1984 though the late 1990s, but has been rising since. Although the number of truck models appear to be competitive with cars, note that the graphs have different scales so there are about 2/3 as many in most years. In addition to becoming much more fuel efficient, BMW has increased the number of models to an astonishing degree over the period, even while most other European imports have started to tail off (except Mercedes). We would be interested to know the story behind such a big move by a still niche US player. GM had a very large number of car and truck models at the beginning of the period, but now has a much more streamlined range. It is important to remember that these numbers are not vehicles sold or market share, just models tested for fuel efficiency in a given year.</p>
 </div>
 <div id="electric-vehicles-unsurprisingly-get-drastically-better-mileage" class="section level1">
 <h1>Electric Vehicles Unsurprisingly Get Drastically Better Mileage</h1>
-<p>After the looking at the efficiency by manufacturer in Figure <a href="#fig:mpg-top-manufacturers"><strong>??</strong></a> above, we had a double-take when we saw the chart Figure <a href="#fig:ev-vs-gas-powered"><strong>??</strong></a> below. While progress for gas-powered vehicles looked respectable above, in the context of cars with batteries, gas-only vehicles are about half as efficient on average. Though the mean improved, the mileage of the most efficient gas powered vehicle in any given year steadily lost ground over the period.</p>
+<p>After the looking at the efficiency by manufacturer in Figure <a href="#fig:plot-mpg-top-manu"><strong>??</strong></a> above, we had a double-take when we saw the chart Figure <a href="#fig:ev-vs-gas-powered"><strong>??</strong></a> below. While progress for gas-powered vehicles looked respectable above, in the context of cars with batteries, gas-only vehicles are about half as efficient on average. Though the mean improved, the mileage of the most efficient gas powered vehicle in any given year steadily lost ground over the period.</p>
 <p>Meanwhile, vehicles with batteries are not really comparable because plug-in vehicles don’t use any gas. The EPA imputes energy equivalence for those vehicles. The EPA website explains in <a href="https://www.fueleconomy.gov/feg/label/learn-more-electric-label.shtml">Electric Vehicles: Learn More About the Label</a> that a calculation of equivalent electricity to travel 100 miles for plug-in vehicles. This seems like a crude comparison as electricity prices vary around the country. Still, the most efficient battery-powered car (recently a Tesla) improved to an incredible degree.</p>
 <p>Around 2000, there were only a handful of battery-powered cars so the error bars would be wide if included, and we are counting all cars with any battery as one category when there are hybrids and plug-ins. In any case, caution should be used in interpreting the trend, but there was a period where the average actually declined, and really hasn’t improved over 20-years with the most efficient.</p>
 <pre class="python"><code># Prepare data for charting by gas and battery-powered
@@ -208,7 +207,7 @@ data = data.to_pandas().melt(
       legend_position=&#39;right&#39;,
       legend_direction=&#39;vertical&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (-9223372036549982334)&gt;
+<pre><code>## &lt;ggplot: (-9223372036542442464)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
@@ -244,7 +243,7 @@ data = big_mt[(is_ev == False), :][:,
       legend_position=&#39;right&#39;,
       legend_direction=&#39;vertical&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (-9223372036550008120)&gt;
+<pre><code>## &lt;ggplot: (312651489)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
@@ -281,7 +280,7 @@ data = big_mt[: ,
               legend_position=&#39;right&#39;,
               legend_direction=&#39;vertical&#39;)
 )              </code></pre>
-<pre><code>## &lt;ggplot: (313719493)&gt;
+<pre><code>## &lt;ggplot: (312980961)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
@@ -306,10 +305,14 @@ data = big_mt[: ,
               legend_position=&#39;right&#39;,
               legend_direction=&#39;vertical&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (-9223372036539092157)&gt;</code></pre>
+<pre><code>## &lt;ggplot: (323376020)&gt;</code></pre>
 <p><img src="/post/2020-05-12-exploring-big-mt-cars-with-python-datatable-and-plotnine-part-2_files/figure-html/number-premium-regular-1.png" width="100%" /></p>
+</div>
+<div id="comments-about-plotnine-and-python-chunks-in-rstudio" class="section level1">
+<h1>Comments About Plotnine and Python Chunks in RStudio</h1>
+<p>In addition to the charts rendering smaller than we would have liked, we would have liked to have figure captions (as we generally do in for our R chunks). In addition, our cross-referencing links are currently not working for the Python chunks as they would with R. There is a bug mentioned on the <a href="https://rdrr.io/github/yihui/knitr/f/NEWS.md"><code>knitr</code> news page</a> which may be fixed when the 1.29 update becomes available.</p>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>There is a lot of complexity in this system and more going on than we are likely to comprehend in a short exploration. We know there is a regulatory response to the CAFE standards which tightened in 2005, and that at least one significant producer may not have had accurate efficiency numbers during the period. The oil price fluctuated widely during the period, but not enough to cause real change in behavior in the same way it did during the 1970s. We also don’t know how many vehicles of each brand were sold, so don’t know how producers might jockey to sell more profitable models within the framework of overall fleet efficiency constraints. There can be a fine line between a light truck and a car, and the taxation differentials importation of cars vs light trucks are significant. Also, the weight cutoffs for trucks changed in 2008, so most truck categories are not a consistent weight over the whole period. That is all for now, but a future post might involve scraping CAFE standards, where there is also long term data available, to see if some of the blanks about volumes and weights could be filled in to support a more meaningful analysis.</p>
+<p>There is a lot of complexity in this system and more going on than we are likely to comprehend in a short exploration. We know there is a regulatory response to the CAFE standards which tightened in 2005, and that at least one significant producer may not have had accurate efficiency numbers during the period. The oil price fluctuated widely during the period, but not enough to cause real change in behavior in the same way it did during the 1970s. We also don’t know how many vehicles of each brand were sold, so don’t know how producers might jockey to sell more profitable models within the framework of overall fleet efficiency constraints. There can be a fine line between a light truck and a car, and the taxation differentials importation of cars vs light trucks are significant. Also, the weight cutoffs for trucks changed in 2008, so most truck categories are not a consistent weight over the whole period. That is all for now, but a future post might involve scraping CAFE standards, where there is also long term data available, to see if some of the blanks about volumes and weights could be filled in to support more than just exploratory analysis.</p>
 </div>

@@ -33,7 +33,7 @@ reticulate::use_condaenv(
 
 ```{r 'install-conda', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
 # Install Python packages
-lapply(c("plotnine", "plotly"), function(package) {
+lapply(c("plotnine"), function(package) {
        conda_install("r-reticulate", package, pip = TRUE)
 })
 
@@ -121,13 +121,8 @@ vehicle_type, manufacturer = big_mt[:, ('vehicle_type', 'manufacturer')].export_
 
 Here, we selected the largest volume brands in two steps, first creating an numpy vector of makes which sold more than 1500 separate models over the full period, and then creating an expression to filter for the most popular. Then, we iterated over our vector and classified vehicles as 'Cars' or 'Trucks' based on regex matches to build a new `vehicle_type` variable. We would love to know streamlined way to accomplish these operations, because they would surely be easier for us using `data.table`. Excluding EV's, we found the combined mean mpg by `year` and `make` for both cars and trucks. It could be that we are missing something, but it also feels more verbose than it would have been in `data.table`, where we probably could have nested the filtering expressions within the frames, but again this could be our weakness in Python.
 
-Our `plotnine` code and graph looks very similar to one generated from `ggplot`, but we struggled with sizing the plot on the page and avoiding cutting off axis and legend labels. We tried to put the legend on the right, but the labels were partially cut off unless we squeezed the charts too much. When we put it at the bottom with horizontal labels, the x-axis for the 'Cars' facet was still partially blocked by the legend title. We couldn't find much written on how to make the charts bigger or to change the aspect ratio or figure size parameters. We remember these struggles while learning `ggplot`, but it felt like we could figure it out more quickly. 
 
-It is also important to mention that confidence intervals are not implemented yet for lowess smoothing in `plotnine`. This probably isn't such a big deal for our purposes in this graph where there are a large number of models, but it does detract from Figure \@ref(fig:ev-vs-gas-powered) below, where it the uncertainty about the true mean efficiency of cars with batteries in the early years is high because there were so few models.
-
-
-
-```{python mpg-top-manufacturers, echo=TRUE, fig.fullwidth=TRUE, fig.height=20, fig.width=8, message=FALSE, warning=FALSE}
+```{python mpg-top-manufacturers, echo=TRUE, message=FALSE, warning=FALSE}
 # Filter for brands with most models over full period
 most_popular_vector = big_mt[:, count(), by(manufacturer)][(f.count > 1500), 'manufacturer'].to_numpy()
 most_popular = np.isin(big_mt[:, manufacturer], most_popular_vector)
@@ -140,7 +135,15 @@ data = big_mt[ most_popular, :] \
                       by(year, 
                          manufacturer,
                          vehicle_type)]
+```
 
+
+Our `plotnine` code and graph below looks very similar to one generated from `ggplot`, but we struggled with sizing the plot on the page and avoiding cutting off axis and legend labels. We tried to put the legend on the right, but the labels were partially cut off unless we squeezed the charts too much. When we put it at the bottom with horizontal labels, the x-axis for the 'Cars' facet was still partially blocked by the legend title. We couldn't find much written on how to make the charts bigger or to change the aspect ratio or figure size parameters, so the size looks a bit smaller than we would like. We remember these struggles while learning `ggplot`, but it felt like we could figure it out more quickly. 
+
+It is also important to mention that confidence intervals are not implemented yet for lowess smoothing with `geom_smooth()` in `plotnine`. This probably isn't such a big deal for our purposes in this graph, where there are a large number of models in each year. However, it detracts from Figure \@ref(fig:ev-vs-gas-powered) below, where it the uncertainty about the true mean efficiency of cars with batteries in the early years is high because there were so few models.
+
+
+```{python plot-mpg-top-manu, echo=TRUE, fig.fullwidth=TRUE, fig.height=20, fig.width=8, message=FALSE, warning=FALSE}
 # Smoothed line chart of efficiency by manufacturer
 (p9.ggplot(data.to_pandas(),
           p9.aes(x = 'year', 
@@ -167,11 +170,10 @@ data = big_mt[ most_popular, :] \
 
 ```
 
+
 One thing to note is that it is difficult to tell which line maps to which `make` just by the colors. The original plan was to pipe this into `plotly` as we would do in R, but this functionality is not available. While the `plotnine` functionality is pretty close to `ggplot`, the lack of support of `plotly` is a pretty serious shortcoming.
 
 From what we can see in the chart, we can see that "Other Asian" started out well in the beginning of the period, and made remarkable progress leaving Toyota behind as the leader in cars and trucks. Our family has driven Highlanders over the last 20 years, and seen the size of that model go from moderate to large, so it is not surprising to see Toyota trucks going from 2nd most to 2nd least efficient. BMW made the most progress of all producers in cars, and also made gains since introducing trucks in 2000. As a general comment, relative efficiency seems more dispersed and stable for cars than for trucks.
-
-
 
 
 ```{python 'models-by-manufacturer', echo=TRUE, fig.height=8, fig.width=20, message=FALSE, warning=FALSE}
@@ -183,7 +185,7 @@ From what we can see in the chart, we can see that "Other Asian" started out wel
                  fill = 'manufacturer')) + 
           p9.geom_area(position = 'stack') +
           p9.theme_bw() + 
-          p9.labs(title = 'BMW Making a Lot of Car Models, While GM Cuts Streamlines',
+          p9.labs(title = 'BMW Making a Lot of Car Models, While GM Streamlines',
                     x = 'Year',
                     y = 'Number of Models',
                     caption = 'EPA',
@@ -206,7 +208,7 @@ When we look number of models by Manufacturer , we can see that the number of mo
 
 # Electric Vehicles Unsurprisingly Get Drastically Better Mileage
 
-After the looking at the efficiency by manufacturer in Figure \@ref(fig:mpg-top-manufacturers) above, we had a double-take when we saw the chart Figure \@ref(fig:ev-vs-gas-powered) below. While progress for gas-powered vehicles looked respectable above, in the context of cars with batteries, gas-only vehicles are about half as efficient on average. Though the mean improved, the mileage of the most efficient gas powered vehicle in any given year steadily lost ground over the period. 
+After the looking at the efficiency by manufacturer in Figure \@ref(fig:plot-mpg-top-manu) above, we had a double-take when we saw the chart Figure \@ref(fig:ev-vs-gas-powered) below. While progress for gas-powered vehicles looked respectable above, in the context of cars with batteries, gas-only vehicles are about half as efficient on average. Though the mean improved, the mileage of the most efficient gas powered vehicle in any given year steadily lost ground over the period. 
 
 Meanwhile, vehicles with batteries are not really comparable because plug-in vehicles don't use any gas. The EPA imputes energy equivalence for those vehicles. The EPA website explains in [Electric Vehicles: Learn More About the Label](https://www.fueleconomy.gov/feg/label/learn-more-electric-label.shtml) that a calculation of equivalent electricity to travel 100 miles for plug-in vehicles. This seems like a crude comparison as electricity prices vary around the country. Still, the most efficient battery-powered car (recently a Tesla) improved to an incredible degree. 
 
@@ -353,8 +355,14 @@ We don't know if fuelType1 refers to the recommended or required fuel, but didn'
 )
 ```
 
+
+# Comments About Plotnine and Python Chunks in RStudio
+
+In addition to the charts rendering smaller than we would have liked, we would have liked to have figure captions (as we generally do in for our R chunks). In addition, our cross-referencing links are currently not working for the Python chunks as they would with R. There is a bug mentioned on the [`knitr` news page](https://rdrr.io/github/yihui/knitr/f/NEWS.md) which may be fixed when the 1.29 update becomes available.
+
+
 # Conclusion
 
-There is a lot of complexity in this system and more going on than we are likely to comprehend in a short exploration. We know there is a regulatory response to the CAFE standards which tightened in 2005, and that at least one significant producer may not have had accurate efficiency numbers during the period. The oil price fluctuated widely during the period, but not enough to cause real change in behavior in the same way it did during the 1970s. We also don't know how many vehicles of each brand were sold, so don't know how producers might jockey to sell more profitable models within the framework of overall fleet efficiency constraints. There can be a fine line between a light truck and a car, and the taxation differentials importation of cars vs light trucks are significant. Also, the weight cutoffs for trucks changed in 2008, so most truck categories are not a consistent weight over the whole period. That is all for now, but a future post might involve scraping CAFE standards, where there is also long term data available, to see if some of the blanks about volumes and weights could be filled in to support a more meaningful analysis.
+There is a lot of complexity in this system and more going on than we are likely to comprehend in a short exploration. We know there is a regulatory response to the CAFE standards which tightened in 2005, and that at least one significant producer may not have had accurate efficiency numbers during the period. The oil price fluctuated widely during the period, but not enough to cause real change in behavior in the same way it did during the 1970s. We also don't know how many vehicles of each brand were sold, so don't know how producers might jockey to sell more profitable models within the framework of overall fleet efficiency constraints. There can be a fine line between a light truck and a car, and the taxation differentials importation of cars vs light trucks are significant. Also, the weight cutoffs for trucks changed in 2008, so most truck categories are not a consistent weight over the whole period. That is all for now, but a future post might involve scraping CAFE standards, where there is also long term data available, to see if some of the blanks about volumes and weights could be filled in to support more than just exploratory analysis.
 
 
