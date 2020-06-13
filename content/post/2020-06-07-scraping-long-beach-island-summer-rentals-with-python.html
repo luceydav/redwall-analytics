@@ -421,7 +421,7 @@ table[table.notnull()]</code></pre>
         subtitle = &#39;Listed from Smallest to Largest Sleep Capacity&#39;,
         x = &#39;Month&#39;,
         y = &#39;Monthly Rental Volume&#39;,
-        color = &#39;Sleeps Bin&#39;
+        color = &#39;City&#39;
         ) + 
       p9.scale_x_datetime(breaks=date_breaks(&#39;1 month&#39;), labels=date_format(&#39;%m-%Y&#39;)) +
       p9.theme(
@@ -433,7 +433,7 @@ table[table.notnull()]</code></pre>
         legend_direction=&#39;horizontal&#39;) +
       p9.facet_wrap(&#39;~sleeps_bin&#39;, ncol = 2)
 )</code></pre>
-<pre><code>## &lt;ggplot: (8783089650566)&gt;
+<pre><code>## &lt;ggplot: (-9223363274524820999)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
@@ -464,7 +464,7 @@ table[table.notnull()]</code></pre>
       legend_direction=&#39;vertical&#39;) +
     p9.facet_wrap(&#39;~city&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (8783087727645)&gt;
+<pre><code>## &lt;ggplot: (8762329981746)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/stat_bin.py:93: PlotnineWarning: &#39;stat_bin()&#39; using &#39;bins = 104&#39;. Pick better value with &#39;binwidth&#39;.
 ##   warn(msg.format(params[&#39;bins&#39;]), PlotnineWarning)
@@ -500,7 +500,7 @@ table[table.notnull()]</code></pre>
         legend_position=&#39;bottom&#39;,
         legend_direction=&#39;horizontal&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (-9223363253765005550)&gt;
+<pre><code>## &lt;ggplot: (-9223363274522058934)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
@@ -534,7 +534,7 @@ table[table.notnull()]</code></pre>
         legend_position=&#39;bottom&#39;,
         legend_direction=&#39;horizontal&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (-9223363253765005340)&gt;
+<pre><code>## &lt;ggplot: (8762332697201)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>

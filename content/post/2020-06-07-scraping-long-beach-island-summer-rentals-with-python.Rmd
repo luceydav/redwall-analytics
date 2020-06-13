@@ -347,7 +347,7 @@ filtered_data = data.set_index('date')['2020'].groupby([pd.Grouper(freq='M'), 'c
         subtitle = 'Listed from Smallest to Largest Sleep Capacity',
         x = 'Month',
         y = 'Monthly Rental Volume',
-        color = 'Sleeps Bin'
+        color = 'City'
         ) + 
       p9.scale_x_datetime(breaks=date_breaks('1 month'), labels=date_format('%m-%Y')) +
       p9.theme(
