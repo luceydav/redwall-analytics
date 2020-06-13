@@ -4,7 +4,7 @@ author: David Lucey
 date: '2020-06-07'
 slug: scraping-long-beach-island-summer-rentals-with-python
 categories: ["Python", "Code-Oriented"]
-tags: ["pandas", "reticulate"]
+tags: ["pandas", "reticulate", "BeautifulSoup"]
 ---
 
 ```{r 'setup', message=FALSE, warning=FALSE, include=TRUE}
@@ -31,7 +31,7 @@ reticulate::use_condaenv(
 
 ```{r 'install-conda', echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
 # Install Python packages
-lapply(c("bs4", "requests"), function(package) {
+lapply(c("bs4", "requests", "plotnine", "mizani"), function(package) {
        conda_install("r-reticulate", package, pip = TRUE)
 })
 
@@ -40,7 +40,9 @@ lapply(c("bs4", "requests"), function(package) {
 
 # Introduction
 
-In late May, Redwall recently visited its favorite family beach vacation spot, and was thinking that it was so nice, it would be fun go back again in August. We would like to know all of the available choices for the week without having to scroll through incomplete realtor websites. Maybe we would also like to monitor availability and prices on an ongoing basis going forward. Now that we are all set up with Python via `reticulate`, this seems like an opportunity to add a few new skills. When we started this mini-project, we hoped to use `datatable` as our main data frame in conjunction with the Python libraries like `BeautifulSoup` and data structures like dictionaries, but we soon learned that `datatable` doesn't support dates yet. In [Exploring Big MT Cars with Python datatable-Part 1](https://redwallanalytics.com/2020/05/07/exploring-big-mt-cars-with-python-datatable-and-plotnine-part-1/), we had worked around the lack of reshaping capability and the inability to pipe into plots, but this really a deal breaker. As a result, though we were able to keep using `plotnine`, we were finally forced to get better with `pandas`.
+In late May, Redwall visited its favorite family beach vacation spot, and was thinking that it was so nice, it would be fun go back again in August. We would like to know all of the available choices for the week without having to scroll through incomplete realty websites. Maybe we would also like to monitor availability and prices on an ongoing basis going forward. Now that we are all set up with Python via `reticulate`, this seems like an opportunity to add a few new skills. 
+
+When we started this mini-project, we hoped to use `datatable` as our main data frame in conjunction with the Python libraries like `BeautifulSoup` and data structures not available in R, like dictionaries. We soon learned that `datatable` doesn't support dates yet. In [Exploring Big MT Cars with Python datatable-Part 1](https://redwallanalytics.com/2020/05/07/exploring-big-mt-cars-with-python-datatable-and-plotnine-part-1/), we noted that `datatable` is still in alpha stage, and worked around the lack of reshaping capability and the inability to pipe our data directly into plots, but this really a deal breaker for this project. As a result, though we were able to keep using `plotnine`, we were finally forced to get better with `pandas`.
 
 
 ```{python 'python-setup', echo=TRUE}
@@ -48,6 +50,8 @@ from bs4 import BeautifulSoup
 import requests
 import itertools
 import plotnine as p9
+from mizani.breaks import date_breaks
+from mizani.formatters import date_format
 import pandas as pd
 import numpy as np
 import re
@@ -195,7 +199,7 @@ def get_dict(listing):
 
 
 
-When an element of a listing is not present, we were having breaks, so we put in exception handling for those cases. Although we think we have handled most of the likely errors in get_dict, the full scraping process takes a couple of hours, so we thought best to save to disc after each request. It took us a while how to figure this out, because it turns out not to be so staight-forward to save and append a json to disc. We were able to write to disc as txt as we do in `append_record` below.
+When an element of a listing is not present, we were having breaks, so we put in exception handling for those cases. Although we think we have handled most of the likely errors in get_dict, the full scraping process takes a couple of hours, so we thought best to save to disc after each request. It took us a while how to figure this out, because it turns out not to be so straight-forward to save and append a json to disc. We were able to write to disc as txt as we do in `append_record` below.
 
 
 ```{python 'save-scraping-progress-function', eval=FALSE, include=FALSE}
@@ -210,6 +214,7 @@ def append_record(record):
 # Scrape All Listings
 
 With our `get_dict` function, we scrape each listing, create a dictionary entry and append it to disc with `append_record`. 
+
 
 ```{python 'scrape-listings', echo=TRUE, eval=FALSE}
 # Loop through listings with get_dict and add to Google Drive
@@ -242,7 +247,7 @@ for listing in listings:
 ```
 
 
-Again, we wanted to avoid re-running the code, we are showing our saved data from disc. We load the saved data from our text file as a list of 1232 Python dictionaries. The dictionary for a sample listing of '464' is shown in the chunk below. The attributes of the listing are deeply nested and not easy to filter and sort. However, we learned that it is easy to extract the desired elements using the dictionary keys, which we do in the `get_calendar` function below.
+Again, we wanted to avoid re-running the code, we are showing our saved data from disc. We load the saved data from our text file as a list of 1231 Python dictionaries. The dictionary for a sample listing of '464' is shown in the chunk below. The attributes of the listing are deeply nested and not easy to filter and sort. However, we learned that it is easy to extract the desired elements using the dictionary keys, which we do in the `get_calendar` function below.
 
 
 ```{python echo=TRUE}
@@ -325,7 +330,7 @@ data.location_type.value_counts(normalize = True)[1:10]
 
 # Biggest Rental Towns by Volume
 
-By far the most rental action is in the Beach Haven sections in July and August (shown in orange), but those sections also have more year-round availability than the the other towns. If the plan is to go with less than 8 people, there is not a lot of options. In fact, it was surprising to see that there was more available in the largest sleeps >12 than the family of four category. As mentioned in our previous post about `plotnine`, the lack of support for `plotly` hovering is a bit of a detraction here, becuase it can be hard to tell which color denotes which city. This might mean we have to learn `seaborn` in the future, just as we have been forced to learn `pandas` for this post.
+By far the most rental action is in the Beach Haven sections in July and August (shown in orange), but those sections also have more year-round availability than the the other towns. If the plan is to go with less than 8 people, there is not a lot of options. In fact, it was surprising to see that there was more available in the largest sleeps >12 than the family of four category. As mentioned in our previous post about `plotnine`, the lack of support for `plotly` hovering is a bit of a detraction here, because it can be hard to tell which color denotes which city. This might mean we have to learn `seaborn` in the future, just as we have been forced to learn `pandas` for this post.
 
 
 ```{python 'available-by-town', echo=TRUE}
@@ -342,12 +347,13 @@ filtered_data = data.set_index('date')['2020'].groupby([pd.Grouper(freq='M'), 'c
         subtitle = 'Listed from Smallest to Largest Sleep Capacity',
         x = 'Month',
         y = 'Monthly Rental Volume',
-        fill = 'Sleeps Bin'
-        ) +
-      p9.theme(    
-        axis_text_x=p9.element_text(rotation=90, hjust=1),
+        color = 'Sleeps Bin'
+        ) + 
+      p9.scale_x_datetime(breaks=date_breaks('1 month'), labels=date_format('%m-%Y')) +
+      p9.theme(
+        axis_text_x=p9.element_text(rotation=45, size=6),
         subplots_adjust={'bottom': 0.20},
-        figure_size=(10, 4), # inches
+        figure_size=(10, 3), # inches
         aspect_ratio=1/1.5,    # height:width
         legend_position='bottom',
         legend_direction='horizontal') +
@@ -360,7 +366,7 @@ filtered_data = data.set_index('date')['2020'].groupby([pd.Grouper(freq='M'), 'c
 Beach Haven has more B&B's and some of the only hotels on the Island, so smaller size properties on average and somewhat less consistent visitors. More rentals outside of Beach Haven are probably renewed annually, so it might be more impacted by delayed plans due to COVID-19 than other towns. Coupled with it being about as big as all the other towns put together, this may help explain why also shows a lot more relatively more red at this stage.
 
 
-```{python echo=TRUE}
+```{python 'rental-histogram', echo=TRUE}
 filtered_data = data[data['city'].notnull()].set_index('date')['2020']
 (p9.ggplot(filtered_data, 
     p9.aes('rate', 
@@ -375,7 +381,7 @@ filtered_data = data[data['city'].notnull()].set_index('date')['2020']
       fill = 'Status'
       ) +
     p9.theme(    
-      axis_text_x=p9.element_text(rotation=90, hjust=1),
+      axis_text_x=p9.element_text(rotation=45, hjust=1),
       subplots_adjust={'right': 0.75},
       figure_size=(10, 4), # inches
       aspect_ratio=1/1.5,    # height:width
@@ -400,18 +406,19 @@ filtered_data = data.set_index('date')['2020'].groupby([pd.Grouper(freq='M'), 's
              )) +
       p9.geom_smooth() +
       p9.theme_bw() +
+      p9.scale_x_datetime(breaks=date_breaks('1 month'), labels=date_format('%m-%Y')) +
       p9.labs(
         title = "Prices for Available Rentals Falling Off Steadily After July",
         x = 'Month',
         y = 'Average Weekly Rate ($)',
-        fill = 'Sleep Bin'
+        color = 'Sleep Bin'
         ) +
       p9.facet_wrap('~status') +
       p9.theme(
-        axis_text_x=p9.element_text(rotation=90, hjust=1),
-        subplots_adjust={'bottom': 0.30},
-        figure_size=(10, 4), # inches
-        aspect_ratio=1/1.5,    # height:width
+        axis_text_x=p9.element_text(rotation=45, hjust=1, size=6),
+        subplots_adjust={'bottom': 0.20},
+        figure_size=(10, 3), # inches
+        aspect_ratio=1/1.4,    # height:width
         legend_position='bottom',
         legend_direction='horizontal')
 )
@@ -433,15 +440,16 @@ filtered_data = data.set_index('date')['2020'].groupby([pd.Grouper(freq='M'), 'c
              )) +
       p9.geom_smooth() +
       p9.theme_bw() +
+      p9.scale_x_datetime(breaks=date_breaks('1 month'), labels=date_format('%m-%Y')) +
       p9.labs(
         title = "All Sized Rental Prices Peak in July for Most Towns",
         x = 'Month',
         y = 'Average Weekly Rate ($)',
-        fill = 'City'
+        color = 'City'
         ) +
       p9.facet_wrap('~sleeps_bin') +
       p9.theme(    
-        axis_text_x=p9.element_text(rotation=90, hjust=1),
+        axis_text_x=p9.element_text(rotation=45, hjust=1, size=6),
         subplots_adjust={'bottom': 0.30},
         figure_size=(10, 4), # inches
         aspect_ratio=1/1.5,    # height:width

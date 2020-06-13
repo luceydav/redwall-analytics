@@ -4,7 +4,7 @@ author: David Lucey
 date: '2020-06-07'
 slug: scraping-long-beach-island-summer-rentals-with-python
 categories: ["Python", "Code-Oriented"]
-tags: ["pandas", "reticulate"]
+tags: ["pandas", "reticulate", "BeautifulSoup"]
 ---
 
 <script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
@@ -23,16 +23,19 @@ reticulate::use_condaenv(
   required = TRUE
   )</code></pre>
 <pre class="r"><code># Install Python packages
-lapply(c(&quot;bs4&quot;, &quot;requests&quot;), function(package) {
+lapply(c(&quot;bs4&quot;, &quot;requests&quot;, &quot;plotnine&quot;, &quot;mizani&quot;), function(package) {
        conda_install(&quot;r-reticulate&quot;, package, pip = TRUE)
 })</code></pre>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>In late May, Redwall recently visited its favorite family beach vacation spot, and was thinking that it was so nice, it would be fun go back again in August. We would like to know all of the available choices for the week without having to scroll through incomplete realtor websites. Maybe we would also like to monitor availability and prices on an ongoing basis going forward. Now that we are all set up with Python via <code>reticulate</code>, this seems like an opportunity to add a few new skills. When we started this mini-project, we hoped to use <code>datatable</code> as our main data frame in conjunction with the Python libraries like <code>BeautifulSoup</code> and data structures like dictionaries, but we soon learned that <code>datatable</code> doesn’t support dates yet. In <a href="https://redwallanalytics.com/2020/05/07/exploring-big-mt-cars-with-python-datatable-and-plotnine-part-1/">Exploring Big MT Cars with Python datatable-Part 1</a>, we had worked around the lack of reshaping capability and the inability to pipe into plots, but this really a deal breaker. As a result, though we were able to keep using <code>plotnine</code>, we were finally forced to get better with <code>pandas</code>.</p>
+<p>In late May, Redwall visited its favorite family beach vacation spot, and was thinking that it was so nice, it would be fun go back again in August. We would like to know all of the available choices for the week without having to scroll through incomplete realty websites. Maybe we would also like to monitor availability and prices on an ongoing basis going forward. Now that we are all set up with Python via <code>reticulate</code>, this seems like an opportunity to add a few new skills.</p>
+<p>When we started this mini-project, we hoped to use <code>datatable</code> as our main data frame in conjunction with the Python libraries like <code>BeautifulSoup</code> and data structures not available in R, like dictionaries. We soon learned that <code>datatable</code> doesn’t support dates yet. In <a href="https://redwallanalytics.com/2020/05/07/exploring-big-mt-cars-with-python-datatable-and-plotnine-part-1/">Exploring Big MT Cars with Python datatable-Part 1</a>, we noted that <code>datatable</code> is still in alpha stage, and worked around the lack of reshaping capability and the inability to pipe our data directly into plots, but this really a deal breaker for this project. As a result, though we were able to keep using <code>plotnine</code>, we were finally forced to get better with <code>pandas</code>.</p>
 <pre class="python"><code>from bs4 import BeautifulSoup
 import requests
 import itertools
 import plotnine as p9
+from mizani.breaks import date_breaks
+from mizani.formatters import date_format
 import pandas as pd
 import numpy as np
 import re
@@ -156,7 +159,7 @@ def get_dict(listing):
   # Convert to dictionary for return
   d[&#39;calendar&#39;] = calendar.to_dict()
   return d</code></pre>
-<p>When an element of a listing is not present, we were having breaks, so we put in exception handling for those cases. Although we think we have handled most of the likely errors in get_dict, the full scraping process takes a couple of hours, so we thought best to save to disc after each request. It took us a while how to figure this out, because it turns out not to be so staight-forward to save and append a json to disc. We were able to write to disc as txt as we do in <code>append_record</code> below.</p>
+<p>When an element of a listing is not present, we were having breaks, so we put in exception handling for those cases. Although we think we have handled most of the likely errors in get_dict, the full scraping process takes a couple of hours, so we thought best to save to disc after each request. It took us a while how to figure this out, because it turns out not to be so straight-forward to save and append a json to disc. We were able to write to disc as txt as we do in <code>append_record</code> below.</p>
 </div>
 <div id="scrape-all-listings" class="section level1">
 <h1>Scrape All Listings</h1>
@@ -187,7 +190,7 @@ for listing in listings:
     append_record(entry)
   except:
     print(listing_id + &#39; Failed&#39;)</code></pre>
-<p>Again, we wanted to avoid re-running the code, we are showing our saved data from disc. We load the saved data from our text file as a list of 1232 Python dictionaries. The dictionary for a sample listing of ‘464’ is shown in the chunk below. The attributes of the listing are deeply nested and not easy to filter and sort. However, we learned that it is easy to extract the desired elements using the dictionary keys, which we do in the <code>get_calendar</code> function below.</p>
+<p>Again, we wanted to avoid re-running the code, we are showing our saved data from disc. We load the saved data from our text file as a list of 1231 Python dictionaries. The dictionary for a sample listing of ‘464’ is shown in the chunk below. The attributes of the listing are deeply nested and not easy to filter and sort. However, we learned that it is easy to extract the desired elements using the dictionary keys, which we do in the <code>get_calendar</code> function below.</p>
 <pre class="python"><code># Load lbi.txt back into notebook as list of dictionaries
 filename = &#39;lbi.txt&#39;
 with open(path + filename) as fh: 
@@ -404,7 +407,7 @@ table[table.notnull()]</code></pre>
 </div>
 <div id="biggest-rental-towns-by-volume" class="section level1">
 <h1>Biggest Rental Towns by Volume</h1>
-<p>By far the most rental action is in the Beach Haven sections in July and August (shown in orange), but those sections also have more year-round availability than the the other towns. If the plan is to go with less than 8 people, there is not a lot of options. In fact, it was surprising to see that there was more available in the largest sleeps &gt;12 than the family of four category. As mentioned in our previous post about <code>plotnine</code>, the lack of support for <code>plotly</code> hovering is a bit of a detraction here, becuase it can be hard to tell which color denotes which city. This might mean we have to learn <code>seaborn</code> in the future, just as we have been forced to learn <code>pandas</code> for this post.</p>
+<p>By far the most rental action is in the Beach Haven sections in July and August (shown in orange), but those sections also have more year-round availability than the the other towns. If the plan is to go with less than 8 people, there is not a lot of options. In fact, it was surprising to see that there was more available in the largest sleeps &gt;12 than the family of four category. As mentioned in our previous post about <code>plotnine</code>, the lack of support for <code>plotly</code> hovering is a bit of a detraction here, because it can be hard to tell which color denotes which city. This might mean we have to learn <code>seaborn</code> in the future, just as we have been forced to learn <code>pandas</code> for this post.</p>
 <pre class="python"><code>filtered_data = data.set_index(&#39;date&#39;)[&#39;2020&#39;].groupby([pd.Grouper(freq=&#39;M&#39;), &#39;city&#39;, &#39;sleeps_bin&#39;])[&#39;rate&#39;].count().reset_index()
 (p9.ggplot(filtered_data,
       p9.aes(x = &#39;date&#39;, 
@@ -418,18 +421,19 @@ table[table.notnull()]</code></pre>
         subtitle = &#39;Listed from Smallest to Largest Sleep Capacity&#39;,
         x = &#39;Month&#39;,
         y = &#39;Monthly Rental Volume&#39;,
-        fill = &#39;Sleeps Bin&#39;
-        ) +
-      p9.theme(    
-        axis_text_x=p9.element_text(rotation=90, hjust=1),
+        color = &#39;Sleeps Bin&#39;
+        ) + 
+      p9.scale_x_datetime(breaks=date_breaks(&#39;1 month&#39;), labels=date_format(&#39;%m-%Y&#39;)) +
+      p9.theme(
+        axis_text_x=p9.element_text(rotation=45, size=6),
         subplots_adjust={&#39;bottom&#39;: 0.20},
-        figure_size=(10, 4), # inches
+        figure_size=(10, 3), # inches
         aspect_ratio=1/1.5,    # height:width
         legend_position=&#39;bottom&#39;,
         legend_direction=&#39;horizontal&#39;) +
       p9.facet_wrap(&#39;~sleeps_bin&#39;, ncol = 2)
 )</code></pre>
-<pre><code>## &lt;ggplot: (8794142833998)&gt;
+<pre><code>## &lt;ggplot: (8783089650566)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
@@ -452,7 +456,7 @@ table[table.notnull()]</code></pre>
       fill = &#39;Status&#39;
       ) +
     p9.theme(    
-      axis_text_x=p9.element_text(rotation=90, hjust=1),
+      axis_text_x=p9.element_text(rotation=45, hjust=1),
       subplots_adjust={&#39;right&#39;: 0.75},
       figure_size=(10, 4), # inches
       aspect_ratio=1/1.5,    # height:width
@@ -460,13 +464,13 @@ table[table.notnull()]</code></pre>
       legend_direction=&#39;vertical&#39;) +
     p9.facet_wrap(&#39;~city&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (8794137333368)&gt;
+<pre><code>## &lt;ggplot: (8783087727645)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/stat_bin.py:93: PlotnineWarning: &#39;stat_bin()&#39; using &#39;bins = 104&#39;. Pick better value with &#39;binwidth&#39;.
 ##   warn(msg.format(params[&#39;bins&#39;]), PlotnineWarning)
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/layer.py:360: PlotnineWarning: stat_bin : Removed 25 rows containing non-finite values.
 ##   data = self.stat.compute_layer(data, params, layout)</code></pre>
-<p><img src="/post/2020-06-07-scraping-long-beach-island-summer-rentals-with-python_files/figure-html/unnamed-chunk-4-1.png" width="100%" /></p>
+<p><img src="/post/2020-06-07-scraping-long-beach-island-summer-rentals-with-python_files/figure-html/rental-histogram-1.png" width="100%" /></p>
 </div>
 <div id="prices-for-booked-properties-peaking-in-july" class="section level1">
 <h1>Prices for Booked Properties Peaking in July</h1>
@@ -480,22 +484,23 @@ table[table.notnull()]</code></pre>
              )) +
       p9.geom_smooth() +
       p9.theme_bw() +
+      p9.scale_x_datetime(breaks=date_breaks(&#39;1 month&#39;), labels=date_format(&#39;%m-%Y&#39;)) +
       p9.labs(
         title = &quot;Prices for Available Rentals Falling Off Steadily After July&quot;,
         x = &#39;Month&#39;,
         y = &#39;Average Weekly Rate ($)&#39;,
-        fill = &#39;Sleep Bin&#39;
+        color = &#39;Sleep Bin&#39;
         ) +
       p9.facet_wrap(&#39;~status&#39;) +
       p9.theme(
-        axis_text_x=p9.element_text(rotation=90, hjust=1),
-        subplots_adjust={&#39;bottom&#39;: 0.30},
-        figure_size=(10, 4), # inches
-        aspect_ratio=1/1.5,    # height:width
+        axis_text_x=p9.element_text(rotation=45, hjust=1, size=6),
+        subplots_adjust={&#39;bottom&#39;: 0.20},
+        figure_size=(10, 3), # inches
+        aspect_ratio=1/1.4,    # height:width
         legend_position=&#39;bottom&#39;,
         legend_direction=&#39;horizontal&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (-9223363242708628697)&gt;
+<pre><code>## &lt;ggplot: (-9223363253765005550)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
@@ -513,22 +518,23 @@ table[table.notnull()]</code></pre>
              )) +
       p9.geom_smooth() +
       p9.theme_bw() +
+      p9.scale_x_datetime(breaks=date_breaks(&#39;1 month&#39;), labels=date_format(&#39;%m-%Y&#39;)) +
       p9.labs(
         title = &quot;All Sized Rental Prices Peak in July for Most Towns&quot;,
         x = &#39;Month&#39;,
         y = &#39;Average Weekly Rate ($)&#39;,
-        fill = &#39;City&#39;
+        color = &#39;City&#39;
         ) +
       p9.facet_wrap(&#39;~sleeps_bin&#39;) +
       p9.theme(    
-        axis_text_x=p9.element_text(rotation=90, hjust=1),
+        axis_text_x=p9.element_text(rotation=45, hjust=1, size=6),
         subplots_adjust={&#39;bottom&#39;: 0.30},
         figure_size=(10, 4), # inches
         aspect_ratio=1/1.5,    # height:width
         legend_position=&#39;bottom&#39;,
         legend_direction=&#39;horizontal&#39;)
 )</code></pre>
-<pre><code>## &lt;ggplot: (-9223363242708687679)&gt;
+<pre><code>## &lt;ggplot: (-9223363253765005340)&gt;
 ## 
 ## /Users/davidlucey/Library/r-miniconda/envs/r-reticulate/lib/python3.6/site-packages/plotnine/stats/smoothers.py:168: PlotnineWarning: Confidence intervals are not yet implementedfor lowess smoothings.
 ##   &quot;for lowess smoothings.&quot;, PlotnineWarning)</code></pre>
