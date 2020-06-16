@@ -5,6 +5,7 @@ date: '2020-06-12'
 slug: checking-up-on-american-funds-performance-through-cycle
 categories: ["R", "Code-Oriented"]
 tags: ["data.table", "quantmod", "PerformanceAnalytics"]
+draft: true
 output:
   blogdown::html_page
 ---
@@ -38,16 +39,16 @@ setDefaults(getSymbols.av, api.key=keyring::key_get('alphavantage'))
 
 # Introduction
 
-Active funds have done poorly over the last ten years, and in most cases, haven't justified their fees. It all started with the Boggleheads, but a growing list of commentators appropriately advocate for index funds, sometimes go a little beyond what we believe to be fairly representing the facts. The inspiration for this article is this post by Asset Builder blog site [American Funds Says, “We Can Beat Index Funds”](https://assetbuilder.com/knowledge-center/articles/american-funds-says-we-can-beat-index-funds) scrutinizing claims by the fund group. The post claimed "Even without this commission, the S&P 500 beat the aggregate returns of these ("American") funds over the past 1-year, 3-year, 5-year, 10-year and 15-year periods". There is a supporting chart in the post showing a group of funds compared to the Vanguard Total Market index. This analysis struck us in conflict with our own experience as actual holders of a core portfolio of eight American Funds over the last 20 years.
+Active funds have done poorly over the last ten years, and in most cases, haven't justified their fees. It all started with the Boggleheads, but a growing list of commentators appropriately advocate for index funds, sometimes go a little beyond what we believe to be fairly representing the facts. The inspiration for this article is this post by Asset Builder blog site [American Funds Says, “We Can Beat Index Funds”](https://assetbuilder.com/knowledge-center/articles/american-funds-says-we-can-beat-index-funds) scrutinizing claims by the fund group. The post claimed "Even without this commission, the S&P 500 beat the aggregate returns of these ("American") funds over the past 1-, 3-, 5-, 10- and 15-year periods". There is a supporting chart in the post showing a group of funds compared to the Vanguard Total Market index. This analysis struck us in conflict with our own experience as actual holders of a core portfolio of eight American Funds over the last 20 years.
 
-As usual, Redwall would like to avoid defending to any particular viewpoint other than to follow the data and see where it leads. If we have made any mistakes in our assumptions or the data used, we always welcome polite commentary to set us straight. We have no relationship with the American Funds, and for the most part are sympathetic to those who say that index funds may be the best choice for most investors. All the code is available on Github for anybody to replicate. Also to be clear, Redwall is not an investment adviser and is making no investment recommendations.
+As usual, Redwall would like to avoid defending to any particular viewpoint other than to follow the data and see where it leads. If we have made any mistakes in our assumptions or the data used, we welcome polite commentary to set us straight. We have no relationship with the American Funds, and for the most part are sympathetic to those who say that index funds may be the best choice for most investors. All the code is available on Github for anybody to replicate. Also to be clear, Redwall is not an investment adviser and is making no investment recommendations.
 
 
 # Set Up of American Funds Portfolio 
 
-During the 2000 bear market, Redwall put substantial research into its investment strategy, and concluded that the American Funds group had a competitive advantage over other mutual fund groups. Capital Group, the operator of the American Funds, was founded at the beginning of the Great Depression in 1932. Anyone working in the front office Wall Street will know Capital Group well, but few outside will have heard of them. It had a large group of very experienced managers sitting in different locations around the world, with varied perspectives, owning a heavy component of their own funds, with each investing in concentrated portfolio of their own highest conviction ideas for the long term. If the style of one manager was out of sync with the current flavor of the market, others might pick up the pace. The cost of research could be leveraged over a much larger asset base than most mutual funds while still keeping running costs at a manageable level. Being one of the largest managers, analysts and managers would always have access to the best information and advice.
+During the 2000 bear market, Redwall put substantial research into its investment strategy, and concluded that at the time, the American Funds had a competitive advantage over other mutual fund groups. Capital Group, the operator of the American Funds, was founded at the beginning of the Great Depression in 1932. Anyone working in the front office Wall Street knows Capital Group well, but few outside have probably ever heard of them. Capital had a large group of very experienced managers sitting in different locations around the world, with varied perspectives, owning a heavy component of their own funds, with each investing in concentrated portfolio of their own highest conviction ideas. Managers had strong incentive to think long-term instead of for the next quarter. If the style of one manager of the fund was out of sync with the current flavor of the market, others might pick up the pace. The cost of research could be leveraged over a much larger asset base than most mutual funds while still keeping running costs at a manageable level. Being one of the largest managers, analysts and managers would always have access to the best information and advice.
 
-Investments were made mostly in the 2001-2003 bear market period, with dollar-cost averaging across a group of funds designed to be diversified across regions and investment styles. The investments were made without paying the loads, rightly mentioned in the Asset Builder article, as a potential drag on returns. In this article, we will download the weekly closing prices of the relevant American Funds and the most comparable Vanguard Funds, re-construct our portfolio and estimate the corresponding weighting of different asset classes, replicate a relevant benchmark portfolio of Vanguard index funds, and explore their relative performance histories over the period to try to square the two perspectives. 
+Investments were made mostly in the 2001-2003 bear market period, with dollar-cost averaging across a group of funds designed to be diversified across regions and investment styles. The investments were made without paying loads, rightly mentioned in the Asset Builder article, as a potential drag on returns. In this article, we will download the weekly closing prices of the relevant American Funds and the most comparable Vanguard Funds, re-construct our portfolio and estimate the corresponding weighting of different asset classes for each, replicate a relevant benchmark portfolio of Vanguard index funds, and explore their relative performance histories over the period to try to square the two perspectives. We were constrained to choosing index funds with launch dates before 1997.
 
 
 # Description of American Funds Held
@@ -56,12 +57,12 @@ The American Funds don't fit well into the traditional Morningstar investment ca
 
 # New Geography of Investing
 
-It was probably from operating New Perspective, which was set up to own companies which have a majority of revenues of coming from outside of their country of domicile, which led American Funds to discover a new way of looking at its portfolios. In the [New Geography of Investing](https://www.capitalgroup.com/content/dam/cgc/tenants/canada/pdf/en/public/NewGeographyOfInvesting.pdf) campaign launched in 2016, they do an excellent job of explaining this concept. In addition to the country of domicile, they now disclose the geographic mix of revenues of all of their portfolios on their website, and explain clearly that it doesn't prioritize fitting its portfolios into Morningstar regional boxes at the expense of finding the best investments. 
+It was probably from operating New Perspective, set up to invest in companies having a majority of revenues of coming from outside of their country of domicile, which led American Funds to discover a new way of looking at its portfolios. In the [New Geography of Investing](https://www.capitalgroup.com/content/dam/cgc/tenants/canada/pdf/en/public/NewGeographyOfInvesting.pdf) campaign launched in 2016, they do an excellent job of explaining the concept that a portfolio shouldn't be constrained by company domicile, a central pillar of the Morningstar ratings platform. In addition to the country of domicile, American funds now disclose the aggregated geographic mix of revenues of all of its portfolios on their website, and explain clearly that it doesn't prioritize fitting its portfolios into Morningstar regional boxes at the expense of finding the best investments. 
 
 
 # Geography of Vanguard Benchmark Portfolio
 
-We believe that the flaw in Asset Builder's analysis was comparing the funds to the Vanguard Total Market Index fund, which has 25% of its components in smaller and mid-cap companies. The average market capitalization of American Fund holdings is likely to be considerably higher, and the percentage of non-US holdings, much lower than the benchmark used. US listed companies have performed considerably better than overseas stocks since the GFC, and the slow and steady bull \$ bull market has consistently eaten into returns from holding overseas assets. The performance of smaller and mid-sized companies has also been better than largest over the recent period, and American Funds group can't really invest meaningfully here at its scale, nor did we "hire" them to do so. 
+We believe that the flaw in Asset Builder's analysis was comparing the funds to the Vanguard Total Market Index fund (TMI), which has 100% US listed companies. US listed companies have risen by 3.4x over the last 10 years while overseas companies have only risen by 1.6x, as the slow and steady bull \$ bull market has eaten into the returns from holding overseas assets.
 
 As shown below, we are comparing our portfolio to 54.5% of the S&P index. The S&P has an average market capitalization almost twice as large as the Total Market Index, and we believe is more comparable to market capitalization of holdings of the American Funds. Given the size of the funds, we don't expect American Funds to own smaller companies. Although we believe the small-cap component is about 5%, we prefer to get the bulk of our small and mid-cap exposure though the Vanguard Extended Market Index fund (which invests in the other 3,000 US stocks or 25% of US market capitalization not in the S&P index). We are also including 24.5% of our benchmark in non-US stocks based on our weightings shown in the matrix below. 
 
@@ -286,7 +287,7 @@ It is easily possible to extract all periods to see how persistently or not a fu
 
 # Looking at Number of Weeks with Outperformance
 
-We took all of our 1196 weeks, and calculated the percentage of weeks by quarter where our American Funds portfolio outperformed the benchmark. We can see that the ratio of weeks outperforming greater than 0.5 in almost all periods, though it broke below briefly during 2007 and again last week. The confidence bars are wide, and so hard to conclude definitively that the ratio has been above 0.5 since 2006-7. After a while looking at this chart, the trend downward since 2005 certainly struck us. In 2005, the cost of many of the index funds we used in comparison exceeded 30 bps, and today most are at or below 10bps. Meanwhile, American Funds haven't lowered its expense ratios in 20 years. That means that American Fund managers would have to generate that much higher gross returns just to maintain the same level of relative performance.
+We took all of our 1196 weeks, and calculated the percentage of weeks by quarter where our American Funds portfolio outperformed the benchmark. We can see that the ratio of weeks outperforming greater than 0.5 in almost all periods, though it broke below briefly during 2007 and again last week. The confidence bars are wide, and so hard to conclude definitively that the ratio has been above 0.5 since 2006-7. After a while looking at this chart, the trend downward since 2005 certainly struck us. 
 
 
 ```{r 'weekly-returns', echo=TRUE, message=FALSE, warning=FALSE}
@@ -312,16 +313,49 @@ ggplot(dt, aes(quarter, comparison)) +
   theme_bw() +
   labs(
     title = "Percent of Weeks Where American Funds Outperformed Vanguard Benchmark Portfolio by Quarter",
-    y = "Percentage of Weeks",
+    y = "Percentage of Weeks Outperforming Benchmark",
     x = "Date"
     )
 
 ```
 
+# Modeling Fee Reductions in Line with Index Fund Benchmarks
+
+In 2005, the cost of many of the index funds we used in comparison exceeded 30 bps, and today the best in class index funds are at or below 10bps. We might have to study it more, but it seems like there was a bigger reduction in overseas and bond index funds than for the S&P, which was already low by 2010. Meanwhile, American Funds haven't lowered its expense ratios meaningfully in 20 years. That means that its managers would have to generate that much higher gross returns just to maintain the same active return. If we model in a 1 bp fee reduction per year, or 23 bps over the full period, the out-performance trajectory improves noticeably, though we are still not sure it is greater than 50%.
+
+
+```{r 'model-fee-reduction', echo=TRUE, message=FALSE, warning=FALSE}
+# Model fee reduction of 0.001 per annum
+fee_reduction <- seq(0,23)/10000
+fee_reduction_db <- data.table( year = 1997:2020,
+                                fee_reduction )
+joined[, year := year(date)]
+new_joined <- fee_reduction_db[joined, on = "year"][
+  ][, .(date, adj_return = diff.portfolio.returns + fee_reduction/52)]
+
+# Calculate weekly performance difference of American Funds vs benchmark
+dt <-
+  new_joined[, (adj_return > 0), 
+         zoo::as.yearqtr(date)][
+        ][, sum(V1) / .N, zoo]
+setnames(dt, c("V1", "zoo"), c("comparison", "quarter"))
+
+# Plot smoothed quarterly number of outperforming weeks
+ggplot(dt, aes(quarter, comparison)) + 
+  geom_smooth() +
+  theme_bw() +
+  labs(
+    title = "Percent of Weeks Where American Funds Outperformed Vanguard Benchmark Portfolio by Quarter",
+    y = "Percentage of Weeks Outperforming Benchmark",
+    x = "Date"
+    )
+```
+
+
 
 # Conclusion
 
-This has been a quick analysis to become accustomed to the `quantmod` and `PerformanceAnalytics` tools. We may return to this subject to look at relative performance during bear markets, and also to try to replicate the American Fund's Select Investment Scorecard, which measured longer periods of out-performance. Another future study we would like to do to more precisely quantify the change in relative fees. American Funds assets under management have risen from about \$1 trillion just before the GFC to \$1.8 trillion today, and this seems like a business with a high degree of operating leverage. Rather than spending a lot more money advertising like many the other mediocre investment managers as they have begun doing daily on CNBC and Morningstar, an investment in lower fees and renewed quiet out-performance might be the best medicine.
+This has been a quick analysis to become accustomed to the `quantmod` and `PerformanceAnalytics` tools. We may return to this subject to look at relative performance during bear markets, and also to try to replicate the American Fund's Select Investment Scorecard, which measured longer periods of out-performance. Another future study we would like to do to more precisely quantify the change in relative fees. American Funds assets under management have risen from about \$1 trillion just before the GFC to \$1.8 trillion today, and this seems like a business with a high degree of operating leverage. Rather than spending a more money advertising, like many the other mediocre investment managers, as they have begun doing daily on CNBC and Morningstar, an investment in lower fees and renewed quiet out-performance might be the best medicine.
 
 
 
