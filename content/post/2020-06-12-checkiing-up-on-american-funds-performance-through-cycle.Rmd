@@ -1,0 +1,327 @@
+---
+title: Evaluating American Funds Over Three Market Cycles
+author: David Lucey
+date: '2020-06-12'
+slug: checking-up-on-american-funds-performance-through-cycle
+categories: ["R", "Code-Oriented"]
+tags: ["data.table", "quantmod", "PerformanceAnalytics"]
+output:
+  blogdown::html_page
+---
+
+```{r "setup", message=FALSE, include=FALSE, results='hide'}
+# Libraries
+packages <- 
+  c("data.table", 
+    "ggplot2",
+    "quantmod",
+    "PerformanceAnalytics")
+
+if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+knitr::opts_chunk$set(
+  comment = NA,
+  fig.width = 12,
+  fig.height = 8,
+  out.width = '100%',
+  root.dir = "~/Desktop/David/Projects/xbrl_investment/")
+```
+
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+setDefaults(getSymbols.av, api.key=keyring::key_get('alphavantage'))
+```
+
+# Introduction
+
+Active funds have done poorly over the last ten years, and in most cases, haven't justified their fees. It all started with the Boggleheads, but a growing list of commentators appropriately advocate for index funds, sometimes go a little beyond what we believe to be fairly representing the facts. The inspiration for this article is this post by Asset Builder blog site [American Funds Says, “We Can Beat Index Funds”](https://assetbuilder.com/knowledge-center/articles/american-funds-says-we-can-beat-index-funds) scrutinizing claims by the fund group. The post claimed "Even without this commission, the S&P 500 beat the aggregate returns of these ("American") funds over the past 1-year, 3-year, 5-year, 10-year and 15-year periods". There is a supporting chart in the post showing a group of funds compared to the Vanguard Total Market index. This analysis struck us in conflict with our own experience as actual holders of a core portfolio of eight American Funds over the last 20 years.
+
+As usual, Redwall would like to avoid defending to any particular viewpoint other than to follow the data and see where it leads. If we have made any mistakes in our assumptions or the data used, we always welcome polite commentary to set us straight. We have no relationship with the American Funds, and for the most part are sympathetic to those who say that index funds may be the best choice for most investors. All the code is available on Github for anybody to replicate. Also to be clear, Redwall is not an investment adviser and is making no investment recommendations.
+
+
+# Set Up of American Funds Portfolio 
+
+During the 2000 bear market, Redwall put substantial research into its investment strategy, and concluded that the American Funds group had a competitive advantage over other mutual fund groups. Capital Group, the operator of the American Funds, was founded at the beginning of the Great Depression in 1932. Anyone working in the front office Wall Street will know Capital Group well, but few outside will have heard of them. It had a large group of very experienced managers sitting in different locations around the world, with varied perspectives, owning a heavy component of their own funds, with each investing in concentrated portfolio of their own highest conviction ideas for the long term. If the style of one manager was out of sync with the current flavor of the market, others might pick up the pace. The cost of research could be leveraged over a much larger asset base than most mutual funds while still keeping running costs at a manageable level. Being one of the largest managers, analysts and managers would always have access to the best information and advice.
+
+Investments were made mostly in the 2001-2003 bear market period, with dollar-cost averaging across a group of funds designed to be diversified across regions and investment styles. The investments were made without paying the loads, rightly mentioned in the Asset Builder article, as a potential drag on returns. In this article, we will download the weekly closing prices of the relevant American Funds and comparable Vanguard Funds, re-construct our portfolio and estimate the corresponding weighting of different asset classes, replicate a relevant benchmark portfolio of Vanguard index funds, and explore their relative performance histories over the period to try to square the two perspectives. 
+
+
+# Description of American Funds Held
+
+The American Funds don't fit well into the traditional Morningstar investment categories. By in large, its portfolios are many times larger than other active funds, and mostly stick to the largest of the large capitalization global stocks. Washington Mutual mostly owns US mega caps value stocks and holds no cash, while Amcap often moves down the market capitalization spectrum a bit with growth stocks, and will hold a substantial amount of cash. Capital Income builder has a high mix of US and overseas stocks which pay high dividends with room to grow. Income Fund of America is similar to Capital Income builder, but has a more US oriented mix and takes more credit risk. Capital World Growth and Income is like Washington Mutual in its stock selection, but will hold a small amount of credit at times when it makes more sense than the equity. New Perspective owns the largest multinational companies domiciled in the US and around the world, but have acquired the competency to expand across borders. 
+
+# New Geography of Investing
+
+It was probably from operating New Perspective, which has a large majority of the revenue of portfolio companies coming from of their country of domicile, that led American Funds to discover a new way of looking at its portfolios. In the [New Geography of Investing](https://www.capitalgroup.com/advisor/ca/en/insights/content/videos/new-geography-of-investing-new-breed.html) campaign launched in 2016, they do an excellent job of explaining this concept. In addition to the country of domicile, they now disclose the geographic mix of revenues of all of their portfolios on their website, and explain clearly that it doesn't prioritize fitting its portfolios into Morningstar regional boxes at the expense of finding the best investments. 
+
+
+# Geography of Vanguard Benchmark Portfolio
+
+We believe that the flaw in Asset Builder's analysis was comparing the funds to the Vanguard Total Market Index fund, which has 25% of its components in smaller and mid-cap companies. The average market capitalization of American Fund holdings is likely to be considerably higher, and the percentage of non-US holdings, much lower than the benchmark used. US listed companies have performed considerably better than overseas stocks since the GFC, and the slow and steady bull \$ bull market has consistently eaten into returns from holding overseas assets. The performance of smaller and mid-sized companies has also been better than largest over the recent period, and American Funds group can't really invest meaningfully here at its scale, nor did we "hire" them to do so. 
+
+As shown below, we are comparing our portfolio to 54.5% of the S&P index. The S&P has an average market capitalization almost twice as large as the Total Market Index, and we believe is more comparable to market capitalization of holdings of the American Funds. Given the size of the funds, we don't expect American Funds to own smaller companies. Although we believe the smallcap component is about 5%, we prefer to get the bulk of our small and mid-cap exposure though the Vanguard Extended Market Index fund (which invests in the other 3,000 US stocks or 25% of US market capitalization not in the S&P index). We are also including 24.5% of our benchmark in non-US stocks based on our weightings shown in the matrix below. 
+
+
+```{r 'benchmark-matrix', echo=TRUE, message=FALSE, warning=FALSE}
+# Funds to query
+am_funds <- 
+  c("AMCPX","AWSHX","CAIBX","AMECX","SMCWX","AEPGX", "ANWPX", "CWGIX")
+van_funds <- 
+  c("VFINX", "VGTSX", "VBTIX", "VSCIX", "VFISX", "VBINX")
+funds <- c(am_funds, van_funds)
+
+# Assumed Vanguard weighting of fund
+m <- matrix(
+  # vfinx, vgtsx, vbtix, vscix,  vfisx, vbinx
+  c(0.85,  0.05,  0,     0,      0.1,    0,  #amcpx
+    0.95,  0.02,  0,     0,      0.03,   0,  #awshx
+    0.35,  0.30,  0.25,  0,      0.1,    0,  #caibx
+    0.5,   0.15,  0.30,  0,      0.05,   0,  #amecx
+    0,     0,     0,     0.9,    0.1,    0,  #smcwx
+    0.05,  0.8,   0,     0.05,   0.1,    0,  #aepgx
+    0.45,  0.4,  0.05,   0,      0.1,    0,  #cwigx
+    0.5,   0.45,  0,     0,      0.05,   0), #anwpx
+  ncol = 6, 
+  byrow=TRUE)
+
+# Weighting of American Funds portfolio
+portfolio <- 
+  c(0.15, 0.20, 0.15, 0.15, 0.05, 0.1, 0.1, 0.1)
+
+# Implied benchmark portfolio 
+benchmark <- as.vector(colSums(m * portfolio))
+benchmark
+
+```
+
+
+# Cash Component of Benchmark Portfolio
+
+American funds also run with a higher amount of cash than index funds, as can be seen with our estimated 7.35% weighting in VFISX above. This has tended to be a drag on performance during bull markets, as we saw in the late 1990s and with the more recent bull market. Morningstar style box thinkers and industry consultants generally frown on high cash weightings, and it is valid concern in most cases though we are not sure if it should be for American Funds. During the 2000 tech crash, when American Funds had a lot more room to maneuver, and picked up an extra-ordinary amount of outperformance relative to most equity indices (as we will show below). It is worth noting that our benchmark is a lot more granular and we believe a more fair comparison than used the Asset Builder blog, but in the end is still only an estimate. Weightings over time have not been static as we have assumed, and we have chosen one set of weightings for the entire 20-year period. A future analysis may look at ways of flexing our weightings matrix over time.
+
+# Thoughts on Mutual Fund Investment Expenses
+
+We would also add another thought at odds with conventional thinking. Many mutual fund investors redeem their funds at the exact worst moments. Buying at the top and selling at the bottom can be seen over and over in retail and possibly institutional mutual fund flows at considerable cost to holders. This also forces managers to sell when they should be buying, in effect contributing to the poor performance of active managers. Many American Fund investors paid hefty loads representing a sunk cost, and on-going 12-b1 fees to provide incentive to their advisers to hold their hands during the inevitable scary moments. The negative aspects of fees and agency problems are often discussed, but measuring the cost of not selling at the wrong time is much more difficult.
+
+Coupled with extra cash buffer, American Fund managers may afford themselves greater flexibility to not sell or even to buy at challenging moments. This is in no way to advocate for the current fee structure, just that some of the DIY index only advice we hear from sites like Asset Builder may not fully take into account the actual behavior of real people who are not investment professionals. Some portion of those seemingly high investment costs may pay for themselves when done right. So far, we haven't seen much study on the contrafactual of how advised investors fare relative to DIY through a bear market.
+
+
+# Download Raw Weekly Mutual Fund Price Data with Quantmod
+
+In the course of writing this blog, Redwall has frequently expressed amazement that so many analyses, not possible previously, are now enabled almost so quickly by a few lines of code in open-source R or Python. Using the `quantmod` package, here we extract over 20 years of mutual fund data, 80,738 prices for our 14 funds in a matter of seconds, all for free. In addition to stock, mutual fund  and index prices, we could just as easily query economic series from FRED with `quantmod`. We noted that the CFA Society recently starting to make the Morningstar Ibbottson annual Stocks, Bonds, Bills and and Inflation data since 1926 available to members in an online spreadsheet. The `quantmod` package offers much more comprehensive and efficient access to data to all completely for free to all since 2007. There is no CFA Institute R or Python package, or indeed any open source participation. We can't help but feel that the CFA Institute may to be falling behind, and has a growing need to update itself to maintain relevance.
+
+
+```{r 'quantmod-data', echo=TRUE, message=FALSE, warning=FALSE}
+
+# Get data with quantmod
+data <- lapply(funds, function(fund) {
+  getSymbols(
+    fund,
+    src = "yahoo",
+    env = NULL,
+    from = as.Date("1997-07-12"),
+    to = as.Date("2020-06-12")
+  )
+})
+names(data) <- funds
+
+# Print a few rows of AWSHX
+data$AWSHX['1997-07']
+```
+
+
+# Preprocess Data into Weekly Log Returns for Analysis
+
+Our `data` list contains 14 `xts` (time series) objects with dates and prices of each fund over the period. `quantmod` also has a suite of tools for processing quantitative market data for stocks, mutual funds and portfolios. In the first line below, we magically select only the adjusted prices and convert them all to weekly log returns. In the second, we merge the time series of all 14 mutual funds on the respective dates into a data.frame. In the third line, we simulate the money growth on $1 of owning the funds in proportion to our `portfolio` and `benchmark` vectors and re-balancing every quarter when the target weightings move out of line.
+
+
+```{r 'calculate-returns', echo=TRUE, message=FALSE, warning=FALSE}
+# Convert weekly pries to log returns
+fund_returns_list <- 
+  lapply(data, function(fund)
+    log(1 + weeklyReturn(Ad(fund))))
+
+# Build data frame of American and Vanguard funds with weekly log returns by date
+fund_returns_df <-
+  Reduce(function(d1, d2)
+    merge.xts(d1, d2, 
+              join = 'left', 
+              check.names = TRUE),
+    fund_returns_list)
+names(fund_returns_df) <- funds
+
+# Calculate return on American Funds re-balanced quarterly with PerformanceAnalytics Return.Portfolio function
+portfolio_return <-
+  Return.portfolio(fund_returns_df[, am_funds],
+                   rebalance_on = 'quarters',
+                   weights = portfolio)
+
+# Calculate return on Vanguard benchmark re-balanced quarterly
+benchmark_return <-
+  Return.portfolio(fund_returns_df[, van_funds],
+                   rebalance_on = 'quarters',
+                   weights = benchmark)
+
+# Show a few lines of portfolio returns
+portfolio_return[1:5]
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+ActiveReturn(portfolio_return["2002-01-01/"], benchmark_return["2002-01-01/"], scale = 52)
+chart.CaptureRatios(test1, test2)
+chart.QQPlot(test1)
+chart.ECDF(test1)
+InformationRatio(test1, test2)
+Return.annualized.excess(test1, test2)
+SharpeRatio.annualized(test2, Rf= test$VFISX)
+AdjustedSharpeRatio(test1, Rf=test$VFISX)
+table.AnnualizedReturns(test, Rf=test$VFISX)
+table.CaptureRatios(test1, test2)
+table.Correlation(test1, test2)
+table.DownsideRisk(test1)
+table.SpecificRisk(test1, test2, Rf = test$VFISX)
+table.Stats(test["1997-07-12/"])
+table.UpDownRatios(test1, test2)
+UpDownRatios(test1, test2, method = "Capture")
+VaR(test1)
+DrawdownPeak(test1)
+```
+
+
+# American Funds Steadily Outperforming our Customized Benchmark 
+
+The chart below gives a much better "apples-to-apples" benchmark for comparison to our portfolio than the Vanguard Total Market Index. It is true that the mainly US-oriented American Funds that we may not have outperformed as much as the non-US heavy portfolios. But our portfolio is global, and as can be seen here in aggregate, outperforming steadily except for a few relatively short periods. We can see three periods of either under-performance or treading of water relative to the benchmarks at the tail end of the previous two bulls, but then the subsequent out-performance.
+
+
+```{r 'relative-performance-chart', echo=TRUE, message=FALSE, warning=FALSE}
+chart.RelativePerformance(portfolio_return, benchmark_return)
+```
+
+
+# Money Difference of American Funds vs Index Benchmarks
+
+The annual active premium of the American Funds portfolio over the whole period has been about 1.8% per annum, but as we will discuss below, the fund group's premium may be compressing. If we choose the starting point to be the beginning of 2003, it falls to 1.02%. Over the full period as shown below in blue, a dollar invested in 1997 would be worth \$4.47 while the benchmark would yield \$3.03 for the benchmark in orange (a considerable reward for hiring American Funds even ignoring likely greater tax inefficiency). If we move to 2002 (around when we built our portfolio), the difference falls to \$3.16 and \$2.66. If history is anything to go by, American Funds has traditionally picked up most of its advantage during bear markets as we may be now, so it might be best to wait a couple of years to draw the conclusions made by Asset Builder.
+
+
+```{r 'cumulative-return', echo=TRUE, message=FALSE, warning=FALSE}
+chart.CumReturns(
+  merge.xts(portfolio_return["2002-01-01/"]$portfolio.returns, benchmark_return["2002-01-01/"]$portfolio.returns, join = "left"),
+  colorset = 1,
+  begin = "first",
+  wealth.index = TRUE,
+  plot.engine = "plotly"
+)
+```
+
+# Domestic Equity Funds Leaning Conservatively Throughout the Period
+
+We can see here that both of our mainly US funds managed to reduce their betas and R2 in the run-up and short period after the beginning of the 2000 bear market. Washington Mutual in particular made drastic reductions to exposure, while Amcap did to a lesser extent in 2007-2008. Sharpe ratios are very volatile, and standard deviations briefly reached 60% during 2009 and again this year. Both funds consistently had betas well below one over the entire period, but alpha hardly registers on the graph (This may be down to a scaling issue for us because we are new to this package). American Funds took a lot of heat for not owning many tech stocks in the run up to the 2000 bust, but the low volatility through that period show it navigating in that period with greater calm than the two subsequent bear markets.
+
+
+```{r 'domestic-equity-funds', echo=TRUE, message=FALSE, warning=FALSE}
+matrix(c(1,2), ncol=2)
+charts.RollingRegression(
+  fund_returns_df[, 1:2],
+  width = 52,
+  fund_returns_df[, "VFINX", drop = FALSE],
+  Rf = fund_returns_df$VFISX,
+  colorset = rich6equal,
+  legend.loc = "topleft")
+charts.RollingPerformance(
+  fund_returns_df[, c(1:2, 9)], 
+  event.labels = TRUE, 
+  legend.loc = "topleft")
+
+```
+
+
+# International and Global Funds Seem to Move Exposures More
+
+The funds with non-US mandates also showed similar reductions in beta and R2 during the 2000 bear market, but also to a greater degree in subsequent volatile periods than the US funds. These funds also showed significant volatility spikes during 2009 and the recent COVID-19 collapse, but much smaller spikes in 2000. By in large, these funds have run often run at higher betas than the two domestic funds we showed above. Two of the three foreign portfolios are growth-oriented and have shown higher out-performance relative to benchmarks than the domestic ones above.
+
+
+```{r 'intl-equity-funds', echo=TRUE, message=FALSE, warning=FALSE}
+matrix(c(1,2), ncol=2)
+charts.RollingRegression(
+  fund_returns_df[, 6:8],
+  fund_returns_df[, 10, drop = FALSE],
+  Rf = fund_returns_df[, 13],
+  colorset = rich6equal,
+  legend.loc = "topleft"
+)
+charts.RollingPerformance(fund_returns_df[,c(6:8,10)], 
+                          event.labels = TRUE, legend.loc = "topleft")
+```
+
+# Balanced Mandates Taking on More Risk Since 2007
+
+The balanced mandates look very similar to the domestic and the foreign mandates, though they didn't do a lot to reduce beta or R2 during the 2009 crisis. The spikes were less than the fully equity-oriented funds, peaking out around 40% instead of 60%, as would be expected given the bond cushions. From 2007 on, the funds have generally run higher betas. We know that they have struggled to get the same kind of income since the GFC, so this probably has something to do with the need to take on more risk to try to meet income challenges.
+
+
+```{r 'equity-income', echo=TRUE, message=FALSE, warning=FALSE}
+matrix(c(1,2), ncol=2)
+charts.RollingRegression(
+  fund_returns_df[, 3:4],
+  fund_returns_df[, 14, drop = FALSE],
+  width = 52,
+  Rf = fund_returns_df[, 13],
+  colorset = rich6equal,
+  legend.loc = "topleft"
+)
+charts.RollingPerformance(fund_returns_df[, c(3:4, 14)],
+                          event.labels = TRUE,
+                          legend.loc = "topleft")
+```
+
+# Mutual Fund Grading Ready for Overhaul
+
+Morningstar came up with the ideas of mutual fund Star Ratings in 1985 to compare funds across broadly defined categories. They took it a step further, they created investment style and regional boxes in 1992, which all made sense at the time. Just like other report cards though, investors began to try to game the system by moving funds among categories, launching and merging funds when advantageous, and creating incentives for managers chasing quarterly or calendar year returns. It doesn't seem to make a lot of sense now make decisions about manager skill over any particular year or group of years when it is possible to break a fund into weekly performance, and build new benchmarks all in a matter of a day or two, as we have done in this analysis.
+
+It is easily possible to extract all periods to see how persistently or not a fund has out-performed. American Fund itself did an analysis along these lines last year [The Select Investment Scorecard](https://www.capitalgroup.com/advisor/insights/the-capital-advantage/select-investment-scorecard.html), but unfortunately hasn't updated or made the data available for others to reproduce, though a quick glance at the methodology, it seemed robust. It is hard to understand why Morningstar wouldn't want to improve its measurement process along these lines.
+
+
+# Looking at Number of Weeks with Outperformance
+
+We took all of our 1196 weeks, and calculated the percentage of weeks by quarter where our American Funds portfolio outperformed the benchmark. We can see that the ratio of weeks outperforming greater than 0.5 in almost all periods, though it broke below briefly during 2007 and again last week. The confidence bars are wide, and so hard to conclude definitively that the ratio has been above 0.5 since 2006-7. After a while looking at this chart, the trend downward since 2005 certainly struck us. In 2005, the cost of many of the index funds we used in comparison exceeded 30 bps, and today most are at or below 10bps. Meanwhile, American Funds haven't lowered its expense ratios in 20 years. That means that American Fund managers would have to generate that much higher gross returns just to maintain the same level of relative performance.
+
+
+```{r 'weekly-returns', echo=TRUE, message=FALSE, warning=FALSE}
+# Combine American Funds and Benchmark for Comparison
+joined <- 
+  data.table(
+    date = index(portfolio_return),
+    am_funds = portfolio_return$portfolio.returns,
+    bench = benchmark_return$portfolio.returns,
+    diff = portfolio_return$portfolio.returns - benchmark_return$portfolio.returns
+  )
+
+# Calculate weekly performance difference of American Funds vs benchmark
+dt <-
+  joined[, (diff.portfolio.returns > 0), 
+         zoo::as.yearqtr(date)][
+        ][, sum(V1) / .N, zoo]
+setnames(dt, c("V1", "zoo"), c("comparison", "quarter"))
+
+# Plot smoothed quarterly number of outperforming weeks
+ggplot(dt, aes(quarter, comparison)) + 
+  geom_smooth() +
+  theme_bw() +
+  labs(
+    title = "Percent of Weeks Where American Funds Outperformed Vanguard Benchmark Portfolio by Quarter",
+    y = "Percentage of Weeks",
+    x = "Date"
+    )
+
+```
+
+
+# Conclusion
+
+This has been a quick analysis to become accustomed to the `quantmod` and `PerformanceAnalytics` tools. We may return to this subject to look at relative performance during bear markets, and also to try to replicate the American Fund's Select Investment Scorecard, which measured longer periods of out-performance. Another future study we would like to do to more precisely quantify the change in relative fees. American Funds assets under management have risen from about \$1 trillion just before the GFC to \$1.8 trillion today, and this seems like a business with a high degree of operating leverage. Rather than spending a lot more money advertising like many the other mediocre investment managers as they have begun doing daily on CNBC and Morningstar, an investment in lower fees and renewed quiet out-performance might be the best medicine.
+
+
+
