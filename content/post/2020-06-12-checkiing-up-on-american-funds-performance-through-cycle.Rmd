@@ -39,7 +39,7 @@ setDefaults(getSymbols.av, api.key=keyring::key_get('alphavantage'))
 
 # Introduction
 
-Active funds have done poorly over the last ten years, and in most cases, struggled to justify their fees. A growing list of commentators appropriately advocate for index funds, although sometimes go a little beyond what we believe to be fairly representing the facts. The inspiration for this article is this post by Asset Builder blog site [American Funds Says, “We Can Beat Index Funds”](https://assetbuilder.com/knowledge-center/articles/american-funds-says-we-can-beat-index-funds) scrutinizing claims by the fund group. Asset Builder asserts that "Even without this commission, the S&P 500 beat the aggregate returns of these ("American") funds over the past 1-, 3-, 5-, 10- and 15-year periods". In the post, there is a supporting chart showing a group of American Funds ("AF") funds compared to the Vanguard Total Market ("TMI"_ index. This analysis struck us in conflict with our own experience as actual holders of a core portfolio of eight AF over the last 20 years, so this post will be about exploring this data.
+Active funds have done poorly over the last ten years, and in most cases, struggled to justify their fees. A growing list of commentators appropriately advocate for index funds, although sometimes go a little beyond what we believe to be fairly representing the facts. The inspiration for this article is this post by Asset Builder blog site [American Funds Says, “We Can Beat Index Funds”](https://assetbuilder.com/knowledge-center/articles/american-funds-says-we-can-beat-index-funds) scrutinizing claims by the fund group. Asset Builder asserts that "Even without this commission, the S&P 500 beat the aggregate returns of these ("American") funds over the past 1-, 3-, 5-, 10- and 15-year periods". In the post, there is a supporting chart showing a group of American Funds ("AF") funds compared to the Vanguard Total Market ("TMI") index. This analysis struck us in conflict with our own experience as actual holders of a core portfolio of eight AF over the last 20 years, so this post will be about exploring this data.
 
 As usual, Redwall would like to avoid defending to any particular viewpoint other than to follow the data and see where it leads. If we have made any mistakes in our assumptions or the data used, we welcome polite commentary to set us straight. We have no relationship with the AF, and for the most part are sympathetic to those who say that index funds may be the best choice for most investors. All the code is available on Github for anybody to replicate. Also to be clear, Redwall is not an investment adviser and is making no investment recommendations.
 
@@ -51,21 +51,22 @@ During the 2000 bear market, Redwall put substantial research into its investmen
 Investments were made mostly in the 2001-2003 bear market period, with dollar-cost averaging across a group of funds designed to be diversified across regions and investment styles. The investments were made without paying loads, rightly mentioned in the Asset Builder article, as a drag on returns. In this article, we will download the weekly closing prices of the relevant AF and the most comparable Vanguard Funds, re-construct our portfolio and estimate the corresponding weighting of different asset classes for each, replicate a relevant benchmark portfolio of Vanguard index funds, and explore their relative performance histories over the period to try to square the two perspectives.
 
 
-# Description of AF Held
+# Description of American Funds Held
 
 The AF don't fit well into the traditional Morningstar investment categories. By in large, its portfolios are many times larger than other active funds, and mostly stick to the largest of the large capitalization global stocks. Washington Mutual mostly owns US mega caps value stocks and holds no cash, while Amcap often moves down the market capitalization spectrum a bit with growth stocks, and will hold a substantial amount of cash. Capital Income builder has a mix of US and overseas stocks which pay high dividends with room to grow. Income Fund of America is similar to Capital Income builder, but has a more US oriented mix and takes more credit risk. Capital World Growth and Income is like Washington Mutual in its stock selection, but will hold a small amount of credit at times when it makes more sense than the equity. New Perspective owns the largest multinational companies domiciled in the US and around the world, but have acquired the competency to expand across borders. 
 
 # New Geography of Investing
 
-It was probably from operating New Perspective, set up to invest in companies having a majority of revenues of coming from outside of their country of domicile, which led AF to discover a new way of looking at its portfolios. In the [New Geography of Investing](https://www.capitalgroup.com/content/dam/cgc/tenants/canada/pdf/en/public/NewGeographyOfInvesting.pdf) campaign launched in 2016, they do an excellent job of explaining the concept that a portfolio shouldn't be constrained by company domicile, a central pillar of the Morningstar ratings platform. In addition to the country of domicile, AF now disclose the aggregated geographic mix of revenues of all of its portfolios on their website, and explain clearly that it doesn't prioritize fitting its portfolios into Morningstar regional boxes at the expense of finding the best investments. 
+It was probably from operating New Perspective, set up to invest in companies having a majority of revenues of coming from outside of their country of domicile, which led AF to discover a new way of looking at its portfolios. In the [New Geography of Investing](https://www.capitalgroup.com/content/dam/cgc/tenants/canada/pdf/en/public/NewGeographyOfInvesting.pdf) campaign launched in 2016, they do an excellent job of explaining the concept that a portfolio shouldn't be constrained by company domicile, a central pillar of the Morningstar ratings platform. In addition to the country of domicile, AF now disclose the aggregated geographic mix of revenues of all of its portfolios on their website, and explain clearly that it doesn't prioritize fitting its portfolios into Morningstar regional boxes at the expense of finding the best investments. Because of this, a single index benchmark may be less applicable to AF funds than some others.
 
 
 # Doublecheck Asset Builder Values
 
-We believe that Asset Builder were referring to no-load AF in their table, but were not sure. It has been possible to buy American Fund F-1 class shares without the loads since 2016 (with a 3 bps higher annual expense ratio), so there is no reason for anyone that doesn't want to pay the load to pay one. As shown below, we calculate that their ending value for is 3-4% too high for the Vanguard Fund, and also too low for 4 out of the 5 AF without loads. For the most part, their claim still holds up even with these adjustments at least with AF's US line-up. If taxes were taken into account, it would widen the advantageo TMI. Still, this is a strange pattern (erring in favor of TMI and against AF), and makes us a little suspicious of Asset Builder.
+We believe that Asset Builder were referring to no-load AF in their table, but were not sure. It has been possible to buy American Fund F-1 class shares without the loads since 2016 (with a 3 bps higher annual expense ratio), so there is no reason for anyone that doesn't want to pay the load for advice to pay one. As shown below, we calculate that their ending value for is 3-4% too high for the Vanguard Fund, and also too low for 4 out of the 5 AF without loads. For the most part, their claim still holds up even with these adjustments at least with AF's US line-up and assuming that relative risk is not a consideration. If taxes were taken into account, it would widen the performance advantage of TMI. Still, this is a strange pattern (tilting the calculation in favor of TMI and against AF), and makes us a little suspicious of Asset Builder.
 
 
-```{r}
+```{r 'asset-builder', echo=TRUE, message=FALSE, warning=FALSE}
+# Get data from `quantmod`
 tickers <-c("AGTHX","AMCPX","AWSHX","AIVSX","AMRMX", "VTSAX")
 asset_builder_data <- lapply(tickers, function(fund) {
   getSymbols(
@@ -77,26 +78,40 @@ asset_builder_data <- lapply(tickers, function(fund) {
   )
 })
 
+# Calculate holding period return of $100 invested monthly
 get_data <- function(xts_obj, load = 0) {
+  
+  # Build data.table
   dt <- data.table(
           date = index(xts_obj),
           price = (Ad(xts_obj[, 6]))
         )
+  
+  # Filter monthly
   dt[, month:=zoo::as.yearmon(date)]
   dt <- dt[, .SD[1], month]
+  
+  # Adjust load if needed
   if (!str_detect(names(dt)[3], "price.A.*")) {
     dt[, shares := 100 / .SD, .SDcols=3]
   } else {
     dt[, shares := (100 * (1 - load)) / .SD, .SDcols=3]
   }
+  
+  # Calculate final value
   final_price <- as.numeric(dt[nrow(dt), 3])
   dt[, final_value := shares * final_price]
   return <- sum(dt$final_value)
+  
+  # Return final value
   return
   }
   
+# Values from Asset Builder table
 asset_builder <- 
   c(42402, 41827, 39981, 37125, 39814, 45112)
+
+# Build comparison table
 dt <-data.table(
         fund = tickers,
         asset_builder,
