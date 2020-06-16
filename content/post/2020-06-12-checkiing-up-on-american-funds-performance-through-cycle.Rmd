@@ -1,5 +1,5 @@
 ---
-title: Evaluating AF Over Three Market Cycles
+title: Evaluating American Funds Portfolio Over Three Market Cycles
 author: David Lucey
 date: '2020-06-12'
 slug: checking-up-on-american-funds-performance-through-cycle
