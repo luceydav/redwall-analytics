@@ -8,7 +8,7 @@ tags: ["connecticut", "realestate", "drake", "shiny"]
 draft: true
 ---
 
-```{r 'setup', message=FALSE, warning=FALSE, include=TRUE}
+```{r setup, message=FALSE, warning=FALSE, include=TRUE}
 # R Libraries
 library(data.table)
 library(DT)
@@ -89,7 +89,7 @@ Will Landau recommends to always check the dependency graph before running `make
 We relied heavily on Miles McBain's [Benefits of a function-based diet (The {drake} post)](https://milesmcbain.xyz/the-drake-post/) to set up our project file structure and _drake.R script. He has also built the `dflow` package, which we would use in the future, but didn't this time, because we already had already launched the project when we discovered it. The chunk below shows our full `_drake.R` script which loads the required packages, functions from the `R` folder and calls `drake_config()` with our plan. Neither the plan or the `drake_config()` are called here for the blog post. 
 
 
-```{r 'drake-config', eval=FALSE, echo=TRUE, fig.cap='Config Script'}
+```{r drake-config, eval=FALSE, echo=TRUE, fig.cap='Config Script'}
 # Not run here
 # This code comes entirely from Miles McBain's work
 
@@ -111,7 +111,7 @@ drake_config(the_plan,
 The last step after configuration is to run `make()`, which usually took 4-5 minutes. We found that the intermediate targets sometimes ran when we weren't expecting them to, because we hadn't made any changes. Once `make()` runs, all of the intermediate targets can be accessed at any time with `loadd()` (see below). 
 
 
-```{r 'drake-make', eval=FALSE, echo=TRUE, fig.cap='Drake Make'}
+```{r drake-make, eval=FALSE, echo=TRUE, fig.cap='Drake Make'}
 # Not run here
 drake::make(the_plan)
 ```
@@ -121,7 +121,7 @@ drake::make(the_plan)
 Below, we show that we can access our finished data.table with `loadd()` even from a separate project directory, although here we had to set the working directory for the chunk to our `drake` project in order to run `loadd()`. 
 
 
-```{r 'drake-loadd', echo=TRUE, message=FALSE, warning=FALSE}
+```{r drake-loadd, echo=TRUE, message=FALSE, warning=FALSE}
 setwd("/Users/davidlucey/Desktop/David/Projects/ct_real_assess/")
 drake::loadd("new")
 head(new)
@@ -130,7 +130,7 @@ head(new)
 We summarize the full 900k+ set in the table below, which includes all properties and transactions types, including bankruptcy and related party. We can see the total market in CT actually peaked in number of transactions and dollar volumes in 2004-05, though average prices kept rising for two more years, and have mostly drifted downwards ever since with Connecticut's sluggish recovery.
 
 
-```{r 'summary', echo=FALSE, message=FALSE, warning=FALSE}
+```{r summary, echo=FALSE, message=FALSE, warning=FALSE}
 
 DT::datatable(
   new[, .(
@@ -168,6 +168,6 @@ It wouldn't be right to not include the final product..
 
 Now we have a well-organized work flow which can be easily updated as new OPM releases become available on Socrata. Anybody with Socrata and `rsconnect` credentials should be able to clone and easily run our formerly incomprehensible code. We have a good structure to add new targets in the future. For example, we would like to geo-code the addresses, because we think there may be geographical patterns in the price movements (ie: larger plots further from commercial hubs have become less attractive to buyers over time). This is challenging because the addresses are messy and don't have zip codes, and there don't seem to be many low cost and comprehensive sources of CT addresses, and services like Google are expensive at this scale. Another aspiration would be to add attributes of the land and structure in order to model values and observe changing coefficients, but that seems a bridge too far.
 
-We are also planning to an additional post on our observation that the lowest valued slice of properties in many towns are often systematically assessed more highly (relative to selling prices) than higher valued segments (hence carry an undue property tax burden). This can be seen in the Timeplot and Dotplot tabs of the Shiny app. Overall, we think there may be opportunities to combine other public data we have collected about income taxes, local government spending and public employment pensions, education and transportation as part of our ["Nutmeg Project"](Introduction to Redwall Analytics Nutmeg Open Data Project) to try to understand what has gone wrong to make one of the best educated and highest income state in the country also the most financially fragile.
+We are also planning to an additional post on our observation that the lowest valued slice of properties in many towns are often systematically assessed more highly (relative to selling prices) than higher valued segments (hence carry an undue property tax burden). This can be seen in the Timeplot and Dotplot tabs of the Shiny app. Overall, we think there may be opportunities to combine other public data we have collected about income taxes, local government spending and public employment pensions, education and transportation as part of our ["Nutmeg Project"](Introduction to Redwall Analytics Nutmeg Open Data Project) to try to understand what has gone wrong to make one of the best educated and highest income states in the country, also the most financially fragile.
 
 
