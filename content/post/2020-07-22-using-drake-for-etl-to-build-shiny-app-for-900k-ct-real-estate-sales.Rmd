@@ -5,11 +5,11 @@ date: '2020-07-22'
 slug: using-drake-for-etl-to-build-shiny-app-for-900k-ct-real-estate-sales
 categories: ["Nutmeg Project", "R", "Code-Oriented"]
 tags: ["connecticut", "realestate", "drake", "shiny"]
-draft: true
 ---
 
 ```{r setup, message=FALSE, warning=FALSE, include=TRUE}
-# R Libraries
+# R Libraries for this blogdown post
+# See Github for libraries used in drake project
 library(data.table)
 library(DT)
 
