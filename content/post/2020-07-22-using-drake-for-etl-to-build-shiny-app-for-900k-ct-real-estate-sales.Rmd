@@ -162,7 +162,7 @@ DT::datatable(
 
 It wouldn't be right to not include the final product..
 
-<iframe width="1000" height="1200" scrolling="no" frameborder="yes"  src="https://luceyda.shinyapps.io/ct_real_assess/"> </iframe>
+<iframe width="1000" height="1050" scrolling="no" frameborder="yes"  src="https://luceyda.shinyapps.io/ct_real_assess/"> </iframe>
 
 # Conclusion
 
