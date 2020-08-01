@@ -1,4 +1,4 @@
-baseURL = "https://www.redwallanalytics.com"
+baseURL = "https://www.redwallanalytics.com/"
 languageCode = "en-gb"
 title = "Redwall Analytics"
 theme = "hugo-lithium-theme"
