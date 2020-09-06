@@ -2,7 +2,7 @@ baseURL = "https://www.redwallanalytics.com/"
 languageCode = "en-gb"
 title = "Redwall Analytics"
 theme = "hugo-lithium-theme"
-googleAnalytics = ""
+googleAnalytics = "UA-177379740-1"
 ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
 disqusShortname = "www-redwallanalytics-com"
 
