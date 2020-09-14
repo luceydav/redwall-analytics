@@ -10,7 +10,7 @@ output:
     code_folding: true
 ---
 
-```{r 'set-up', include=FALSE}
+```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
 
 packages <- 
   c("jsonlite",
@@ -27,7 +27,12 @@ if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
 
 invisible(lapply(packages, library, character.only = TRUE))
 
-knitr::opts_chunk$set(comment=NA, fig.width=12, fig.height=8, out.width = '100%')
+knitr::opts_chunk$set(
+  comment = NA,
+  fig.width = 12,
+  fig.height = 8,
+  out.width = '100%'
+)
 
 ```
 
@@ -79,8 +84,11 @@ filings <-
     read_html(url) %>%
     html_nodes(xpath='//*[@id="seriesDiv"]/table') %>%
     html_table() %>%
-  as.data.frame() %>%
+  as.data.table() %>%
   janitor::clean_names()
+
+# Drop pre XBRL filings
+filings <- filings[str_detect(format, "Interactive")]
 
 # Showing last 5 years
 filings[1:5, c(1,3:4)]
@@ -172,9 +180,6 @@ Below, we use the xbrlDoAll function from the XBRL package to extract the financ
 ```{r 'stmt-list', echo=TRUE, message=FALSE, warning=FALSE}
 # This chunk was run previously and stmt_list was saved for the purposes of this blog post
 
-# Need to use project where xbrl.cache is stored for this chunk
-setwd("/Users/davidlucey/Desktop/David/Projects/xbrl_investment")
-
 # Disable stringsAsFactors so XBRL parsing works
 options(stringsAsFactors = FALSE)
 
@@ -185,7 +190,7 @@ stmt_list <-
     lapply(aapl_href, function(doc) {
       
     # Extract XBRL of using specified href
-    try(XBRL::xbrlDoAll(doc))
+    try(XBRL::xbrlDoAll(doc, cache.dir = "/Users/davidlucey/Desktop/David/Projects/xbrl_investment/xbrl.Cache"))
     })
 
 # Filter elements which failed to parse
@@ -193,6 +198,7 @@ stmt_list <-
   Filter(function(x) length(x) > 1, stmt_list)
 
 ```
+
 
 
 As we have set it up in the code above, we loop through all Apple's 10-K hrefs parsing with the XBRL package. This gives a list object for each annual reporting package, each in turn containing 9-10 data.frames (as shown below). Most of the data.frames relate to the taxonomy, governed by the .xsb files for that year. Starting in 2008, 10-Ks began being filed as "XBRL Instance Documents", and these work seamlessly with the workflow described above. Around 2018, 10-K's shifted to "Extended XBRL Instance Document" format, which we could not build into financial statements with finstr. 
@@ -334,7 +340,7 @@ bs[, melt(.SD, id.vars = "endDate", measure.vars=current)][
 We are curious about R&D spending over time, so here we took the income statements which again used changing names (Statements of Income and Statements of Operations) over time. It looks like Apple reduced its R&D spending sharply after the iPhone launch, but has ramped it up again to launch the wearables business. We will use this strategy to extract specific balance sheet and income statement items in Part 3 to mine for warning signs.
 
 
-```{r}
+```{r 'apple-rd-graph', echo=TRUE, message=FALSE, warning=FALSE}
 # Regex match list items matching "StatementOFIncome" and StatementsOfOperations", and rbind into is (income statement)
 is <-
   rbindlist(fs[str_detect(names(fs),"StatementOfIncome$|StatementsOfOperations$")], fill =

@@ -10,6 +10,7 @@ output:
     code_folding: true
 ---
 
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
 
 
 <div id="introduction" class="section level1">
@@ -34,29 +35,32 @@ filings &lt;-
     read_html(url) %&gt;%
     html_nodes(xpath=&#39;//*[@id=&quot;seriesDiv&quot;]/table&#39;) %&gt;%
     html_table() %&gt;%
-  as.data.frame() %&gt;%
+  as.data.table() %&gt;%
   janitor::clean_names()
+
+# Drop pre XBRL filings
+filings &lt;- filings[str_detect(format, &quot;Interactive&quot;)]
 
 # Showing last 5 years
 filings[1:5, c(1,3:4)]</code></pre>
-<pre><code>  filings
-1    10-K
-2    10-K
-3    10-K
-4    10-K
-5    10-K
-                                                                                               description
-1 Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0000320193-19-000119 (34 Act)  Size: 12 MB
-2 Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0000320193-18-000145 (34 Act)  Size: 12 MB
-3 Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0000320193-17-000070 (34 Act)  Size: 14 MB
-4 Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0001628280-16-020309 (34 Act)  Size: 13 MB
-5  Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0001193125-15-356351 (34 Act)  Size: 9 MB
-  filing_date
-1  2019-10-31
-2  2018-11-05
-3  2017-11-03
-4  2016-10-26
-5  2015-10-28</code></pre>
+<pre><code>   filings
+1:    10-K
+2:    10-K
+3:    10-K
+4:    10-K
+5:    10-K
+                                                                                                description
+1: Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0000320193-19-000119 (34 Act)  Size: 12 MB
+2: Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0000320193-18-000145 (34 Act)  Size: 12 MB
+3: Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0000320193-17-000070 (34 Act)  Size: 14 MB
+4: Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0001628280-16-020309 (34 Act)  Size: 13 MB
+5:  Annual report [Section 13 and 15(d), not S-K Item 405]Acc-no: 0001193125-15-356351 (34 Act)  Size: 9 MB
+   filing_date
+1:  2019-10-31
+2:  2018-11-05
+3:  2017-11-03
+4:  2016-10-26
+5:  2015-10-28</code></pre>
 <p>There are generally about 15 elements in a filing package for a given year, as can be seen here for <a href="https://www.sec.gov/Archives/edgar/data/320193/000032019319000119/0000320193-19-000119-index.htm">Apple in 2019</a>. We only want to extract the XBRL Instance Document (XML), which is at the bottom of the table. In order to get this manually, we would have to click on the Document link. Instead, we show the steps to extract the actual links one by one using regex and again web scraping below. We also show the links for most recent five years below. Copy and pasting any of these links into the browser would show the 10-K for the relevant year.</p>
 <pre class="r"><code># Extract filings identifiers with regex match of digits
 pattern &lt;- &quot;\\d{10}\\-\\d{2}\\-\\d{6}&quot;
@@ -133,9 +137,6 @@ aapl_href[1:5]</code></pre>
 <p>Below, we use the xbrlDoAll function from the XBRL package to extract the financial statements using the links from the aapl_href list we made above. Note that we try(), because the function would fail on some of the documents and stop at that point.</p>
 <pre class="r"><code># This chunk was run previously and stmt_list was saved for the purposes of this blog post
 
-# Need to use project where xbrl.cache is stored for this chunk
-setwd(&quot;/Users/davidlucey/Desktop/David/Projects/xbrl_investment&quot;)
-
 # Disable stringsAsFactors so XBRL parsing works
 options(stringsAsFactors = FALSE)
 
@@ -146,25 +147,10 @@ stmt_list &lt;-
     lapply(aapl_href, function(doc) {
       
     # Extract XBRL of using specified href
-    try(XBRL::xbrlDoAll(doc))
-    })</code></pre>
-<pre><code>Error in XBRL::xbrlParse(file.inst) : 
-  Opening and ending tag mismatch: script line 98 and head [76]
-Error in XBRL::xbrlParse(file.inst) : 
-  Opening and ending tag mismatch: script line 98 and head [76]
-Error in XBRL::xbrlParse(file.inst) : 
-  Opening and ending tag mismatch: script line 98 and head [76]
-Error in XBRL::xbrlParse(file.inst) : 
-  Opening and ending tag mismatch: script line 98 and head [76]
-Error in XBRL::xbrlParse(file.inst) : 
-  Opening and ending tag mismatch: script line 98 and head [76]
-Error in XBRL::xbrlParse(file.inst) : 
-  Opening and ending tag mismatch: script line 98 and head [76]
-Error in XBRL::xbrlParse(file.inst) : 
-  Opening and ending tag mismatch: script line 98 and head [76]
-Error in XBRL::xbrlParse(file.inst) : 
-  Opening and ending tag mismatch: script line 98 and head [76]</code></pre>
-<pre class="r"><code># Filter elements which failed to parse
+    try(XBRL::xbrlDoAll(doc, cache.dir = &quot;/Users/davidlucey/Desktop/David/Projects/xbrl_investment/xbrl.Cache&quot;))
+    })
+
+# Filter elements which failed to parse
 stmt_list &lt;- 
   Filter(function(x) length(x) &gt; 1, stmt_list)</code></pre>
 <p>As we have set it up in the code above, we loop through all Apple’s 10-K hrefs parsing with the XBRL package. This gives a list object for each annual reporting package, each in turn containing 9-10 data.frames (as shown below). Most of the data.frames relate to the taxonomy, governed by the .xsb files for that year. Starting in 2008, 10-Ks began being filed as “XBRL Instance Documents”, and these work seamlessly with the workflow described above. Around 2018, 10-K’s shifted to “Extended XBRL Instance Document” format, which we could not build into financial statements with finstr.</p>
@@ -397,7 +383,7 @@ is[, melt(.SD, id.vars = &quot;endDate&quot;, measure.vars=c(&quot;rd_sales&quot
     ylab(&quot;Amount&quot;) +
     xlab(&quot;Year&quot;) +
     theme_bw()]</code></pre>
-<p><img src="/post/2020-02-18-a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1_files/figure-html/unnamed-chunk-1-1.png" width="100%" /></p>
+<p><img src="/post/2020-02-18-a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1_files/figure-html/apple-rd-graph-1.png" width="100%" /></p>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
