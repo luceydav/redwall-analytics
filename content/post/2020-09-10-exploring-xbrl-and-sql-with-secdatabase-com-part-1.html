@@ -30,7 +30,8 @@ knitr::opts_chunk$set(
   comment = NA,
   fig.width = 12,
   fig.height = 8,
-  out.width = &#39;100%&#39;
+  out.width = &#39;100%&#39;,
+  cache = TRUE
 )</code></pre>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
@@ -125,6 +126,7 @@ $RAthena
 <p class="caption">RStudio Connections Pane</p>
 </div>
 <p>Fields in the “company_submission” table can be also be seen with <code>dbListFields()</code> below. Each company has a “cik” identifier and each filing has an common “accession_number_int” key. Other identifier information about the company like the SIC code (“assigned_sic”), the document_type (ie: 10-K or 10-Q), filing date and period along with other aspects of the company. We found ourselves using this table to filter on “10-K” OR “10-Q”, then joining with the “data_point_snapshot” or the “report_presentation_line_item” on “accession_number_int” most commonly.</p>
+<pre class="r"><code>dbListFields(con, &quot;sec_financial_statements.company_submission&quot;)</code></pre>
 <pre><code> [1] &quot;accession_number_int&quot;          &quot;accession_number&quot;             
  [3] &quot;cik&quot;                           &quot;company_name&quot;                 
  [5] &quot;filing_date&quot;                   &quot;document_type&quot;                
@@ -168,6 +170,7 @@ head(company_submission, 10)</code></pre>
 #   business_address_state &lt;chr&gt;, business_address_zip &lt;chr&gt;,
 #   mailing_phone_number &lt;chr&gt;, business_phone_number &lt;chr&gt;</code></pre>
 <p>As mentioned above, the “data_point_snapshot” (not to be confused with “data_point” table) is the primary table storing the final financial statement elements and values. As filings come in, all data points are all added to the “data_point” table by date with the same “accession_number_int” (the filing key identifier), whether or not they are the same as the previous version. If a data point in a particular filing is revised, it is added as another row in the “data_point” table, and the value recorded for that “datapoint_id” and associated “datapoint_name” is updated to the new value in the “data_point_snapshot” table and also to the “data_point_revision” table. Hence, “data_point” may have multiple values for the same datapoint_name and datapoint_id, and “data_point_snapshot” should have the just the one final value.</p>
+<pre class="r"><code>dbListFields(con, &quot;sec_financial_statements.data_point_snapshot&quot;)</code></pre>
 <pre><code> [1] &quot;cik&quot;                  &quot;accession_number_int&quot; &quot;filing_date&quot;         
  [4] &quot;datapoint_id&quot;         &quot;datapoint_name&quot;       &quot;version&quot;             
  [7] &quot;segment_label&quot;        &quot;segment_hash&quot;         &quot;start_date&quot;          
@@ -175,14 +178,16 @@ head(company_submission, 10)</code></pre>
 [13] &quot;numeric_value&quot;        &quot;decimals&quot;             &quot;unit&quot;                
 [16] &quot;footnotes&quot;            &quot;revision_num&quot;        </code></pre>
 <p>The “report_presentation_section” has a field called the “statement_type”, which can be used to filter for the type of statement (“Income Statement,”Balance Sheet“, etc), then join with”accession_number_int" to get only the data points for that company and the chosen statement.</p>
+<pre class="r"><code>dbListFields(con, &quot;sec_financial_statements.report_presentation_section&quot;)</code></pre>
 <pre><code>[1] &quot;cik&quot;                        &quot;filing_date&quot;               
 [3] &quot;accession_number_int&quot;       &quot;section_sequence_id&quot;       
 [5] &quot;statement_type&quot;             &quot;report_section_description&quot;</code></pre>
 <p>The next level down is the “report_presentation_line_item” table which allows to drill down into a parent_datapoint_name or datapoint_name within a given table. A datapoint_name might be “Revenue” or “NetProfitLoss”, or any other XBRL line-item financial statement identifier.</p>
+<pre class="r"><code>dbListFields(con, &quot;sec_financial_statements.report_presentation_line_item&quot;)</code></pre>
 <pre><code>[1] &quot;accession_number_int&quot;  &quot;section_sequence_id&quot;   &quot;line_item_sequence&quot;   
 [4] &quot;parent_datapoint_name&quot; &quot;datapoint_name&quot;        &quot;preferred_label_role&quot; 
 [7] &quot;datapoint_label&quot;       &quot;datapoint_id&quot;         </code></pre>
-<p>XBRL is governed by a complicated taxonomy, which has the as reported reported financial statement at the top of the hierarchy, then nested levels down to “facts”, which are root string or numeric elements or components of reported elements. One useful tool for navigating the XBRL Taxonomy is <a href="https://bigfoot.corefiling.com/">Corfiling</a>. We would like to understand better how to navigate this hierarchy, but so far have struggled to find information or figured out to decode it ourselves. Although <code>secdatabase</code> offers the fastest, most efficient way to treat the Edgar as one fluid data set, it is also an added layer of complexity because the nesting incumbent in XBRL has been flattened into tables with line-items which may be parents or children of other line-items.</p>
+<p>XBRL is governed by a complicated taxonomy, which has the as reported reported financial statement at the top of the hierarchy, then nested levels down to “facts”, which are root string or numeric elements or components of reported elements. One useful tool for navigating the XBRL Taxonomy is <a href="https://bigfoot.corefiling.com/">Corefiling</a> shown in the view below. The “Revenues” datapoint_name or label is shown nested 10 levels down from the “Income Statement Abstract”, which itself is a child of the “Statement of Net Income (Including Gross Margin)” presentation. We would like to understand better how to navigate this complicated hierarchy, but so far have struggled to find information or figured out to decode it ourselves. Although <code>secdatabase</code> offers the fastest, most efficient way to treat the Edgar as one fluid data set, it is also an added layer of complexity because the nesting incumbent in XBRL has been flattened into tables with line-items which may be parents or children of other line-items.</p>
 <div class="figure">
 <img src="/post/2020-09-10-exploring-xbrl-and-sql-with-secdatabase-com-part-1_files/Screen%20Shot%202020-09-19%20at%202.28.25%20PM.png" alt="" />
 <p class="caption">Corefiling</p>
