@@ -32,10 +32,13 @@ knitr::opts_chunk$set(
 ```
 
 
-
 ```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
-setDefaults(getSymbols.av, api.key=keyring::key_get('alphavantage'))
+setDefaults(getSymbols.av, api.key = keyring::key_get('alphavantage'))
 ```
+
+
+![](/post/2020-06-12-checkiing-up-on-american-funds-performance-through-cycle_files/Screen Shot 2020-09-23 at 12.39.53 PM.png){width=130% height=130%}
+
 
 # Introduction
 
@@ -153,8 +156,10 @@ m <- matrix(
 portfolio <- 
   c(0.15, 0.20, 0.15, 0.15, 0.05, 0.1, 0.1, 0.1)
 
-# Implied benchmark portfolio 
+# Implied benchmark portfolio weightings
 benchmark <- as.vector(colSums(m * portfolio))
+
+# US Equity, Intl Equity, Total Bonds, Smallcap Equity, Money Market, Balanced
 benchmark
 
 ```
@@ -267,65 +272,7 @@ chart.CumReturns(
 )
 ```
 
-# Domestic Equity Funds Leaning Conservatively Throughout the Period
 
-We can see here that both of our mainly US funds managed to reduce their betas and R2 in the run-up and short period after the beginning of the 2000 bear market. Washington Mutual in particular made drastic reductions to exposure, while Amcap did to a lesser extent in 2007-2008. Sharpe ratios are very volatile, and standard deviations briefly reached 60% during 2009 and again this year. Both funds consistently had betas well below one over the entire period, but alpha hardly registers on the graph (This may be down to a scaling issue for us because we are new to this package). AF took a lot of heat for not owning many tech stocks in the run up to the 2000 bust, but the low volatility through that period show it navigating in that period with greater calm than the two subsequent bear markets.
-
-
-```{r 'domestic-equity-funds', echo=TRUE, message=FALSE, warning=FALSE}
-matrix(c(1,2), ncol=2)
-charts.RollingRegression(
-  fund_returns_df[, 1:2],
-  width = 52,
-  fund_returns_df[, "VFINX", drop = FALSE],
-  Rf = fund_returns_df$VFISX,
-  colorset = rich6equal,
-  legend.loc = "topleft")
-charts.RollingPerformance(
-  fund_returns_df[, c(1:2, 9)], 
-  event.labels = TRUE, 
-  legend.loc = "topleft")
-
-```
-
-
-# International and Global Funds Seem to Move Exposures More
-
-The funds with non-US mandates also showed similar reductions in beta and R2 during the 2000 bear market, but also to a greater degree in subsequent volatile periods than the US funds. These funds also showed significant volatility spikes during 2009 and the recent COVID-19 collapse, but much smaller spikes in 2000. By in large, these funds have run often run at higher betas than the two domestic funds we showed above. Two of the three foreign portfolios are growth-oriented and have shown higher out-performance relative to benchmarks than the domestic ones above.
-
-
-```{r 'intl-equity-funds', echo=TRUE, message=FALSE, warning=FALSE}
-matrix(c(1,2), ncol=2)
-charts.RollingRegression(
-  fund_returns_df[, 6:8],
-  fund_returns_df[, 10, drop = FALSE],
-  Rf = fund_returns_df[, 13],
-  colorset = rich6equal,
-  legend.loc = "topleft"
-)
-charts.RollingPerformance(fund_returns_df[,c(6:8,10)], 
-                          event.labels = TRUE, legend.loc = "topleft")
-```
-
-# Balanced Mandates Taking on More Risk Since 2007
-
-The balanced mandates look very similar to the domestic and the foreign mandates, though they didn't do a lot to reduce beta or R2 during the 2009 crisis. The spikes were less than the fully equity-oriented funds, peaking out around 40% instead of 60%, as would be expected given the bond cushions. From 2007 on, the funds have generally run higher betas. We know that they have struggled to get the same kind of income since the GFC, so this probably has something to do with the need to take on more risk to try to meet income challenges.
-
-
-```{r 'equity-income', echo=TRUE, message=FALSE, warning=FALSE}
-matrix(c(1,2), ncol=2)
-charts.RollingRegression(
-  fund_returns_df[, 3:4],
-  fund_returns_df[, 14, drop = FALSE],
-  width = 52,
-  Rf = fund_returns_df[, 13],
-  colorset = rich6equal,
-  legend.loc = "topleft"
-)
-charts.RollingPerformance(fund_returns_df[, c(3:4, 14)],
-                          event.labels = TRUE,
-                          legend.loc = "topleft")
-```
 
 # Mutual Fund Grading Ready for Overhaul
 
@@ -399,7 +346,6 @@ ggplot(dt, aes(quarter, comparison)) +
     x = "Date"
     )
 ```
-
 
 
 # Conclusion
