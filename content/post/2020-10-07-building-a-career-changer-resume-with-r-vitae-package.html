@@ -1,0 +1,148 @@
+---
+title: Building a career changer resume with R {vitae} package
+author: David Lucey
+date: '2020-10-07'
+slug: building-a-career-changer-resume-with-r-vitae-package
+categories: ["R", "Code-Oriented"]
+tags: ["vitae"]
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<pre class="r"><code># Libraries
+packages &lt;- 
+  c(&quot;vitae&quot;,
+    &quot;tibble&quot;,
+    &quot;spelling&quot;
+    )
+
+if (length(setdiff(packages, rownames(installed.packages()))) &gt; 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(
+  comment = NA,
+  fig.width = 12,
+  fig.height = 8,
+  out.width = &#39;100%&#39;
+)</code></pre>
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>This will be a post about building a resume (<em>curriculum vitae</em>) with the R <a href="https://www.mitchelloharawild.com/blog/vitae/">{vitae}</a> package, by a professional who somehow managed to spend 25 years without one. I am also making one of the more unusual career transitions, moving from investment research sales to look for interesting challenges in analytics. For background, I wrote <a href="https://www.linkedin.com/pulse/pivoting-from-bulge-investment-bank-em-equity-sales-david/">Pivoting from bulge investment bank EM equity research sales towards business analytics</a> at the end of 2016, which was targeted to a banking audience, but is largely consistent with my thinking today. Since graduating with a Master of Science, Business Analytics (MSBA) from NYU Stern School of Business in 2018, I have struggled to synthesize the new and old in a standard-form, 2-page document. Many people have strong views about the resume, so mostly put formatting one on the back burner until now. Like many things in R, {vitae} was built by academics to enable easy update of professional information, but seemed to offer a good tool for fast iteration over ideas by a former banker. The package has only been on CRAN since 2019, and I couldn’t find too many examples of how to use it, so there was wheel spinning. As with all the other Redwall posts, this is designed to help speed things up and to get ideas out in hopes of feedback from others.</p>
+</div>
+<div id="set-up-vitae" class="section level1">
+<h1>Set Up {vitae}</h1>
+<p>The package instructions call for loading {vitae} and {tinytex} following the instructions in the Vignette. Then, choosing the “New File” &gt; “R Markdown”, select one of the five {vitae} options from the “From Templates” tab. This will set up the project, create a “cv” folder including the <code>tinytex</code> templates for your selection and an R Markdown document with the framework for the needed YAML meta data at the top.</p>
+<p>There are five templates currently within the package and presumably more will come, as the package offers the capability to build and share new versions. I tried <em>moderncv</em> (which has five separate “themes” each giving a slightly different flavor within the same structure, fonts and formatting), <em>twentyseconds</em> and <em>awesomecv</em>. It is easy to change templates, but I found that sometimes meant rewording string elements, because of differing font sizes and indentation limits.</p>
+<p>In the end, I went with <em>twentyseconds</em> because of its slightly smaller font and formatting allowed me to fit a section on the first page, which ran over with the other two. My resume also has links to posts on my blog, and I preferred the highlighting of links in <em>twentyseconds</em> over the others. I would have liked the option of including meta data from the first page to be included on the second, which kind of hangs there without identification, but you get what you get with the templates. Maybe a future me will be able to figure out how to modify it.</p>
+</div>
+<div id="yaml-and-top-of-resume" class="section level1">
+<h1>YAML and Top of Resume</h1>
+<p>The YAML meta data at the top of cv.RMD should be straightforward, and easily filled in. Most of this affects only the top of the published document, but there are variations in some of the templates where contact details might be at the bottom of the document. The “aboutme” line should have a short summary line about yourself, which will go at the top of the document.</p>
+<p>name: David<br />
+surname: Lucey<br />
+position: “Founder, Redwall Analytics”<br />
+address: "“<br />
+phone:<br />
+www: redwallanalytics.com<br />
+email:”<a href="mailto:dnl2001@stern.nyu.edu" class="email">dnl2001@stern.nyu.edu</a>“<br />
+twitter: lucey_david<br />
+github: luceydav<br />
+linkedin: david-lucey-cfa-cpa-mba-msba<br />
+#headcolor: 414141<br />
+date:”October 2020"<br />
+aboutme: Data literate executive combining advanced analytics with deep financial markets<br />
+and investment domain experience<br />
+docname: Resume<br />
+output:<br />
+vitae::twentyseconds: default<br />
+vitae: default<br />
+</p>
+</div>
+<div id="formatting-body" class="section level1">
+<h1>Formatting Body</h1>
+<p>The package authors formatted sections directly in the Rmarkdown chunks in the Vignette, but I chose to build elements in a separate “data.R” file and source them in the .RMD. Given the need to re-size strings for different templates, it also might make sense to keep a separate data file for each template, though this would add complexity. Either way could work, but separating felt cleaner to me. Data for each section are stored in tribble’s according to two built-in functions: <code>brief_entries()</code> and <code>detailed_entries()</code> with three and five potential slots, respectively.</p>
+<p>On things that took me a while to understand is that each line item is commingled with other line items within a tribble. The <code>brief_entries()</code> and <code>detailed_entries()</code> functions recognize which lines are grouped by the same employer or school when rendering the document. Before then, if one employer has 2 bullets and the other has 4, you would have to filter the specified rows accordingly or make a separate tribble. I divided my “edu” variable into two sections with the four rows from the recent degree in one chunk, and the other four from two past degrees in a separate chunk.</p>
+</div>
+<div id="projects-section-example" class="section level1">
+<h1>Projects Section Example</h1>
+<p>I am always working on new projects to then write about in my blog, and they get more advanced all the time. Here is an sample of the tribble I could use to store all of the projects I have been working on. I even thought this might be automated with {TidyRSS} in the future, making it easy to update to the latest as time goes on. A few things to note for this section: that I am including the links to the full posts, which requires "\\href{url}{post name}" for all elements in the <code>name</code> column. The <code>year</code> column is a character here, though I think it also works with an integer. In my actual tribble, I have included more projects, but it would be easy to filter them to accommodate page size or include only the ones relevant to the particular position. Notice in the third element, I have included a link to a Shiny app with the same href syntax as the elements in <code>name</code>. In my example, there is only one bullet point for each <code>why</code> column, but this variable is actually a list column so more than one element could be provided, and {vitae} will automatically render those elements as bullets in the document.</p>
+<pre class="r"><code>projects &lt;- tribble(
+  ~ name, ~ year, ~ explain,
+  &quot;\\href{https://redwallanalytics.com/2020/03/31/parsing-mass-municipal-pdf-cafrs-with-tabulizer-pdftools-and-aws-textract-part-1/}{Parsing City PDF CAFRs with pdftools, tabula and Textract}&quot;, &quot;2020&quot;, &quot;Extracted key elements from 150 financial statement PDFs using OCR tools&quot;,
+  &quot;\\href{https://redwallanalytics.com/2020/09/10/learning-sql-and-exploring-xbrl-with-secdatabase-com-part-1/}{Learning SQL and Exploring XBRL with secdatabase.com}&quot;, &quot;2020&quot;, &quot;Queried from and Analyzed 200 million row SEC Edgar XBRL database&quot;,
+  &quot;\\href{https://redwallanalytics.com/2020/07/22/using-drake-for-etl-to-build-shiny-app-for-900k-ct-real-estate-sales/}{Using {drake} for ETL and building Shiny app for CT real estate sales}&quot;, &#39;2020&#39;, &quot;Cleaned 1 million rows of public real estate sales for display in \\href{https://luceyda.shinyapps.io/ct_real_assess/}{Shiny App}&quot;,
+  &quot;\\href{https://redwallanalytics.com/2020/06/12/checking-up-on-american-funds-performance-through-cycle/}{Evaluating American Funds Portfolio Over Three Market Cycles}&quot;, &quot;2020&quot;, &quot;Modeled weekly performance of portfolio versus custom-built benchmark&quot;,
+  &quot;\\href{https://redwallanalytics.com/2020/02/18/a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1/}{Accessing XBRL Financial Statements with R}&quot;, &quot;2020&quot;, &quot;Tutorial on how to scrape SEC Edgar with open-source R tools&quot;
+)</code></pre>
+<p>I didn’t think of this, so mostly formatted lines by trial and error, re-rendering the document each time, which was a bit time consuming. Checking string size as below would probably have been more effective. It looks like the <code>what</code> (where I inserted <code>name</code>) and <code>why</code> (<code>explain</code>) in the <em>twentyseconds</em> template can fit 187 and 72 characters on one line, respectively.</p>
+<pre class="r"><code>lapply(projects, nchar)[c(1,3)]</code></pre>
+<pre><code>$name
+[1] 187 161 187 165 161
+
+$explain
+[1]  72  65 128  69  60</code></pre>
+<p>When the vitae <code>detailed_entry()</code> is run on these three variables (omitted “with” and “where” shown as NA) and filtered for only the first three projects, it creates the output below. The order of the columns is not important, but the content will be rendered as specified by the template, so for example, putting the bullet points in <code>what</code> instead of <code>why</code> won’t work. Both <code>detailed_entries()</code> slots and tribble names are dropped when the document is rendered.</p>
+<pre class="r"><code>projects[1:3, ] %&gt;%
+  detailed_entries(
+    what = name,
+    when = year,
+    with = NA_character_,
+    why = explain,
+    where = NA_character_,
+    .protect = FALSE
+  )</code></pre>
+</div>
+<div id="employer-section-example" class="section level1">
+<h1>Employer Section Example</h1>
+<p>Here is an example where I used all five tribble slots, mapped to the designated column names in the <code>detailed_entries()</code> function.</p>
+<pre class="r"><code>redwall &lt;-
+  tribble(
+    ~ title, ~ dates, ~ company,  ~ loc, ~ detail,
+    &quot;Independent Consultant&quot;, &quot;2018 - present&quot;, &quot;REDWALL ANALYTICS&quot;, &quot;Old Greenwich, CT&quot;, &quot;Building \\href{https://redwallanalytics.com}{portfolio of analytics projects} about education, real estate, transportation, markets and government using open public data&quot;,
+    &quot;Independent Consultant&quot;, &quot;2018 - present&quot;, &quot;REDWALL ANALYTICS&quot;, &quot;Old Greenwich, CT&quot;, &quot;Collaboration on Mass municipal annual financial report PDFs led to pro bono team effort to scrape all US cities with \\href{http://www.municipalfinance.org}{Center for Municipal Finance}&quot;
+  )</code></pre>
+<pre class="r"><code>redwall  %&gt;%
+  detailed_entries(
+    with = company,
+    what = title,
+    why = detail,
+    when = dates,
+    where = loc,
+    .protect = FALSE
+  )</code></pre>
+</div>
+<div id="after-set-up" class="section level1">
+<h1>After Set Up</h1>
+<p>I set up the format and then started to tinker with the length of the lines, re-writing, re-organizing within and between sections, and knitting many times. Some lines ran a bit longer than one line, so in many cases, these had to be edited to fit. The traditional syntax for adding headers with # signs in RMarkdown works for sections. My content ran over onto a second page, so I used a \pagebreak. I haven’t tried other resume formatting software, but it was helpful to try breaking up sections, adding and removing segments, and generally many edits to get a final product.</p>
+</div>
+<div id="spell-checking" class="section level1">
+<h1>Spell Checking</h1>
+<p>Spell checking is a nice feature, and its good to know that “analytics” is apparently still not even considered to be a word..</p>
+<pre class="r"><code>setwd(&quot;/Users/davidlucey/Desktop/David/Projects/resume/cv/&quot;)
+# Remember to spell check!!
+spelling::spell_check_files(c(&quot;cv.Rmd&quot;, &quot;data.r&quot;))[1:10,]</code></pre>
+<pre><code>  WORD            FOUND IN
+american        data.r:18
+analytics       data.r:31,64
+Analytics       data.r:23,64,65,66,67
+ANALYTICS       data.r:31,32
+aws             data.r:15
+bcp             data.r:42
+BeautifulSoup   data.r:22
+blogdown        data.r:23
+Blogsite        data.r:23
+bono            data.r:32</code></pre>
+</div>
+<div id="example-of-twentyseconds-version" class="section level1">
+<h1>Example of <em>twentyseconds</em> Version</h1>
+<p>Right click to enlarge:</p>
+<p><embed src="/img/cv.pdf" /></p>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>After many iterations, I decided to put new career and activities on page one, and old ones on the second page. I’m sure that’s breaking all the rules, but it seems to fit in this case. Now that I’m set up on {vitae}, I can always revert to a more traditional form in a matter of minutes, or even maintain several versions. Either way, it looks like I dragged my feet long enough to luck out with .</p>
+</div>
