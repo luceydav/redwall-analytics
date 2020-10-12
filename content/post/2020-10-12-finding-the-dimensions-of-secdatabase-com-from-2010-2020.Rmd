@@ -1,0 +1,488 @@
+---
+title: Finding the Dimensions of `secdatabase.com` from 2010-2020 - Part 2
+author: David Lucey
+date: '2020-10-12'
+slug: finding-the-dimensions-of-secdatabase-com-from-2010-2020-part-2
+categories: ["R", "Code-Oriented", "SQL"]
+tags: ["XBRL", "AWS", "Athena"]
+---
+
+```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
+
+# Libraries
+packages <- 
+  c("data.table",
+    "DBI",
+    "stringr",
+    "reticulate",
+    "keyring",
+    "RAthena",
+    "ggplot2",
+    "DT"
+    )
+
+if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+knitr::opts_chunk$set(
+  comment = NA,
+  fig.width = 12,
+  fig.height = 8,
+  out.width = '100%'
+)
+```
+
+
+
+```{r 'r-reticulate', message=FALSE, warning=FALSE, include=FALSE}
+# Choose Python 3.7 miniconda
+reticulate::use_condaenv(
+  condaenv = "r-reticulate",
+  required = TRUE
+  )
+```
+
+
+```{r 'rathena-options', message=FALSE, warning=FALSE, include=FALSE}
+RAthena_options(file_parser = "data.table")
+```
+
+
+```{r 'connection', message=FALSE, warning=FALSE, include=FALSE}
+con <- dbConnect(
+  RAthena::athena(),
+  aws_access_key_id = keyring::key_get('AWS_ACCESS_KEY_ID'),
+  aws_secret_access_key = keyring::key_get('AWS_SECRET_ACCESS_KEY'),
+  schema_name = "sec_financial_statements",
+  s3_staging_dir = 's3://secdatabase-test/experiment/',
+  region_name = 'us-east-1')
+```
+
+
+![Source: xbrl.org](/post/2020-10-12-finding-the-dimensions-of-secdatabase-com-from-2010-2020_files/image-27.jpg)
+
+
+# Introduction 
+
+This is part 2 of a 3-part series on extracting XBRL data from `secdatabase.com`. In [Learning SQL and Exploring XBRL with secdatabase.com - Part 1](https://redwallanalytics.com/2020/09/10/learning-sql-and-exploring-xbrl-with-secdatabase-com-part-1/), we showed how to set up the database connection from RStudio. In this post, we will discuss the basics of XBRL and  `secdatabase.com`'s SQL representation of it. We will try to understand the dimensions of the database over its history, and how to query it from RStudio. For example, how many unique companies per year by filing type are included? How many unique labels and concepts per company each year? Have report names been standardized so that data can be retrieved and compared across sectors and over time? How many revisions and extensions were used over time? The goal is to explore how the project has progressed since launch from the perspective of usability for financial analysis in its raw form.
+
+In the first few years, there were several academic papers probing the usefulness of XBRL for end investors, but we found fewer more recently. In this analysis, we find that some of those concerns are starting to be resolved, but many remain valid today. We would like to forewarn that we are not experts on XBRL, and are making our best effort to understand this complicated data set. XBRL is unstructured, and may or may not have consistent fields, while SQL is by definition structured, so this adds complexity. In addition, most of the resources available about XBRL are for accounting professionals, and few that we could find, went into depth about financial analysis. The purpose of our blog is to record our learning so that we can refer back, and also to get feedback from others if there are better solutions. 
+
+We would also like to warn in advance that this post will include a lot of cod on how to query `secdatabase.com` with SQL as well as some quite detailed discussion of the XBRL data model, though we used R for charts and tables. It is intended to be helpful for readers who really want to better understand the history and structure XBRL, and possibly to try out `secdatabase.com` for themselves. Now would be a good time to drop off or skim through the tables if that will be too much detail. Lastly, all the queries shown were checked by `secdatabase.com`, who were very welcoming of the project. There is a comment section at the bottom, and we welcome any constructive feedback.
+
+
+# Series Index
+
+* Part 1 - [Learning SQL and Exploring XBRL with secdatabase.com](https://redwallanalytics.com/2020/09/10/learning-sql-and-exploring-xbrl-with-secdatabase-com-part-1/)
+* Part 2 - Finding the Dimensions of `secdatabase.com` from 2010-2018 - Part 2
+* Part 3 - How to extract company or sector line items from `secdatabase.com` - Part 3 (In Progress)
+
+# Hierarchial Taxonomy of XBRL in `secdatabase.com`
+
+From an investor's perspective, the most challenging thing about XBRL is learning the taxonomy to be able to extract the desired financial statement elements from deeply nested structures. We are going to do our best to lay it out succinctly, but it is likely that there will be inaccuracies. [The XBRL Book](http://ghislainfourny.github.io/the-xbrl-book/) tries to argue that everything we find to be complicated about XBRL are misconceptions, but after our deep dive, we respectfully disagree. We relied on The XBRL Book for much of the information about XBRL, and a lot of responses from the `secdatabase.com` team about their database.
+
+The root of XBRL data elements are called *facts*, which are recorded as string or numeric values, represented by a series of *aspects* (*concept*, *period*, *entity* and *unit*) within a *context*. Within `secdatabase.com`, *facts* are stored in three "data_point" tables, with the most important being "data_point_snapshot" (which shows the most current value after any revisions). As we showed in the last posts, all the "entities" (identified by "cik" or "company_name" fields in `secdatabase.com`) and all their filings (ie: 10-K's, etc.) are tracked in the "company_submission" table. The combination of two or more *aspects*, called a "collision", can uniquely specify the coordinates of a particular value or group of values (*facts*) within a *context* to be displayed in the presentation of a particular *entity*. Within `secdatabase.com`, this always involves joining two or more tables together, usually on at least the accession_number_int field.
+
+Aside from the *entity* ("company_name" or "cik" in `secdatabase`), probably the most important aspect is the *concept* (such as "Revenues", "Assets", etc.), but without other *aspects*, no value can be uniquely specified. Instead of calling these *concepts*, `secdatabase.com` uses the field "datapoint_name", which is included in three tables having the term "data_point" in them, as well as the "report_presentation_line_item" table. We have also heard *concepts* called "tags" in some cases. A particular "datapoint_name" is likely to have many "datapoint_ids" attached to it. For example, a single 10-K might have three separate *facts* specified by a "datapoint_name" like "Revenues" (for say 2017, 2018 and 2019), but each of these would have a unique "datapoint_id". If the entity or year was not specified, a single "datapoint_name" might bring thousands of *facts* for "Revenues" (ie: for all the companies in that year). We found it complicated t0  specify the *context* to get the unique value we were hoping for, and often found ourselves with duplicates for some companies and none for others. We will discuss this more in Post 3 where we try to use the data for company or sector analysis.
+
+An XBRL Instance is just a "bag of facts", and a single fact might be shown in more than one "presentation" (statements and disclosures). For example, Total Revenues might be displayed in the Income Statement, but also in a disclosure of segment reporting of a region or product. A separate taxonomy schema defining concepts and a *linkbase* to organize specified concepts into graphs to be displayed in presentations. We discovered that the names used to describe the same element varied among companies, and the same company might even change the names and/or formatting of its own financial statements over time (ie: "statement - BALANCE SHEET" or "statement - Balance Sheet"), making them different to a computer. As a result, `secdatabase` has manufactured a identifier in the "report_presentation_section" called the "statement_type", which tries to collapse these many variations into the main financial statements which we all expect (ie: Balance Sheet (B), Income Statement (I), etc.). The believe their field is right most of the time, but we found even this identifier to be an incomplete solution.
+
+When a *fact* has been recorded against a *concept* (or "datapoint_name") as a "string_value" or "numeric_value", XBRL also assigns "label roles", which can be used ultimately be used to specify how it will be displayed in a presentation (it's *concept* or in `secdatabase.com` speak "database_name" is not displayed in the presentation). Every *label* has a "language" and a "label role" (called "preferred_label_role" by `secdatabase.com`), and like *concepts*, labels are part of a linkbase. A single *concept* may be associated with more than one *label*. If this seems confusing, that is because it is.
+
+
+# Distinct Companies and Filings per Annum Have Been Declining
+
+We wanted to understand the universe of companies which have been filing in XBRL each year, which was achieved by a simple SQL query of the single "company_submission" table below. We group by "document_type" and "document_fiscal_year_focus "and eliminate duplicate filings with "DISTINCT", then we count by year and "document_type". We had heard that there are ~ 8,000 companies filing in XBRL, so adding up the 10-K, 10-K/A and 20-F's, we get close to that many in 2012, but then easing off to ~ 6,600 in recent years. We assume companies have been withdrawing listings or being acquired at a faster rate than new companies have been issuing stock. Though there was a healthy increase in foreign companies filing 20-F's, it is surprising to see a decline in equity listings during an historic bull market.
+
+
+```{sql 'get-annual-10k', echo=TRUE, connection=con, output.var="annual_10k"}
+SELECT document_fiscal_year_focus AS year
+      ,document_type AS filing
+      ,COUNT(DISTINCT accession_number_int) AS num_filings
+      ,COUNT(DISTINCT cik) AS num_companies
+FROM sec_financial_statements.company_submission
+WHERE document_fiscal_year_focus BETWEEN 2010 AND 2020
+      AND document_type in ('10-K', '10-K/A', '10-Q', '10-Q/A', '20-F', '20-F/A', '40-F')
+GROUP BY document_fiscal_year_focus, document_type
+ORDER BY document_fiscal_year_focus, filing;
+```
+
+```{r 'view-document-types', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Number of Edgar Filings by Type and Year'}
+# Columns to keep
+names <- c("year", "10-K", "10-K/A", "20-F", "20-F/A", "40-F")
+
+# dcast data.table on year and document_type
+d <- 
+  dcast(annual_10k[year %in% c(2011:2019)],
+        year ~ filing,
+        value.var = "num_companies",
+        fill = 0)[, ..names][
+        ][, (names) := lapply(.SD, as.integer), .SDcols = names][]
+
+# Display DT
+datatable(
+  d[, total := rowSums(.SD), .SDcols=names[-1]],
+  colnames = c("Year", names[-1], "Total"),
+  rownames = FALSE) %>%
+  formatRound(columns = c(2:7),
+              mark = ",",
+              digits = 0)
+```
+
+# History of XBRL Challenges
+
+In the early days after launch of XBRL, there was lot of academic research on the challenges of implementing XBRL. Here is a thorough accounting of the concerns from the beginning of 2013 [SEC–Mandated XBRL Data at Risk of Being Irrelevant to Investors and Analysts](https://www8.gsb.columbia.edu/newsroom/newsn/2258/secmandated-xbrl-data-at-risk-of-being-irrelevant-to-investors-and-analysts). The key recommendations to avoid the risk of becoming obsolete to investors were: (1) reduce the error rate and limit unnecessary extensions, (2) improve the quality of data and (3) have technologists take over from accountants. The link to CEASA's longer paper on the subject is [here](https://www8.gsb.columbia.edu/ceasa/sites/ceasa/files/An%20Evaluation%20of%20the%20Current%20State%20and%20Future%20of%20XBRL%20and%20Interactive%20Data%20for%20Investors%20and%20Analysts.pdf). As we will show, between vendors like [XBRLogic](http://asreported.com) and the industry advocate, [XBRL US](https://xbrl.us/home/about/legal/), the US branch of the non-profit supporting the implementation of digital business reporting standards, there are signs of recent improvement on some fronts.
+
+
+# Labels Role Types Contribute to Errors
+
+One of the big contributors to presentation errors comes from labels. In the next query, we show the number of *label roles* each year, this time from the "report_presentation_line_item" table, which connects a group of *concepts* to a presentation. By far the most common is the *terseLabel*, followed by no or a missing label, *verboseLabel* and *label* (also known as the "standard" label). We also don't understand why there would not be a label in so many cases. As we understand it, the *terseLabel* and *verboseLabels* are shorter and longer versions of *label*, respectively. We are surprised that there are so many more *terseLabels* than *labels* or *verboseLabels*, because the [XBRL Book](http://ghislainfourny.github.io/the-xbrl-book/) informs us that the standard *label* is supposed to be the most common. Both labels and *terseLabels* are then aggregated within the XBRL Taxonomy (which we showed at the end of Part 1) into *totalLabels*, which are always sums of other labels. The *periodEndLabel* and *periodStartLabel* are used to define the period or duration of time, and are used with other to define *period*. In the query below, we pull out the most common "preferred_label_role" over the whole period.
+
+
+```{sql 'get-label-roles', echo=TRUE, connection=con, output.var = "labels"}
+SELECT preferred_label_role
+       ,COUNT(*) AS frequency
+FROM sec_financial_statements.report_presentation_line_item
+GROUP BY preferred_label_role
+ORDER BY COUNT(*) DESC;
+```
+
+
+```{r 'show-label-roles', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Frequency of Usage of Label Roles - All Periods'}
+datatable(
+  labels,
+  colnames = c("Preferred Label Role", "Frequency"),
+  rownames = FALSE) %>%
+  formatRound(columns = 2,
+              mark = ",",
+              digits = 0)
+```
+
+Because *facts* are supposed to be positive by default, there are several "negated" label roles, which are used if there is a need to flip the sign of something for display in a presentation. For example, the main concept for net income is "NetIncomeLoss", which should by convention always have a positive numeric value, but would be displayed with a *negatedLabel* when there was a loss. However, we also found cases where the string or numeric value was already negative. Our understanding is that one of the most common areas where errors occur in XBRL is with negated labels mistakenly transposing the sign of line item. With all of this complexity, it is not surprising that the wrong labels or label roles have often been used. As we will discuss, label roles seem to be one area where there confusion by those who prepare XBRL statements, seemingly switching conventions from year to year. If those who prepare financial statements have struggled with it, the challenge would be doubly difficult for investors. After we spent several hours trying to understand label roles, we are still not sure we have it down.
+
+
+# The Problem of *Concept* Standardization
+
+The complication surrounding *concepts* (in our data set called "datapoint_name"), seems to be another of the main challenges which has held XBRL back from wide use by investors. Companies have the discretion to make up custom concepts, known as "extensions" in XBRL parlance. The desire to do this company-by-company makes sense, but when considered across sectors or the market as a whole, it negatively impacts comparability. All of these issues are discussed in detail in this excellent summary by Idaciti [In Data We Trust. In High Quality Data We Shine](https://stories.idaciti.com/in-data-we-trust/). 
+
+Here are the 25 most common fields in 2019. Our understanding is that XBRL is built on the idea of matching "as reported" financial statements. Though it seems like the highest level line items like "Assets", "Liabilities" and "Shareholders Equity" should have 100% comparability across the 5,460 companies reporting 10-K's in 2019, these come well short of the number. The number of companies using a field also falls off sharply after the first 25, so comparability will be much worse for more revealing items, like bad debts, capitalized items and accruals. 
+
+
+```{sql 'datapoint-names', echo=TRUE, connection=con, output.var='unique_dp_types'}
+SELECT datapoints
+      ,COUNT(*) AS num_occur
+    FROM (SELECT DISTINCT dp.datapoint_name AS datapoints, 
+                 dp.accession_number_int,
+                    document_fiscal_year_focus
+    FROM sec_financial_statements.data_point_snapshot dp
+    INNER JOIN sec_financial_statements.company_submission cp
+      ON dp.accession_number_int = cp.accession_number_int
+    WHERE document_fiscal_year_focus = 2019 
+      AND dp.unit = 'USD' 
+      AND cp.document_type = '10-K')
+GROUP BY datapoints
+ORDER BY num_occur DESC
+LIMIT 25;
+```
+
+```{r 'datapoints', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Number of Occurances of Concept during 2019' }
+datatable(
+  unique_dp_types,
+  colnames = c("Concept (datapoint_name)", "Number Occurrances"),
+  rownames = FALSE
+) %>%
+  formatRound(columns = 2,
+              mark = ",",
+              digits = 0)
+```
+
+
+In the query below and table below, we show the number of unique *concepts* (datapoint_name) by "label_role" over time. The number of unique concepts rise steadily until 2013 or 2014, and then start to come down slowly. The number of labels roles which are missing (ie: no label role at all recorded) shows the most improvement. So there is some evidence that an effort is being made, but as we will show in Part 3, there is still room to improve. The only thing to say about the SQL query are to highlight the two `WHERE` statements (1) rpli.datapoint_id = dp.datapoint_id and (2) rps.section_sequence_id = rpli.section_sequence_id. Without these two constraints, we found we were double-counting many data points.
+
+```{sql 'get-number-label-roles', echo=TRUE, connection=con, output.var="annual_labels"}
+SELECT year
+      ,label_role
+      ,COUNT(*) AS unique_labels
+FROM( SELECT DISTINCT rpli.datapoint_name
+                      ,rpli.preferred_label_role AS label_role
+                      ,cs.document_fiscal_year_focus AS year
+      FROM sec_financial_statements.company_submission cs,
+            sec_financial_statements.report_presentation_section rps,
+            sec_financial_statements.report_presentation_line_item rpli,
+            sec_financial_statements.data_point_snapshot dp
+      WHERE cs.accession_number_int = rpli.accession_number_int 
+        AND rpli.accession_number_int = rps.accession_number_int 
+        AND rps.accession_number_int = dp.accession_number_int 
+        AND rps.section_sequence_id  = rpli.section_sequence_id 
+        AND rpli.datapoint_id = dp.datapoint_id 
+        AND cs.document_fiscal_year_focus BETWEEN 2010 AND 2020 
+        AND cs.document_type = '10-K' 
+        AND cs.document_fiscal_period_focus = 'FY'
+      GROUP BY cs.document_fiscal_year_focus, rpli.datapoint_name, rpli.preferred_label_role)
+GROUP BY year, label_role
+ORDER BY year;
+```
+
+```{r 'labels-roles-per-annum', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Annual Number of Unique Concepts by Label'}
+DT::datatable(
+  dcast(annual_labels[
+    label_role %chin% 
+      c("label",
+        "terseLabel",
+        "verboseLabel",
+        "totalLabel",
+        NA_character_) & 
+      year %in% c(2011:2019)][is.na(label_role), label_role := "missing"],
+    year ~ label_role,
+    value.var = "unique_labels"),
+  colnames = 
+    c("Year",
+      "Label",
+      "Terse Label",
+      "Total Label",
+      "Verbose Label",
+      "Missing Label"), 
+  rownames = FALSE) %>%
+  formatRound(columns = c(2:6),
+              mark = ",",
+              digits = 0)
+```
+
+# Use of Extensions Has Declined, But Still Represent About 18% of Data Points
+
+It is easy to understand why extensions are needed, but non-standard data points are big detractors from comparability, so it is recognized for a long time that fewer would be better. It sounds like the SEC is getting more serious more recently about discouraging them, but progress has been slow, especially for smaller companies. With the help of `secdatabase.com`, the query below filters on the "version" from the "data_point" table being null or not null in order to distinguish non-standard from standard data points. If version (ie: "us-gaap/2019") is null, the data point is an extension. In our query, we have limited to just 10-K's and 10-K/A's. 
+
+We can see that almost all companies have at least a few extensions. Our understanding is that larger companies have been much better at sticking to the standard tags, but we have not grouped by company size for this analysis. The table below shows that extensions peaked in about 2013, and have come down by almost half. We do also not show the calculations here, but there are about 30x as many unique non-standard as unique standard data point names, but because standard data point names are used so much more frequently, the ratio of non-standard to standard data points is much lower. As we show below, we calculate that the ratio has bounced between 16-25%, and in recent years, extensions have been about 18% of all data points. This ratio squares with with the [SEC GAAP Trends Analysis for 2019](https://www.sec.gov/structureddata/gaap_trends_2019). 
+
+
+```{sql 'get-extensions', echo=TRUE, connection=con, output.var='extensions'}
+SELECT year(cs.filing_date) AS filing_year
+   ,count(CASE WHEN version IS NOT NULL THEN datapoint_name END) standard_datapoints_count
+   ,count(CASE WHEN version IS NULL THEN datapoint_name END) non_standard_datapoints_name_count
+   ,count(DISTINCT CASE WHEN version IS NULL THEN cs.cik END) total_company_count_with_extension
+   ,count(DISTINCT cs.cik) total_company_count
+FROM sec_financial_statements.data_point_snapshot dp
+INNER JOIN sec_financial_statements.company_submission cs
+   ON dp.accession_number_int = cs.accession_number_int
+WHERE CS.document_type IN ('10-K', '10-K/A') AND dp.segment_hash IS NULL
+GROUP BY year(cs.filing_date)
+ORDER BY 1 DESC
+```
+
+```{r 'show-extensions', echo=FALSE, message=FALSE, warning=FALSE}
+datatable(
+  extensions[
+    between(filing_year, 2010, 2020), ][,
+      ][, ratio := non_standard_datapoints_name_count / standard_datapoints_count][
+        ][, c(1:3, 6, 4:5)][
+          ][order(filing_year)], 
+  colnames = c(
+    "Year",
+    "Standard Datapoints",
+    "Extension Count",
+    "Percent Extensions",
+    "Companies with Extensions",
+    "Total Companies"
+  ),
+  rownames = FALSE) %>%
+  formatRound(
+    columns = c(2:3, 5:6),
+    mark = ",",
+    digits = 0) %>%
+  formatPercentage(
+    columns = 4,
+    digits = 1
+  )
+
+```
+
+
+# Another Way to Look at Annual Number of Unique Tags
+
+For the query below, we sum up the annual number of times the five most common label roles (*label*, *terseLabel*, *verboseLabel*, *totalLabel* and no label) were used for a unique *concept* (datapoint_name). We then summed up how many *concepts* were used that many times in a given year with that label role. If the "Concept Frequency in Year" (x-axis) is 1, each of those label roles were only used once for that year, 2 for those used twice, and so on. Taking for example the *label* facet in the chart below, the number used just 1x has generally been ~4,000-10,000 per year. Unique "terseLabel's" were used 1x ~68,000-90,000. If there are typically 6-8k companies filing, there should ideally be only several hundred concepts used that many times for genuine comparability. Moving to the right of the x-axis, there are very few labels which were used more than 500 times. Curves for later years have come down somewhat and slowly flattened compared to the early years. Positive change would see the graph moving much further downwards from the left on the tag_frequency axis and flattening out. 
+
+
+``````{sql 'annual-unique-labels', echo=TRUE, connection=con, output.var="annual_unique_labels"}
+SELECT year
+        ,tag_frequency
+        ,label_role
+        ,COUNT(*) AS num_repeats
+FROM( SELECT DISTINCT rpli.datapoint_name
+                     ,rpli.preferred_label_role AS label_role
+                     ,COUNT(*) as tag_frequency
+                    ,cs.document_fiscal_year_focus AS year
+      FROM sec_financial_statements.company_submission cs,
+           sec_financial_statements.report_presentation_line_item rpli,
+           sec_financial_statements.report_presentation_section rps,
+           sec_financial_statements.data_point_snapshot dp
+      WHERE cs.accession_number_int = rpli.accession_number_int 
+        AND rpli.accession_number_int = rps.accession_number_int 
+        AND rps.accession_number_int = dp.accession_number_int 
+        AND rps.section_sequence_id  = rpli.section_sequence_id 
+        AND cs.document_fiscal_year_focus BETWEEN 2010 AND 2020 
+        AND rpli.datapoint_id = dp.datapoint_id 
+        AND cs.document_type = '10-K' 
+        AND cs.document_fiscal_period_focus = 'FY' 
+      GROUP BY cs.document_fiscal_year_focus, rpli.datapoint_name, rpli.preferred_label_role)
+GROUP BY year, tag_frequency, label_role
+ORDER BY year;
+```
+
+
+```{r 'graph-labels', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Annual Concept Repeats by Concept Frequency of Occurance'}
+plotly::ggplotly(
+  annual_unique_labels[ 
+    year %in% c(2012:2019) & 
+      label_role %chin% c("label", "terseLabel", "verboseLabel", "totalLabel", NA_character_)][
+      ][is.na(label_role), label_role := "missing"][
+        ][, ggplot(.SD, aes(tag_frequency, num_repeats, color = factor(year))) +
+            scale_y_log10() +
+            scale_x_log10() +
+            geom_line() +
+            theme_bw() +
+            facet_wrap(~ label_role) +
+            labs(
+              title = "Standardization Progress Graph Has Been Slow",
+              subtitle = "Flatter and Lower is better",
+              x = "Concept Frequency in Year",
+              y = "Number of Repeats of Concept",
+              caption = "Source: secdatabase.com"
+            )])
+```
+
+It would be more understandable a year or two after the launch of XBRL, but when all the warning signs were there from the beginning, is a little frustrating to still see. The Idaciti's [In Data We Trust. In High Quality Data We Shine](https://stories.idaciti.com/in-data-we-trust/) does an excellent job of explaining these comparability issues. As, mentioned earlier describes recent efforts being made to improve this situation by the FASB, the XBRL US Data Quality Committee and the SEC, which we will discuss later on.
+
+In response to these challenges, [Intrinio](https://intrinio.com/blog/what-is-xbrl-a-primer-on-sec-data), an XBRL and market data provider, uses machine learning to "standardize" 18,000 unique concepts (they use the term "tags") each year down to about 300, which allows for better comparability. They discuss their standardization process here [How Does Intrinio Build Standardized Fundamental Data?](https://intrinio.com/blog/how-does-intrinio-build-standardized-fundamental-data). Intrinio reports that their algorithms classify financial statement fields with 99.8% accuracy before human review. We have heard others, like Compustat, do much of this manually. Absent building our own standardization tools, these services may be the way to go for the time being.
+
+# Many Different Names for the Same Financial Statements
+
+In the table below, we show the most used names for the various financial statements in 10-K's for 2019. For example, there are a dozen different names for the Consolidated Balance Sheet with the most common, "Statement - Consolidated Balance Sheets", being shared by less half of the reports filed that year. Some are capitalized, others leave out the word "Consolidated" and "Financial Condition" is used instead of "Balance Sheet". There may be some issues also with the `secdatabase.com` categorization because "Condensed" rather than "Consolidated" are also included here in some cases. Ideally, there would be only one tag for each of these reports for all reporting companies. The other statements have even more variations than for the Balance Sheet. As we will discuss in Part 3, this presents problems when trying to query a single financial statement line item from `secdatabase.com` from a group of companies or time periods.
+
+
+```{sql 'get-reports', echo=TRUE, connection=con, output.var='statement_names'}
+SELECT rps.report_section_description AS report_name
+      ,rps.statement_type
+      ,COUNT(*) AS num_reports
+FROM sec_financial_statements.report_presentation_section rps,
+      sec_financial_statements.company_submission cs
+WHERE rps.accession_number_int = cs.accession_number_int 
+  AND cs.document_type = '10-K' 
+  AND cs.document_fiscal_period_focus = 'FY' 
+  AND cs.document_fiscal_year_focus = 2019 
+  AND rps.statement_type IN ('I', 'B', 'C', 'SE')
+GROUP BY rps.report_section_description, rps.statement_type
+ORDER BY COUNT(*) DESC
+LIMIT 100;
+```
+
+```{r 'reports', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Actual Report Name by Financial Statement Type in 2019'}
+# Cast report_name vs statement_type
+datatable(
+  statement_names[, dcast(.SD,
+                          report_name ~ statement_type,
+                          value.var = "num_reports",
+                          fill = 0)], 
+  colnames = c("Report Name", "B", "C", "I", "SE"), 
+  rownames = FALSE
+) %>%
+  formatRound(
+    columns = c(2:5),
+    mark = ",",
+    digits = 0)
+```
+
+
+# `secdatabase.com` Distinct Statement Type Counts
+
+Because of the varied names used for the same statements, `secdatabase.com` created the "statement_type" field as a classifier. The actual disclosure name can be found in the "report_section_description" variable of the "report_presentation_section" table. In the query below, we aggregated those by year. There are a similar number of Balance Sheets ("B"), Statement of Shareholder's Equity ("SE") and Statements of Cash Flows ("C"), but much fewer Income Statements ("I") than there are 10-K's. There are a very large number of unique names for Disclosures. Many more would have been expected, but about 60 Disclosures per company is more than we would have expected. We can see that they come close to the 6,600 Balance Sheet, Statement of Cash Flows and Statements of Stockholders Equity in 2019, but fall short on Income Statements.
+
+
+```{sql 'get-statement-types', connection=con, echo=TRUE, connection=con, output.var = 'statements'}
+SELECT statement_type AS statement_name
+      ,document_fiscal_year_focus AS year
+      ,COUNT(*) AS frequency
+FROM sec_financial_statements.report_presentation_section rps,
+      sec_financial_statements.company_submission cs
+WHERE cs.accession_number_int = rps.accession_number_int 
+  AND cs.document_type IN ('10-K', '10-K/A', '10-Q', '10-Q/A', '20-F', '20-F/A', '40-F')
+  AND cs.document_fiscal_period_focus = 'FY'
+GROUP BY statement_type, document_fiscal_year_focus
+ORDER BY COUNT(*) DESC;
+```
+
+```{r 'show-statement-types', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Annual Financial Statement Type by Frequency'}
+datatable(
+  statements[year %in% c(2012:2019)][
+  ][, statement_name := 
+      fifelse(is.na(statement_name), "Disclosures", statement_name)][
+  ][, dcast(.SD,
+            statement_name ~ year,
+            value.var = "frequency",
+            fill = 0)], 
+          colnames = c("Type", as.character(2012:2019)),
+  rownames = FALSE) %>%
+  formatRound(columns = c(2:8),
+              mark = ",",
+              digits = 0)
+```
+
+# XBRL Reporting Errors Past and Present
+
+As mentioned earlier, there can also be many kinds of errors including taxonomy errors, block type, sign errors, extensions, period type and others. We had hoped to try to replicate the excellent quarterly [XBRL Quality Score](http://xbrlsite.azurewebsites.net/2020/Library/XBRLogicQualityReport.pdf) shown below, but `secdatabase.com` only parses the database without validation, so it is impossible at least for now. The table is far beyond what we could hope to achieve and errors across 9 metrics along with their prevalence. In their blog post [THE XBRL FILES: OF WHAT USE ARE THE RULES?](http://asreported.com/XBRLBlog.aspx), XBRLogic expresses many of the same frustrations that we have discussed above.
+
+![Source: XBRLogic](/post/2020-10-12-finding-the-dimensions-of-secdatabase-com-from-2010-2020_files/Screen Shot 2020-09-27 at 4.28.09 PM.png)
+
+On its website, XBRL US has built an excellent [Filing and Results and Quality Checks Dashboard](https://xbrl.us/data-quality/filing-results/), which compares the Data Quality Committee and SEC Edgar Filing Manual rules to company as reported filings. There are also tools put in place starting in 2015 for companies to check for errors before filing. They have also tracked the progress over the most common errors over time in the [Aggregated Real-time Filing Errors](https://xbrl.us/data-quality/filing-results/dqc-results/) report. In the initial years, many of the errors kept rising, but in the last two years have come down sharply. Although we don't have the validation data to find the errors, we assume that most errors eventually end up as revisions, which we do have. With the help of `secdatabase.com`, we were able to put together the query below. If those are anything to go by, there was a slow decline in recent years, followed by a big drop in 2019. We can hope that such excellent feedback like XBRLogic table and the XBRL US tools are leading to the sharp recent reduction in errors.
+
+```{sql 'get-revisions', connection=con, include=FALSE, output.var='revisions'}
+SELECT year
+	,COUNT(DISTINCT datapoint_id) AS num_revisions
+FROM (
+	SELECT dp.*
+		-- for the data point in data_point_revision table. earliest filing_date be original reported, other rows are revisions.
+		,COUNT(*) OVER (PARTITION BY dp.datapoint_id) - 1 AS total_revision
+	FROM (
+		-- get all  the annual report data points
+		SELECT DISTINCT dp.datapoint_id
+			,dp.numeric_value
+			,YEAR(dp.end_date) AS year
+			,rpli.preferred_label_role
+			,dp.datapoint_name
+			,dp.filing_date
+		FROM sec_financial_statements.company_submission cp
+			,sec_financial_statements.report_presentation_line_item rpli
+			,sec_financial_statements.report_presentation_section rps
+			,sec_financial_statements.data_point_snapshot dp
+		WHERE cp.accession_number_int = rpli.accession_number_int
+			AND rpli.accession_number_int = rps.accession_number_int
+			AND rps.accession_number_int = dp.accession_number_int
+			AND rps.section_sequence_id = rpli.section_sequence_id
+			AND rpli.datapoint_id = dp.datapoint_id
+			AND cp.document_type = '10-K'
+			AND cp.document_fiscal_period_focus = 'FY'
+		) dp
+	INNER JOIN sec_financial_statements.data_point_revision dpr ON dpr.datapoint_id = dp.datapoint_id
+	) t_1
+WHERE total_revision > 0 -- exclude the original reported.
+GROUP BY year;
+```
+
+```{r 'show-revisions', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Annual Revision Count over Time'}
+DT::datatable(
+  revisions[order(year)][year %in% c(2010:2019)],
+  colnames = c("Year", "Number Revisions"),
+  rownames = FALSE,
+  ) %>%
+  formatRound(columns = 2,
+              mark = ",",
+              digits = 0)
+  
+```
+
+# Conclusion
+
+Judging by how little academic research, books or other blog posts we could find in more recent years (outside of those by data vendors), it seems like CEASA's concerns may have at least partially come to pass with the raw XBRL data. It seems like errors are becoming much less common and may go away completely in future statements, though unfortunately, are likely to remain part of the historic record. We mentioned earlier that Intrinio has been using machine learning reportedly with success to "standardize" XBRL elements, and that deservedly has a cost. Maybe vendors will have to be a layer between the raw data and end investors, but they often have user interfaces which lead to constraints and slow down access relative to a big database like this one. When we queried `secdatabase.com`, no response took more than a few seconds, no matter how many rows, which may not be possible with other vendors, and having that access may not be affordable or allowed for boundless exploration as we have done here. A future series could involve exploring if a vendor like Intrinio would be a viable means for accessing data points across the full historical record of companies and years in a cost effective manner.  It is easy to get excited about the potential of XBRL to mine for insight, but this exercise has been another reminder that it is still a work in progress. In our next post, we will try to drill down by company and across sectors to see how we do.
+
