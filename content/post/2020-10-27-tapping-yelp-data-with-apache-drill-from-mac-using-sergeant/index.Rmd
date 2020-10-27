@@ -7,7 +7,6 @@ categories: ["R", "Code-Oriented", "SQL"]
 tags: ["Apache Drill", "Java"]
 ---
 
-
 ```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
 
 # Libraries
