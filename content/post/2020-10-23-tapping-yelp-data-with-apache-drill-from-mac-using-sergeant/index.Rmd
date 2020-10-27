@@ -33,8 +33,8 @@ knitr::opts_chunk$set(
 ```
 
 
-```{r 'yelp', echo=FALSE, message=FALSE, warning=FALSE, out.width='100%'}
-knitr::include_graphics("/Users/davidlucey/Desktop/David/Projects/redwall-analytics/static/img/yelp.png", error = FALSE)
+```{r 'yelp', echo=FALSE, message=FALSE, warning=FALSE, screenshot.opts = list(delay = 5)}
+knitr::include_url("https://www.yelp.com/dataset")
 ```
 
 # Introduction
@@ -141,13 +141,13 @@ Drill is connected to data sources via [storage plug-ins](https://drill.apache.o
 
 In his Yelp blog post, Bob Rudis used "root.dfs" as the path to tables. At first, we didn't understand what this referred to, but it is used as the path to the root of the file system where the data is stored as configured in the storage plug-ins. The "Storage" page of the Drill Web App is shown below. Both his and the Apache documentation also refer the "cp" path to refer to example JAR data in the Drill "classpath". In addition to the two defaults, all the plug-ins available for hive, mongo, s3, kafka, etc. are also shown below. 
 
-```{r 'storage', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+```{r 'storage', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 5)}
 knitr::include_url('http://localhost:8047/storage')
 ```
 
 By clicking on the "Update" button for "dfs", it is easy to modify the "workspace", "location" and "defaultInputFormat" with the path to the file with your data. In our case, we changed the name of workspace to "root", the location to "/Volumes/davidlucey/aDL/data/yelp_dataset/" and the defaultInputFormat to "json". All the different data types are shown further down in "formats", which is one of the big selling points. According to `{sergeant}`, it is possible to even combine disparate source types like: json, csv, parquet and rmdbs by modifying formats when configuring "dfs", while pointing to almost any distributed file system. Once a path is configured in the plug-in, the data in that folder is all set to be queried from RStudio.
 
-```{r 'dfs', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+```{r 'dfs', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 5)}
 knitr::include_url('http://localhost:8047/storage/dfs')
 ```
 
@@ -185,7 +185,7 @@ toc()
 ```
 
 
-```{r 'profiles', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+```{r 'profiles', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 5)}
 knitr::include_url('http://localhost:8047/profiles')
 ```
 
@@ -278,7 +278,7 @@ dq <-
 It is amazing how much information about the query Drill gives us, shown in the frame below. Looking further down at the Operator Profiles, we can see that joining almost 10 million rows, twice, ate up over 70% of the query time. A couple of aggregations also cost almost 20%. The scan operators spent time waiting for data and some operators spilled to disc. Even without those, we still wouldn't have been satisfied with anywhere near this amount of time. Having this information, it seems like it would be possible to optimize, but we didn't know how to do it. We have been recently learning SQL and realize that there is still a lot to learn. 
 
 
-```{r 'query-and-planning', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+```{r 'query-and-planning', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 5)}
 knitr::include_url('http://localhost:8047/profiles/20746009-dec6-a077-f88a-79071cac9b86')
 ```
 
@@ -286,7 +286,7 @@ knitr::include_url('http://localhost:8047/profiles/20746009-dec6-a077-f88a-79071
 Lastly, Drill has a nice dashboard which allowed us to for example instruct the hash joins and hash aggregations to ignore memory limits. There were a lot of parameter settings available, but we were not sure how to adjust these to solve our specific problems, but would welcome any good advice or pointers.
 
 
-```{r 'options', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+```{r 'options', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 5)}
 knitr::include_url('http://localhost:8047/options')
 ```
 
