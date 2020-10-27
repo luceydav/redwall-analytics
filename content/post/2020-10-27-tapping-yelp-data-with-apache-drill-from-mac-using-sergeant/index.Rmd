@@ -1,10 +1,9 @@
 ---
 title: Tapping Yelp data with Apache Drill from Mac using {sergeant}
 author: David Lucey
-date: '2020-10-23'
+date: '2020-10-27'
 slug: tapping-yelp-data-with-apache-drill-from-mac-using-sergeant
-categories:
-  ["R", "Code-Oriented", "SQL"]
+categories: ["R", "Code-Oriented", "SQL"]
 tags: ["Apache Drill", "Java"]
 ---
 
@@ -309,7 +308,5 @@ jenv global 14.0.2
 # Conclusion
 
 We don't know the status of Drill given "orphan" status, but there wasn't much current discussion that we could find with a quick search. If these problems are fixable, we would be very grateful for feedback and promise to update this post for the benefit of others. If there is a clearly better open source way to accomplish these objectives, knowing that would also be very much appreciated.
-
-
 
 
