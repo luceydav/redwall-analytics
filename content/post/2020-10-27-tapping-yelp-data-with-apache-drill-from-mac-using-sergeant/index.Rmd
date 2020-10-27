@@ -5,6 +5,7 @@ date: '2020-10-27'
 slug: tapping-yelp-data-with-apache-drill-from-mac-using-sergeant
 categories: ["R", "Code-Oriented", "SQL"]
 tags: ["Apache Drill", "Java"]
+draft: true
 ---
 
 ```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
