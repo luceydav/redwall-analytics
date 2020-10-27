@@ -3,7 +3,7 @@ languageCode = "en-gb"
 title = "Redwall Analytics"
 theme = "hugo-lithium-theme"
 googleAnalytics = "UA-177379740-1"
-ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
+ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\\.md$"]
 disqusShortname = "www-redwallanalytics-com"
 
 [permalinks]
@@ -72,4 +72,7 @@ disqusShortname = "www-redwallanalytics-com"
     #[params.sidebar]
     #enable = true
 
-
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
