@@ -37,6 +37,7 @@ knitr::opts_chunk$set(
 knitr::include_url("https://www.yelp.com/dataset")
 ```
 
+
 # Introduction
 
 At Redwall, we have been in nonstop exploration of new data sets over the last couple of years. As our data grows and the targets of interest get bigger, we have been finding the old method of loading csv's from disc, and working on the full set in memory is becoming less optimal. We thought we would try Apache Drill via the `{sergeant}` package created by Bob Rudis, a prolific R developer. Apache Drill seems amazing because it would allow us to be agnostic as to data source and type. Usually, we write blog posts to show off things we have learned which are actually working. The punchline in this case though, is that we were not able to get where we hoped so far with Drill. We will chronicle what we have done so far, and where we are still falling short. 

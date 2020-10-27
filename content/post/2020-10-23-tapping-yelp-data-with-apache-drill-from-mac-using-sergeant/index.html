@@ -151,7 +151,7 @@ yelp_biz &lt;-
 users &lt;- tbl(db, &quot;dfs.root.`yelp_academic_dataset_user.json`&quot;)
 review &lt;- tbl(db, &quot;dfs.root.`yelp_academic_dataset_review.json`&quot;)
 toc()</code></pre>
-<pre><code>Loading the four key datasets with: : 25.122 sec elapsed</code></pre>
+<pre><code>Loading the four key datasets with: : 46.953 sec elapsed</code></pre>
 <p>It takes about two minutes to skim <code>yelp_biz</code>, which seems too long for ~210k rows, and definitely not worth it with the other, much larger files. <a href="https://rud.is/rpubs/yelp.html">Analyzing the Yelp Academic Dataset w/Drill &amp; sergeant</a> didn’t give the timing on its queries, but we assume it was much faster than this. The error message recommends that we <code>CAST</code> BIGINT columns to <code>VARCHAR</code> prior to working with them in <code>dplyr</code>, and suggests that we consider using R ODCBC with the MapR ODBC Driver because <code>jsonlite::fromJSON()</code> doesn’t support 64-bit integers. So, we are going to give ODBC a try in the next section and will set up a query to try to take this message into account to see if that makes a difference.</p>
 <pre class="r"><code>tic(&quot;Time to skim: &quot;)
 skimr::skim(yelp_biz)</code></pre>
@@ -394,7 +394,7 @@ This informational warning will only be shown once per R session and you can dis
 </tbody>
 </table>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>Time to skim: : 91.742 sec elapsed</code></pre>
+<pre><code>Time to skim: : 104.392 sec elapsed</code></pre>
 <iframe src="http://localhost:8047/profiles" width="100%" height="400px">
 </iframe>
 </div>
@@ -427,7 +427,7 @@ review &lt;-
   tbl(drill_con,
       sql(&quot;SELECT * FROM dfs.root.`yelp_academic_dataset_review.json`&quot;))
 toc()</code></pre>
-<pre><code>Loading the four key datasets with ODBC: : 38.425 sec elapsed</code></pre>
+<pre><code>Loading the four key datasets with ODBC: : 60.857 sec elapsed</code></pre>
 <p>The <code>skim()</code> for yelp_biz took about the same amount of time, but either way, it was still way too long to be a viable alternative.</p>
 <pre class="r"><code>tic(&quot;Skim yelp-biz with ODBC&quot;)
 skimr::skim(yelp_biz)</code></pre>
@@ -664,7 +664,7 @@ provided. Falling back to `character`.</code></pre>
 </tbody>
 </table>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>Skim yelp-biz with ODBC: 94.368 sec elapsed</code></pre>
+<pre><code>Skim yelp-biz with ODBC: 74.512 sec elapsed</code></pre>
 </div>
 <div id="query-profiling-with-drill" class="section level1">
 <h1>Query Profiling with Drill</h1>
