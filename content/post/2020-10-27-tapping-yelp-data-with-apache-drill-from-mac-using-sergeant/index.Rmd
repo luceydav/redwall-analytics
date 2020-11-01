@@ -5,7 +5,6 @@ date: '2020-10-27'
 slug: tapping-yelp-data-with-apache-drill-from-mac-using-sergeant
 categories: ["R", "Code-Oriented", "SQL"]
 tags: ["Apache Drill", "Java"]
-draft: true
 ---
 
 
@@ -38,7 +37,6 @@ knitr::opts_chunk$set(
   out.width = '100%'
 )
 
-options(blogdown.server.timeout = 60) 
 ```
 
 </details>
@@ -68,23 +66,25 @@ d <-
 data.frame(file = stringr::str_extract(rownames(d), "yelp.*"), size = d$size)
 ```
 </details>
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r 'print-yelp', echo=FALSE, message=FALSE, warning=FALSE}
 data.frame(file = stringr::str_extract(rownames(d), "yelp.*"), size = d$size)
 ```
 
-
-
 # Background on Drill
 
-To quote from this guide: [Apache Drill - Quick Guide](https://www.tutorialspoint.com/apache_drill/apache_drill_quick_guide.htm)..
+To quote from this guide: [Apache Drill - Quick Guide](https://www.tutorialspoint.com/apache_drill/apache_drill_quick_guide.htm).
 
 *Apache Drill is a low latency schema-free query engine for big data. Drill uses a JSON document model internally which allows it to query data of any structure. Drill works with a variety of non-relational data stores, including Hadoop, NoSQL databases (MongoDB, HBase) and cloud storage like Amazon S3, Azure Blob Storage, etc. Users can query the data using a standard SQL and BI Tools, which doesn’t require to create and manage schemas.*
+
+We also found the excellent chart shown in *SQL on Everything with Apache Drill* below on [What is Apache Drill and how to setup your Proof-of-Concept](https://technology.amis.nl/2019/03/11/what-is-apache-drill-and-how-to-setup-your-proof-of-concept/)
+
+![SQL on Everything with Apache Drill](/img/drill/sql-on-everything.png)
 
 If this could work, it feels like we could fire it up and use it in just about any of our data sources or types. In this post, we are just going to use with a single node as we are only working with one small computer, but it looks like it should be easy to add additional nodes to speed things up.
 
 # Sergeant
 
-As usual, none of this would have been possible without an amazing open source package created and shared by a real developer, often in their free time. In this case, we relied on Bob Rudis' (Drill) `{sergeant}` package, blog posts and bookdown manual [Drill in More than 10 Minutes](https://rud.is/books/drill-sergeant-rstats/drill-in-more-than-10-minutes.html). He explains that he set up the interface because he saw Drill as a streamlined alternative to SPARK for those not needing the ML components (ie: just needing to query large data sources of disparate types like json, csv, parquet and rdbms) The package allows to connect to Drill via `dplyr` interface with the `src_drill()` function, and also the REST API with `drill_connection()`. Before using `{sergeant}` though, Java, Drill and Zookeeper must be installed.
+As usual, none of this would have been possible without an amazing open source package created and shared by a real developer, often in their free time. In this case, we relied on Bob Rudis' (Drill) `{sergeant}` package, blog posts and bookdown manual [Drill in More than 10 Minutes](https://rud.is/books/drill-sergeant-rstats/drill-in-more-than-10-minutes.html). He explains that he set up the interface because he saw Drill as a streamlined alternative to SPARK for those not needing the ML components (ie: just needing to query large data sources of disparate types like json, csv, parquet and rdbms). The package allows to connect to Drill via `dplyr` interface with the `src_drill()` function, and also the REST API with `drill_connection()`. Before using `{sergeant}` though, Java, Drill and Zookeeper must be installed.
 
 # Java
 
@@ -108,10 +108,9 @@ jenv version
 ```
 
 
-
 # Setting up Apache Drill
 
-The latest version (December 2019) can be downloaded from [here](http://apache.mirrors.hoobly.com/drill/drill-1.17.0/apache-drill-1.17.0.tar.gz), but note with the sale of MapR to Hewlett Packard last year, the project is reported to have been "orphaned". We took the download and install route, though we subsequently found that using `brew install apache-drill` might have avoided some of the questions we now have about symlinking (see Zookeeper section below). We currently have it installed at `/usr/local/apache-drill-1.1.7.0/` (shown below). 
+The latest version (December 2019) can be downloaded from [here](http://apache.mirrors.hoobly.com/drill/drill-1.17.0/apache-drill-1.17.0.tar.gz), but note with the sale of MapR to Hewlett Packard last year, the project is reported to have been "orphaned". We took the download and install route, though we subsequently found that using `brew install apache-drill` might have avoided some of the questions we now have about symlinking (see Zookeeper section below). [Apache Drill : Quick Setup and Examples](http://why-not-learn-something.blogspot.com/2016/01/apache-drill-quick-setup-and-examples.html) gives step-by-step instructions which might have helped if we had it while installing, but currently have Drill installed in `/usr/local/apache-drill-1.1.7.0/` (shown below) though the {sergeant} manual directs to install in the `drill/` folder.
 
 ```{bash 'drill-dir'}
 ls /usr/local/apache-drill-1.17.0/bin
@@ -121,7 +120,7 @@ Here there are a few options for running Drill. Running `bin/drill-embedded` fro
 
 
 ```{bash 'drill-override'}
-cat /usr/local/apache-drill-1.17.0/conf/drill-override.conf
+grep "^[^#;]" /usr/local/apache-drill-1.17.0/conf/drill-override.conf
 ```
 
 Once this was all in place, the start up to run Drill in the local environment is pretty easy just running `bin/drillbit.sh start` from in the Terminal. We are not actually running it here in RMarkdown because it froze up the chunk while Drill was running. 
@@ -149,21 +148,25 @@ There is also the option to run Drill in parallel using Zookeeper discussed in t
 
 Drill is connected to data sources via [storage plug-ins](https://drill.apache.org/docs/storage-plugin-registration/). The `{sergeant}` manual mentioned the Drill Web UI passing, but we didn't realize at first that pulling up `localhost:8047` in our browser was an important component for profiling queries. We will show a few of the pages below. 
 
-
 ```{bash 'launch-web-app-on-localhost', echo=TRUE, eval=FALSE}
 # Run in terminal not .rmd chunk
 /usr/local/apache-drill-1.17.0/bin/drill-localhost
 ```
 
-In his Yelp blog post, Bob Rudis used "root.dfs" as the path to the Yelp tables. At first, we didn't understand what this referred to, but it is used as the path to the root of the file system where the data is stored as configured in the storage plug-ins. The "Storage" page of the Drill Web App is in Figure \@ref(fig:storage). Both his and the Apache documentation also refer the "cp" path to refer to example JAR data in the Drill "classpath". In addition to the two defaults, all the plug-ins available for hive, mongo, s3, kafka, etc. are also shown below. 
+In his Yelp blog post, Bob Rudis used "root.dfs" as the path to the Yelp tables. At first, we didn't understand what this referred to, but it is used as the path to the root of the file system where the data is stored as configured in the storage plug-ins. The "Storage" page of the Drill Web App is in *Drill Web App Plug-Ins* below. Both his and the Apache documentation also refer the "cp" path to refer to example JAR data in the Drill "classpath". In addition to the two defaults, all the plug-ins available for hive, mongo, s3, kafka, etc. are also shown below. 
 
-```{r 'storage', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 20), fig.cap='Drill Web App Storage', out.height='100%'}
+![Drill Web App Plug-Ins](/img/drill/drill-plugins.png)
+
+```{r 'storage', eval=FALSE, fig.cap='Drill Storage', message=FALSE, warning=FALSE, cache=TRUE, include=FALSE, screenshot.opts=list(delay = 20)}
+# Not used
 knitr::include_url('http://localhost:8047/storage')
 ```
 
-By clicking on the "Update" button for "dfs", it is easy to modify the "workspace", "location" and "defaultInputFormat" with the path to the file with your data as shown in Figure \@ref(fig:dfs). In our case, we changed the name of workspace to "root", the location to "/Volumes/davidlucey/aDL/data/yelp_dataset/" and the defaultInputFormat to "json". All the different data types are shown further down in "formats", which is one of the big selling points. According to `{sergeant}`, it is possible to even combine disparate source types like: json, csv, parquet and rmdbs by modifying formats when configuring "dfs", while pointing to almost any distributed file system. Once a path is configured in the plug-in, the data in that folder is all set to be queried from RStudio.
+By clicking on the "Update" button for "dfs", it is easy to modify the "workspace", "location" and "defaultInputFormat" with the path to the file with your data as shown in *Drill Web App Storage DFS Panel* below. In our case, we changed the name of workspace to "root", the location to "/Volumes/davidlucey/aDL/data/yelp_dataset/" and the defaultInputFormat to "json". All the different data types are shown further down in "formats", which is one of the big selling points. According to `{sergeant}`, it is possible to even combine disparate source types like: json, csv, parquet and rmdbs by modifying formats when configuring "dfs", while pointing to almost any distributed file system. Once a path is configured in the plug-in, the data in that folder is all set to be queried from RStudio.
 
-```{r 'dfs', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 20), fig.cap='Drill Web App Storage DFS Panel', out.height='100%'}
+![Drill Web App Storage DFS Panel](/img/drill/drill-plugin-dfs.png)
+```{r 'dfs', eval=FALSE, fig.cap='Drill Web App Storage DFS Panel', message=FALSE, warning=FALSE, cache=TRUE, include=FALSE, out.height='100%', screenshot.opts=list(delay = 20)}
+#Not used
 knitr::include_url('http://localhost:8047/storage/dfs')
 ```
 
@@ -190,15 +193,16 @@ yelp_biz <-
 users <- tbl(db, "dfs.root.`yelp_academic_dataset_user.json`")
 review <- tbl(db, "dfs.root.`yelp_academic_dataset_review.json`")
 toc(log = TRUE, quiet = TRUE)
+yelp_biz.txt <- tic.log(format = TRUE)
 
 ```
 </details>
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r 'print-tbl', echo=FALSE, message=FALSE, warning=FALSE}
 check
 yelp_biz
 users
 review
-tic.log(format = TRUE)
+yelp_biz.txt
 ```
 
 
@@ -212,12 +216,12 @@ tic.clearlog()
 tic("Time to skim: ")
 skim <- skimr::skim(yelp_biz)
 toc(log = TRUE, quiet = TRUE)
-
+yelp_biz_skim.txt <- tic.log(format = TRUE)
 ```
 </details>
 ```{r 'skim-output', echo=FALSE, message=FALSE, warning=FALSE}
-skim
-tic.log(format = TRUE)
+print(skim)
+yelp_biz_skim.txt
 ```
 
 
@@ -249,11 +253,11 @@ DBI::dbConnect(
 ) -> drill_con
 ```
 </details>
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r 'print-drill-con', echo=FALSE, message=FALSE, warning=FALSE}
 drill_con
 ```
 
-After setting up the connection, the `{sergeant}` manual returned a message with the current Drill version, but ours showed a Drill version of "00.00.0000", so that might be part of to problem. We can see that connecting to the tables with ODBC took almost twice as long as with the `dplyr` connection, so it seems like we are doing something wrong. When we tried this with Zookeeper, it took 46 seconds, while as shown below, 36 seconds with "Direct to Drillbit".
+After setting up the connection, the `{sergeant}` manual returned a message with the current Drill version, but ours showed a Drill version of "00.00.0000", so that might be part of to problem. We can see that connecting to the tables with ODBC took almost twice as long as with the `dplyr` connection, so it seems like we are doing something wrong. When we tried this with Zookeeper (not shown), it took 50 seconds, while 33 seconds with "Direct to Drillbit" (below).
 
 
 ```{r 'load-odbc-tables', echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
@@ -274,39 +278,41 @@ review <-
   tbl(drill_con,
       sql("SELECT * FROM dfs.root.`yelp_academic_dataset_review.json`"))
 toc()
+tic.clearlog()
 
 ```
 
 
-The `skim()` for yelp_biz took about the same amount of time, but either way, it was still way too long to be a viable alternative. Again, "Direct to Drillbit" here took 68 seconds, while 81 seconds with Zookeeper, so we are clearly doing something wrong if all the things which are supposed to speed things up are actually slowing us down.
+The `skim()` for yelp_biz took about the same amount of time, but either way, it was still way too long to be a viable alternative. Again, "Direct to Drillbit" here took 116 seconds, while 81 seconds with Zookeeper, so we are clearly doing something wrong if all the things which are supposed to speed things up are actually slowing us down.
 
 <details><summary>Click to see code to skim Yelp Business JSON with ODBC</summary>
 ```{r 'skim-yelp-biz-odbc', echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
-tic.clearlog()
 tic("Skim yelp-biz with ODBC")
-skim <- skimr::skim(yelp_biz)
+skim1 <- skimr::skim(yelp_biz)
 toc(log = TRUE, quiet = TRUE)
-
+yelp_odbc_skim.txt <- tic.log(format = TRUE)
 ```
 </details>
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-skim
-tic.log(format = TRUE)
+```{r 'print-yelp-skim', echo=FALSE, message=FALSE, warning=FALSE}
+skim1
+yelp_odbc_skim.txt
 ```
 
 
 # Drill Web App
 
-As we go along making queries, everything is collected in the Web App Profiles page, as shown in Figure \@ref(fig:profiles). Clicking on a query here takes us to the Query and Planning page, shown in Figure \@ref(fig:query-and-planning). There are other dashboards which we will show below.
+As we go along making queries, everything is collected in the Web App Profiles page, as shown in *Drill Web App Query Profiles* just below. Clicking on a query here takes us to the Query and Planning page, shown in further down in *Drill Query and Planning Pane for Complicated SQL Query*. There are other dashboards which we will show below.
 
-```{r 'profiles', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 20), fig.cap='Drill Web App Query Profiles', out.height='100%'}
+![Drill Web App Query Profiles](/img/drill/drill-profiles.png)
+
+```{r 'profiles', eval=FALSE, fig.cap='Drill Web App Query Profiles', message=FALSE, warning=FALSE, cache=TRUE, include=FALSE, out.height='100%', screenshot.opts=list(delay = 20)}
+# Not used
 knitr::include_url('http://localhost:8047/profiles')
 ```
 
-
 # Query Profiling with Drill
 
-The other really interesting thing in Drill was profiling. Here is a more complicated query we experimented with with a couple of joins and some aggregations for a query which wound up taking over an hour. See that we `CAST` the integer variables in this case as we were warned above, but that also didn't seem to make a difference. We are not running this here because it took over an hour to run, but the timing can be seen in Figure \@ref(fig:query-and-planning) further down at 1h11.
+The other interesting thing in Drill was profiling. Here is a more complicated query we experimented with with a couple of joins and some aggregations for a query which wound up taking over an hour. See that we `CAST` the integer variables in this case as we were warned above, but that also didn't seem to make a difference. 
 
 ```{r 'sql-query', echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
 dq <-
@@ -330,21 +336,27 @@ dq <-
 ```
 
 
-It is amazing how much information about the query Drill gives us, shown in the Figure \@ref(fig:query-and-planning). Clicking on the "Edit Query" tab, and scrolling down to Operator Profiles, we can see that our attempt at joining almost 10 million rows, twice, ate up over 70% of the query time. A couple of aggregations also cost almost 20%. The scan operators spent time waiting for data and some operators spilled to disc. Even without those bottlenecks, we probably still wouldn't have been satisfied with this amount of time. Having this information, it seems like it would be possible to optimize, but we didn't know how to do it. We have been recently learning SQL and realize that there is still a lot to learn. 
+We are not running the query here in the blog post, but as mentioned, the timing can be seen in *Drill Query and Planning Pane for Complicated SQL Query* below the query at 1h11.
 
+![Drill Query and Planning Pane for Complicated SQL Query](/img/drill/drill-query-planning.png)
 
-```{r 'query-and-planning', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 20), fig.cap='Drill Query and Planning Pane for More Complicated SQL Query', out.height='100%'}
+It is amazing how much information about the query Drill gives us, shown in *Drill Query and Planning Pane for Complicated SQL Query* above Clicking on the "Edit Query" tab, and scrolling down to *Operator Profiles* (shown below), we can see that we some operators spilled to disc and that the scan operators spent more time waiting for data than processing it. We can also see that the Hash Aggregate in Fragment 1 took 13% of the query time. Further down but not shown, the Hash Joins took almost 70% of the query time, so the Hash Joins and Hash Aggregate together took 70% of the query time. Even without those bottlenecks, we probably still wouldn't have been satisfied with the amount of time this took. Having this information, it seems like it would be possible to optimize, but we didn't know how to do it. We have been recently learning SQL and realize that there is still a lot to learn. 
+
+```{r 'query-and-planning', eval=FALSE, fig.cap='Drill Query and Planning Pane for More Complicated SQL Query', message=FALSE, warning=FALSE, cache=TRUE, include=FALSE, screenshot.opts=list(delay = 20)}
+# Not used
 knitr::include_url('http://localhost:8047/profiles/20746009-dec6-a077-f88a-79071cac9b86')
 ```
 
+![Drill Operator Profiles for Complicated SQL Query](/img/drill/operator-profiles.png)
 
-Lastly, Drill has a nice dashboard which allowed us to for example instruct the hash joins and hash aggregations to ignore memory limits as shown in Figure \@ref(fig:options). There were a lot of parameter settings available, but we were not sure how to adjust these to solve our specific problems, but would welcome any good advice or pointers.
+Lastly, Drill has a nice dashboard which allowed us to for example instruct the hash joins and hash aggregations to ignore memory limits as shown in *Drill Web App - Options Panel* below. There were a lot of parameter settings available, but we were not sure how to adjust these to solve our specific problems, but would welcome any good advice or pointers.
 
+![Drill Web App - Options Panel](/img/drill/drill-options.png)
 
-```{r 'options', echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE, screenshot.opts = list(delay = 20), fig.cap='Drill Web App Options', out.height='100%'}
+```{r 'options', eval=FALSE, fig.cap='Drill Web App Options', message=FALSE, warning=FALSE, cache=TRUE, include=FALSE, out.height='100%', screenshot.opts=list(delay = 20)}
+# Not used
 knitr::include_url('http://localhost:8047/options')
 ```
-
 
 # Clean up 
 
@@ -363,5 +375,5 @@ jenv global 14.0.2
 
 # Conclusion
 
-We don't know the status of Drill given "orphan" status, but there wasn't much current discussion that we could find with a quick search. If these problems are fixable, we would be very grateful for feedback and promise to update this post for the benefit of others. If there is a clearly better open source way to accomplish these objectives, knowing that would also be very much appreciated.
+We don't know the status of Drill given "orphan" status, but there wasn't much current discussion that we could find with a quick search. If these problems are fixable, we would be very grateful for feedback and promise to update this post for the benefit of others. We have read that the arrow package is a lot faster than this on similar sized data, but don't know if it is as flexible. If there is a clearly better open source way to accomplish these objectives, such as arrow, any guidance would be much appreciated.
 

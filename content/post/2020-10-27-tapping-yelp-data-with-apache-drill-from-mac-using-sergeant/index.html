@@ -5,7 +5,6 @@ date: '2020-10-27'
 slug: tapping-yelp-data-with-apache-drill-from-mac-using-sergeant
 categories: ["R", "Code-Oriented", "SQL"]
 tags: ["Apache Drill", "Java"]
-draft: true
 ---
 
 <script src="index_files/header-attrs/header-attrs.js"></script>
@@ -35,9 +34,7 @@ knitr::opts_chunk$set(
   fig.width = 12,
   fig.height = 8,
   out.width = &#39;100%&#39;
-)
-
-options(blogdown.server.timeout = 60) </code></pre>
+)</code></pre>
 </details>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
@@ -74,13 +71,18 @@ data.frame(file = stringr::str_extract(rownames(d), &quot;yelp.*&quot;), size = 
 </div>
 <div id="background-on-drill" class="section level1">
 <h1>Background on Drill</h1>
-<p>To quote from this guide: <a href="https://www.tutorialspoint.com/apache_drill/apache_drill_quick_guide.htm">Apache Drill - Quick Guide</a>..</p>
+<p>To quote from this guide: <a href="https://www.tutorialspoint.com/apache_drill/apache_drill_quick_guide.htm">Apache Drill - Quick Guide</a>.</p>
 <p><em>Apache Drill is a low latency schema-free query engine for big data. Drill uses a JSON document model internally which allows it to query data of any structure. Drill works with a variety of non-relational data stores, including Hadoop, NoSQL databases (MongoDB, HBase) and cloud storage like Amazon S3, Azure Blob Storage, etc. Users can query the data using a standard SQL and BI Tools, which doesn’t require to create and manage schemas.</em></p>
+<p>We also found the excellent chart shown in <em>SQL on Everything with Apache Drill</em> below on <a href="https://technology.amis.nl/2019/03/11/what-is-apache-drill-and-how-to-setup-your-proof-of-concept/">What is Apache Drill and how to setup your Proof-of-Concept</a></p>
+<div class="figure">
+<img src="/img/drill/sql-on-everything.png" alt="" />
+<p class="caption">SQL on Everything with Apache Drill</p>
+</div>
 <p>If this could work, it feels like we could fire it up and use it in just about any of our data sources or types. In this post, we are just going to use with a single node as we are only working with one small computer, but it looks like it should be easy to add additional nodes to speed things up.</p>
 </div>
 <div id="sergeant" class="section level1">
 <h1>Sergeant</h1>
-<p>As usual, none of this would have been possible without an amazing open source package created and shared by a real developer, often in their free time. In this case, we relied on Bob Rudis’ (Drill) <code>{sergeant}</code> package, blog posts and bookdown manual <a href="https://rud.is/books/drill-sergeant-rstats/drill-in-more-than-10-minutes.html">Drill in More than 10 Minutes</a>. He explains that he set up the interface because he saw Drill as a streamlined alternative to SPARK for those not needing the ML components (ie: just needing to query large data sources of disparate types like json, csv, parquet and rdbms) The package allows to connect to Drill via <code>dplyr</code> interface with the <code>src_drill()</code> function, and also the REST API with <code>drill_connection()</code>. Before using <code>{sergeant}</code> though, Java, Drill and Zookeeper must be installed.</p>
+<p>As usual, none of this would have been possible without an amazing open source package created and shared by a real developer, often in their free time. In this case, we relied on Bob Rudis’ (Drill) <code>{sergeant}</code> package, blog posts and bookdown manual <a href="https://rud.is/books/drill-sergeant-rstats/drill-in-more-than-10-minutes.html">Drill in More than 10 Minutes</a>. He explains that he set up the interface because he saw Drill as a streamlined alternative to SPARK for those not needing the ML components (ie: just needing to query large data sources of disparate types like json, csv, parquet and rdbms). The package allows to connect to Drill via <code>dplyr</code> interface with the <code>src_drill()</code> function, and also the REST API with <code>drill_connection()</code>. Before using <code>{sergeant}</code> though, Java, Drill and Zookeeper must be installed.</p>
 </div>
 <div id="java" class="section level1">
 <h1>Java</h1>
@@ -105,7 +107,7 @@ data.frame(file = stringr::str_extract(rownames(d), &quot;yelp.*&quot;), size = 
 </div>
 <div id="setting-up-apache-drill" class="section level1">
 <h1>Setting up Apache Drill</h1>
-<p>The latest version (December 2019) can be downloaded from <a href="http://apache.mirrors.hoobly.com/drill/drill-1.17.0/apache-drill-1.17.0.tar.gz">here</a>, but note with the sale of MapR to Hewlett Packard last year, the project is reported to have been “orphaned”. We took the download and install route, though we subsequently found that using <code>brew install apache-drill</code> might have avoided some of the questions we now have about symlinking (see Zookeeper section below). We currently have it installed at <code>/usr/local/apache-drill-1.1.7.0/</code> (shown below).</p>
+<p>The latest version (December 2019) can be downloaded from <a href="http://apache.mirrors.hoobly.com/drill/drill-1.17.0/apache-drill-1.17.0.tar.gz">here</a>, but note with the sale of MapR to Hewlett Packard last year, the project is reported to have been “orphaned”. We took the download and install route, though we subsequently found that using <code>brew install apache-drill</code> might have avoided some of the questions we now have about symlinking (see Zookeeper section below). <a href="http://why-not-learn-something.blogspot.com/2016/01/apache-drill-quick-setup-and-examples.html">Apache Drill : Quick Setup and Examples</a> gives step-by-step instructions which might have helped if we had it while installing, but currently have Drill installed in <code>/usr/local/apache-drill-1.1.7.0/</code> (shown below) though the {sergeant} manual directs to install in the <code>drill/</code> folder.</p>
 <pre class="bash"><code>ls /usr/local/apache-drill-1.17.0/bin</code></pre>
 <pre><code>auto-setup.sh
 drill-am.sh
@@ -123,29 +125,8 @@ sqlline.bat
 submit_plan
 yarn-drillbit.sh</code></pre>
 <p>Here there are a few options for running Drill. Running <code>bin/drill-embedded</code> from this this folder, a SQL engine comes up, and queries can be run straight from the command line from a basic UI. We wanted to query from RStudio, so we had another step or two. First, we had to configure the <code>drill-override.conf</code> file in the /<code>conf/</code> folder above. We followed Bob Rudis’ <a href="https://rud.is/books/drill-sergeant-rstats/drill-in-more-than-10-minutes.html#drill-storage-plugins">instructions</a> and named our cluster_id “drillbit1” and zk.connect to our local path as shown below. After these steps, we are able to run and show some sample queries using Drill.</p>
-<pre class="bash"><code>cat /usr/local/apache-drill-1.17.0/conf/drill-override.conf</code></pre>
-<pre><code># Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the &quot;License&quot;); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-#  This file tells Drill to consider this module when class path scanning.
-#  This file can also include any supplementary configuration information.
-#  This file is in HOCON format, see https://github.com/typesafehub/config/blob/master/HOCON.md for more information.
-
-# See &#39;drill-override-example.conf&#39; for example configurations
-
-drill.exec: {
+<pre class="bash"><code>grep &quot;^[^#;]&quot; /usr/local/apache-drill-1.17.0/conf/drill-override.conf</code></pre>
+<pre><code>drill.exec: {
   cluster-id: &quot;drillbits1&quot;,
   zk.connect: &quot;localhost:2181&quot;,  
   store.json.reader.skip_invalid_records: true,
@@ -172,21 +153,15 @@ drillbit is running.</code></pre>
 <p>Drill is connected to data sources via <a href="https://drill.apache.org/docs/storage-plugin-registration/">storage plug-ins</a>. The <code>{sergeant}</code> manual mentioned the Drill Web UI passing, but we didn’t realize at first that pulling up <code>localhost:8047</code> in our browser was an important component for profiling queries. We will show a few of the pages below.</p>
 <pre class="bash"><code># Run in terminal not .rmd chunk
 /usr/local/apache-drill-1.17.0/bin/drill-localhost</code></pre>
-<p>In his Yelp blog post, Bob Rudis used “root.dfs” as the path to the Yelp tables. At first, we didn’t understand what this referred to, but it is used as the path to the root of the file system where the data is stored as configured in the storage plug-ins. The “Storage” page of the Drill Web App is in Figure <a href="#fig:storage">1</a>. Both his and the Apache documentation also refer the “cp” path to refer to example JAR data in the Drill “classpath”. In addition to the two defaults, all the plug-ins available for hive, mongo, s3, kafka, etc. are also shown below.</p>
-<div class="figure"><span id="fig:storage"></span>
-<iframe src="http://localhost:8047/storage" width="100%" height="400px">
-</iframe>
-<p class="caption">
-Figure 1: Drill Web App Storage
-</p>
+<p>In his Yelp blog post, Bob Rudis used “root.dfs” as the path to the Yelp tables. At first, we didn’t understand what this referred to, but it is used as the path to the root of the file system where the data is stored as configured in the storage plug-ins. The “Storage” page of the Drill Web App is in <em>Drill Web App Plug-Ins</em> below. Both his and the Apache documentation also refer the “cp” path to refer to example JAR data in the Drill “classpath”. In addition to the two defaults, all the plug-ins available for hive, mongo, s3, kafka, etc. are also shown below.</p>
+<div class="figure">
+<img src="/img/drill/drill-plugins.png" alt="" />
+<p class="caption">Drill Web App Plug-Ins</p>
 </div>
-<p>By clicking on the “Update” button for “dfs”, it is easy to modify the “workspace”, “location” and “defaultInputFormat” with the path to the file with your data as shown in Figure <a href="#fig:dfs">2</a>. In our case, we changed the name of workspace to “root”, the location to “/Volumes/davidlucey/aDL/data/yelp_dataset/” and the defaultInputFormat to “json”. All the different data types are shown further down in “formats”, which is one of the big selling points. According to <code>{sergeant}</code>, it is possible to even combine disparate source types like: json, csv, parquet and rmdbs by modifying formats when configuring “dfs”, while pointing to almost any distributed file system. Once a path is configured in the plug-in, the data in that folder is all set to be queried from RStudio.</p>
-<div class="figure"><span id="fig:dfs"></span>
-<iframe src="http://localhost:8047/storage/dfs" width="100%" height="400px">
-</iframe>
-<p class="caption">
-Figure 2: Drill Web App Storage DFS Panel
-</p>
+<p>By clicking on the “Update” button for “dfs”, it is easy to modify the “workspace”, “location” and “defaultInputFormat” with the path to the file with your data as shown in <em>Drill Web App Storage DFS Panel</em> below. In our case, we changed the name of workspace to “root”, the location to “/Volumes/davidlucey/aDL/data/yelp_dataset/” and the defaultInputFormat to “json”. All the different data types are shown further down in “formats”, which is one of the big selling points. According to <code>{sergeant}</code>, it is possible to even combine disparate source types like: json, csv, parquet and rmdbs by modifying formats when configuring “dfs”, while pointing to almost any distributed file system. Once a path is configured in the plug-in, the data in that folder is all set to be queried from RStudio.</p>
+<div class="figure">
+<img src="/img/drill/drill-plugin-dfs.png" alt="" />
+<p class="caption">Drill Web App Storage DFS Panel</p>
 </div>
 </div>
 <div id="connecting-to-drill-via-dplyr" class="section level1">
@@ -206,7 +181,8 @@ yelp_biz &lt;-
   tbl(db, &quot;dfs.root.`yelp_academic_dataset_business.json`&quot;)
 users &lt;- tbl(db, &quot;dfs.root.`yelp_academic_dataset_user.json`&quot;)
 review &lt;- tbl(db, &quot;dfs.root.`yelp_academic_dataset_review.json`&quot;)
-toc(log = TRUE, quiet = TRUE)</code></pre>
+toc(log = TRUE, quiet = TRUE)
+yelp_biz.txt &lt;- tic.log(format = TRUE)</code></pre>
 </details>
 <pre><code># Source:   table&lt;dfs.root.`yelp_academic_dataset_checkin.json`&gt; [?? x 10]
 # Database: DrillConnection
@@ -273,37 +249,56 @@ toc(log = TRUE, quiet = TRUE)</code></pre>
  9 JA-xnyHytK… P6apihD4… e_BiI4ej1C…     5      0     0     0 &quot;Most deli… 2015-…
 10 z4BCgTkfNt… jOERvhmK… Ws8V970-mQ…     4      3     0     1 &quot;I have be… 2009-…
 # … with more rows</code></pre>
-<pre><code>list()</code></pre>
+<pre><code>[[1]]
+[1] &quot;Loading the four key datasets with: : 93.973 sec elapsed&quot;</code></pre>
 <p>It takes about two minutes to skim <code>yelp_biz</code>, which seems too long for ~210k rows, and definitely not worth it with the other, much larger files. <a href="https://rud.is/rpubs/yelp.html">Analyzing the Yelp Academic Dataset w/Drill &amp; sergeant</a> didn’t give the timing on its queries, but we assume it was much faster than this. The error message recommends that we <code>CAST</code> BIGINT columns to <code>VARCHAR</code> prior to working with them in <code>dplyr</code>, and suggests that we consider using R ODCBC with the MapR ODBC Driver because <code>jsonlite::fromJSON()</code> doesn’t support 64-bit integers. So, we are going to give ODBC a try in the next section and will set up a query to try to take this message into account to see if that makes a difference.</p>
 <details>
 <p><summary>Click to see R code to skim Yelp Business JSON</summary></p>
 <pre class="r"><code>tic.clearlog()
 tic(&quot;Time to skim: &quot;)
 skim &lt;- skimr::skim(yelp_biz)
-toc(log = TRUE, quiet = TRUE)</code></pre>
+toc(log = TRUE, quiet = TRUE)
+yelp_biz_skim.txt &lt;- tic.log(format = TRUE)</code></pre>
 </details>
-<pre><code># A tibble: 14 x 17
-   skim_type skim_variable n_missing complete_rate character.min character.max
- * &lt;chr&gt;     &lt;chr&gt;             &lt;int&gt;         &lt;dbl&gt;         &lt;int&gt;         &lt;int&gt;
- 1 character business_id           0         1                22            22
- 2 character name                  0         1                 0            64
- 3 character address               0         1                 0           118
- 4 character city                  0         1                 0            43
- 5 character state                 0         1                 2             3
- 6 character postal_code           0         1                 0             8
- 7 character attributes            0         1                 2          1542
- 8 character categories          524         0.997             4           550
- 9 character hours                 0         1                 2           170
-10 numeric   latitude              0         1                NA            NA
-11 numeric   longitude             0         1                NA            NA
-12 numeric   stars                 0         1                NA            NA
-13 numeric   review_count          0         1                NA            NA
-14 numeric   is_open               0         1                NA            NA
-# … with 11 more variables: character.empty &lt;int&gt;, character.n_unique &lt;int&gt;,
-#   character.whitespace &lt;int&gt;, numeric.mean &lt;dbl&gt;, numeric.sd &lt;dbl&gt;,
-#   numeric.p0 &lt;dbl&gt;, numeric.p25 &lt;dbl&gt;, numeric.p50 &lt;dbl&gt;, numeric.p75 &lt;dbl&gt;,
-#   numeric.p100 &lt;dbl&gt;, numeric.hist &lt;chr&gt;</code></pre>
-<pre><code>list()</code></pre>
+<pre><code>── Data Summary ────────────────────────
+                           Values  
+Name                       yelp_biz
+Number of rows             209393  
+Number of columns          14      
+_______________________            
+Column type frequency:             
+  character                9       
+  numeric                  5       
+________________________           
+Group variables            None    
+
+── Variable type: character ────────────────────────────────────────────────────
+  skim_variable n_missing complete_rate   min   max empty n_unique whitespace
+1 business_id           0         1        22    22     0   209393          0
+2 name                  0         1         0    64     1   157221          0
+3 address               0         1         0   118  8679   164423          0
+4 city                  0         1         0    43     2     1243          0
+5 state                 0         1         2     3     0       37          0
+6 postal_code           0         1         0     8   509    18605          0
+7 attributes            0         1         2  1542     0    78140          0
+8 categories          524         0.997     4   550     0   102494          0
+9 hours                 0         1         2   170     0    57641          0
+
+── Variable type: numeric ──────────────────────────────────────────────────────
+  skim_variable n_missing complete_rate    mean      sd     p0    p25    p50
+1 latitude              0             1  38.6     4.94    21.5   33.6   36.1
+2 longitude             0             1 -97.4    16.7   -158.  -112.  -112. 
+3 stars                 0             1   3.54    1.02     1      3      3.5
+4 review_count          0             1  36.9   123.       3      4      9  
+5 is_open               0             1   0.807   0.395    0      1      1  
+    p75    p100 hist 
+1  43.6    51.3 ▁▂▇▆▂
+2 -80.0   -72.8 ▁▁▇▁▇
+3   4.5     5   ▁▃▃▇▆
+4  27   10129   ▇▁▁▁▁
+5   1       1   ▂▁▁▁▇</code></pre>
+<pre><code>[[1]]
+[1] &quot;Time to skim: : 262.239 sec elapsed&quot;</code></pre>
 </div>
 <div id="setting-up-and-querying-drill-with-odbc" class="section level1">
 <h1>Setting up and Querying Drill with ODBC</h1>
@@ -332,7 +327,7 @@ toc(log = TRUE, quiet = TRUE)</code></pre>
 </details>
 <pre><code>&lt;OdbcConnection&gt;  Database: DRILL
   Drill Version: 00.00.0000</code></pre>
-<p>After setting up the connection, the <code>{sergeant}</code> manual returned a message with the current Drill version, but ours showed a Drill version of “00.00.0000”, so that might be part of to problem. We can see that connecting to the tables with ODBC took almost twice as long as with the <code>dplyr</code> connection, so it seems like we are doing something wrong. When we tried this with Zookeeper, it took 46 seconds, while as shown below, 36 seconds with “Direct to Drillbit”.</p>
+<p>After setting up the connection, the <code>{sergeant}</code> manual returned a message with the current Drill version, but ours showed a Drill version of “00.00.0000”, so that might be part of to problem. We can see that connecting to the tables with ODBC took almost twice as long as with the <code>dplyr</code> connection, so it seems like we are doing something wrong. When we tried this with Zookeeper (not shown), it took 50 seconds, while 33 seconds with “Direct to Drillbit” (below).</p>
 <pre class="r"><code>tic.clearlog()
 tic(&quot;Loading the four key datasets with ODBC: &quot;)
 check &lt;-
@@ -350,52 +345,257 @@ review &lt;-
   tbl(drill_con,
       sql(&quot;SELECT * FROM dfs.root.`yelp_academic_dataset_review.json`&quot;))
 toc()</code></pre>
-<pre><code>Loading the four key datasets with ODBC: : 133.884 sec elapsed</code></pre>
-<p>The <code>skim()</code> for yelp_biz took about the same amount of time, but either way, it was still way too long to be a viable alternative. Again, “Direct to Drillbit” here took 68 seconds, while 81 seconds with Zookeeper, so we are clearly doing something wrong if all the things which are supposed to speed things up are actually slowing us down.</p>
+<pre><code>Loading the four key datasets with ODBC: : 133.307 sec elapsed</code></pre>
+<pre class="r"><code>tic.clearlog()</code></pre>
+<p>The <code>skim()</code> for yelp_biz took about the same amount of time, but either way, it was still way too long to be a viable alternative. Again, “Direct to Drillbit” here took 116 seconds, while 81 seconds with Zookeeper, so we are clearly doing something wrong if all the things which are supposed to speed things up are actually slowing us down.</p>
 <details>
 <p><summary>Click to see code to skim Yelp Business JSON with ODBC</summary></p>
-<pre class="r"><code>tic.clearlog()
-tic(&quot;Skim yelp-biz with ODBC&quot;)
-skim &lt;- skimr::skim(yelp_biz)
-toc(log = TRUE, quiet = TRUE)</code></pre>
+<pre class="r"><code>tic(&quot;Skim yelp-biz with ODBC&quot;)
+skim1 &lt;- skimr::skim(yelp_biz)
+toc(log = TRUE, quiet = TRUE)
+yelp_odbc_skim.txt &lt;- tic.log(format = TRUE)</code></pre>
 </details>
-<pre><code># A tibble: 14 x 17
-   skim_type skim_variable n_missing complete_rate character.min character.max
- * &lt;chr&gt;     &lt;chr&gt;             &lt;int&gt;         &lt;dbl&gt;         &lt;int&gt;         &lt;int&gt;
- 1 character business_id           0         1                22            22
- 2 character name                  0         1                 0            64
- 3 character address               0         1                 0           118
- 4 character city                  0         1                 0            43
- 5 character state                 0         1                 2             3
- 6 character postal_code           0         1                 0             8
- 7 character review_count          0         1                18            21
- 8 character is_open               0         1                 1            21
- 9 character attributes            0         1                 3          1713
-10 character categories          524         0.997             4           550
-11 character hours                 0         1                 3           206
-12 numeric   latitude              0         1                NA            NA
-13 numeric   longitude             0         1                NA            NA
-14 numeric   stars                 0         1                NA            NA
-# … with 11 more variables: character.empty &lt;int&gt;, character.n_unique &lt;int&gt;,
-#   character.whitespace &lt;int&gt;, numeric.mean &lt;dbl&gt;, numeric.sd &lt;dbl&gt;,
-#   numeric.p0 &lt;dbl&gt;, numeric.p25 &lt;dbl&gt;, numeric.p50 &lt;dbl&gt;, numeric.p75 &lt;dbl&gt;,
-#   numeric.p100 &lt;dbl&gt;, numeric.hist &lt;chr&gt;</code></pre>
-<pre><code>list()</code></pre>
+<table>
+<caption><span id="tab:print-yelp-skim">Table 1: </span>Data summary</caption>
+<tbody>
+<tr class="odd">
+<td align="left">Name</td>
+<td align="left">yelp_biz</td>
+</tr>
+<tr class="even">
+<td align="left">Number of rows</td>
+<td align="left">209393</td>
+</tr>
+<tr class="odd">
+<td align="left">Number of columns</td>
+<td align="left">14</td>
+</tr>
+<tr class="even">
+<td align="left">_______________________</td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
+<td align="left">Column type frequency:</td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left">character</td>
+<td align="left">11</td>
+</tr>
+<tr class="odd">
+<td align="left">numeric</td>
+<td align="left">3</td>
+</tr>
+<tr class="even">
+<td align="left">________________________</td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
+<td align="left">Group variables</td>
+<td align="left">None</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: character</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="right">min</th>
+<th align="right">max</th>
+<th align="right">empty</th>
+<th align="right">n_unique</th>
+<th align="right">whitespace</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">business_id</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">22</td>
+<td align="right">22</td>
+<td align="right">0</td>
+<td align="right">209393</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="left">name</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">64</td>
+<td align="right">1</td>
+<td align="right">157229</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="left">address</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">118</td>
+<td align="right">8679</td>
+<td align="right">164423</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="left">city</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">43</td>
+<td align="right">2</td>
+<td align="right">1251</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="left">state</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">2</td>
+<td align="right">3</td>
+<td align="right">0</td>
+<td align="right">37</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="left">postal_code</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">8</td>
+<td align="right">509</td>
+<td align="right">18605</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="left">review_count</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">18</td>
+<td align="right">21</td>
+<td align="right">0</td>
+<td align="right">1320</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="left">is_open</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">21</td>
+<td align="right">0</td>
+<td align="right">2</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="left">attributes</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">3</td>
+<td align="right">1713</td>
+<td align="right">0</td>
+<td align="right">78140</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="left">categories</td>
+<td align="right">524</td>
+<td align="right">1</td>
+<td align="right">4</td>
+<td align="right">550</td>
+<td align="right">0</td>
+<td align="right">102494</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="left">hours</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">3</td>
+<td align="right">206</td>
+<td align="right">0</td>
+<td align="right">57641</td>
+<td align="right">0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: numeric</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="right">mean</th>
+<th align="right">sd</th>
+<th align="right">p0</th>
+<th align="right">p25</th>
+<th align="right">p50</th>
+<th align="right">p75</th>
+<th align="right">p100</th>
+<th align="left">hist</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">latitude</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">38.58</td>
+<td align="right">4.94</td>
+<td align="right">21.50</td>
+<td align="right">33.64</td>
+<td align="right">36.15</td>
+<td align="right">43.61</td>
+<td align="right">51.30</td>
+<td align="left">▁▂▇▆▂</td>
+</tr>
+<tr class="even">
+<td align="left">longitude</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">-97.39</td>
+<td align="right">16.72</td>
+<td align="right">-158.03</td>
+<td align="right">-112.27</td>
+<td align="right">-111.74</td>
+<td align="right">-79.97</td>
+<td align="right">-72.81</td>
+<td align="left">▁▁▇▁▇</td>
+</tr>
+<tr class="odd">
+<td align="left">stars</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">3.54</td>
+<td align="right">1.02</td>
+<td align="right">1.00</td>
+<td align="right">3.00</td>
+<td align="right">3.50</td>
+<td align="right">4.50</td>
+<td align="right">5.00</td>
+<td align="left">▁▃▃▇▆</td>
+</tr>
+</tbody>
+</table>
+<pre><code>[[1]]
+[1] &quot;Skim yelp-biz with ODBC: 115.719 sec elapsed&quot;</code></pre>
 </div>
 <div id="drill-web-app" class="section level1">
 <h1>Drill Web App</h1>
-<p>As we go along making queries, everything is collected in the Web App Profiles page, as shown in Figure <a href="#fig:profiles">3</a>. Clicking on a query here takes us to the Query and Planning page, shown in Figure <a href="#fig:query-and-planning">4</a>. There are other dashboards which we will show below.</p>
-<div class="figure"><span id="fig:profiles"></span>
-<iframe src="http://localhost:8047/profiles" width="100%" height="400px">
-</iframe>
-<p class="caption">
-Figure 3: Drill Web App Query Profiles
-</p>
+<p>As we go along making queries, everything is collected in the Web App Profiles page, as shown in <em>Drill Web App Query Profiles</em> just below. Clicking on a query here takes us to the Query and Planning page, shown in further down in <em>Drill Query and Planning Pane for Complicated SQL Query</em>. There are other dashboards which we will show below.</p>
+<div class="figure">
+<img src="/img/drill/drill-profiles.png" alt="" />
+<p class="caption">Drill Web App Query Profiles</p>
 </div>
 </div>
 <div id="query-profiling-with-drill" class="section level1">
 <h1>Query Profiling with Drill</h1>
-<p>The other really interesting thing in Drill was profiling. Here is a more complicated query we experimented with with a couple of joins and some aggregations for a query which wound up taking over an hour. See that we <code>CAST</code> the integer variables in this case as we were warned above, but that also didn’t seem to make a difference. We are not running this here because it took over an hour to run, but the timing can be seen in Figure <a href="#fig:query-and-planning">4</a> further down at 1h11.</p>
+<p>The other interesting thing in Drill was profiling. Here is a more complicated query we experimented with with a couple of joins and some aggregations for a query which wound up taking over an hour. See that we <code>CAST</code> the integer variables in this case as we were warned above, but that also didn’t seem to make a difference.</p>
 <pre class="r"><code>dq &lt;-
   odbc::dbGetQuery(drill_con, 
     &quot;SELECT b1.name
@@ -414,21 +614,20 @@ Figure 3: Drill Web App Query Profiles
       INNER JOIN dfs.root.`yelp_academic_dataset_business.json` b1
       ON c.business_id = b1.business_id&quot;
       )</code></pre>
-<p>It is amazing how much information about the query Drill gives us, shown in the Figure <a href="#fig:query-and-planning">4</a>. Clicking on the “Edit Query” tab, and scrolling down to Operator Profiles, we can see that our attempt at joining almost 10 million rows, twice, ate up over 70% of the query time. A couple of aggregations also cost almost 20%. The scan operators spent time waiting for data and some operators spilled to disc. Even without those bottlenecks, we probably still wouldn’t have been satisfied with this amount of time. Having this information, it seems like it would be possible to optimize, but we didn’t know how to do it. We have been recently learning SQL and realize that there is still a lot to learn.</p>
-<div class="figure"><span id="fig:query-and-planning"></span>
-<iframe src="http://localhost:8047/profiles/20746009-dec6-a077-f88a-79071cac9b86" width="100%" height="400px">
-</iframe>
-<p class="caption">
-Figure 4: Drill Query and Planning Pane for More Complicated SQL Query
-</p>
+<p>We are not running the query here in the blog post, but as mentioned, the timing can be seen in <em>Drill Query and Planning Pane for Complicated SQL Query</em> below the query at 1h11.</p>
+<div class="figure">
+<img src="/img/drill/drill-query-planning.png" alt="" />
+<p class="caption">Drill Query and Planning Pane for Complicated SQL Query</p>
 </div>
-<p>Lastly, Drill has a nice dashboard which allowed us to for example instruct the hash joins and hash aggregations to ignore memory limits as shown in Figure <a href="#fig:options">5</a>. There were a lot of parameter settings available, but we were not sure how to adjust these to solve our specific problems, but would welcome any good advice or pointers.</p>
-<div class="figure"><span id="fig:options"></span>
-<iframe src="http://localhost:8047/options" width="100%" height="400px">
-</iframe>
-<p class="caption">
-Figure 5: Drill Web App Options
-</p>
+<p>It is amazing how much information about the query Drill gives us, shown in <em>Drill Query and Planning Pane for Complicated SQL Query</em> above Clicking on the “Edit Query” tab, and scrolling down to <em>Operator Profiles</em> (shown below), we can see that we some operators spilled to disc and that the scan operators spent more time waiting for data than processing it. We can also see that the Hash Aggregate in Fragment 1 took 13% of the query time. Further down but not shown, the Hash Joins took almost 70% of the query time, so the Hash Joins and Hash Aggregate together took 70% of the query time. Even without those bottlenecks, we probably still wouldn’t have been satisfied with the amount of time this took. Having this information, it seems like it would be possible to optimize, but we didn’t know how to do it. We have been recently learning SQL and realize that there is still a lot to learn.</p>
+<div class="figure">
+<img src="/img/drill/operator-profiles.png" alt="" />
+<p class="caption">Drill Operator Profiles for Complicated SQL Query</p>
+</div>
+<p>Lastly, Drill has a nice dashboard which allowed us to for example instruct the hash joins and hash aggregations to ignore memory limits as shown in <em>Drill Web App - Options Panel</em> below. There were a lot of parameter settings available, but we were not sure how to adjust these to solve our specific problems, but would welcome any good advice or pointers.</p>
+<div class="figure">
+<img src="/img/drill/drill-options.png" alt="" />
+<p class="caption">Drill Web App - Options Panel</p>
 </div>
 </div>
 <div id="clean-up" class="section level1">
@@ -440,5 +639,5 @@ Figure 5: Drill Web App Options
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>We don’t know the status of Drill given “orphan” status, but there wasn’t much current discussion that we could find with a quick search. If these problems are fixable, we would be very grateful for feedback and promise to update this post for the benefit of others. If there is a clearly better open source way to accomplish these objectives, knowing that would also be very much appreciated.</p>
+<p>We don’t know the status of Drill given “orphan” status, but there wasn’t much current discussion that we could find with a quick search. If these problems are fixable, we would be very grateful for feedback and promise to update this post for the benefit of others. We have read that the arrow package is a lot faster than this on similar sized data, but don’t know if it is as flexible. If there is a clearly better open source way to accomplish these objectives, such as arrow, any guidance would be much appreciated.</p>
 </div>
