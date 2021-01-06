@@ -18,9 +18,11 @@ tags: ["connecticut", "dataviz", "realestate"]
 <script src="index_files/crosstalk/js/crosstalk.min.js"></script>
 
 
-<div class="figure">
-<img src="/2020-12-10-in-search-of-a-better-home-price-prediction-in-greenwich-ct/index_files/Screen%20Shot%202020-12-12%20at%201.32.40%20PM.png" alt="" />
-<p class="caption">Average Single Family Homes in Towns of Connecticut Over Time</p>
+<div class="figure"><span id="fig:unnamed-chunk-1"></span>
+<img src="index_files/ct_real_estate_screenshot.png" alt="Average Single Family Homes in Towns of Connecticut 1999-2018" width="100%" />
+<p class="caption">
+Figure 1: Average Single Family Homes in Towns of Connecticut 1999-2018
+</p>
 </div>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
@@ -81,15 +83,17 @@ dt &lt;-
         pageLength = 18,
         scrollY = TRUE)
   ) %&gt;%
+  formatRound(columns = 1,
+              digits = 0) %&gt;%
   formatRound(columns = c(2:7),
               mark = &quot;,&quot;,
               digits = 0) </code></pre>
 </details>
 <div class="figure"><span id="fig:summary"></span>
 <div id="htmlwidget-1" style="width:100%;height:auto;" class="datatables html-widget"></div>
-<script type="application/json" data-for="htmlwidget-1">{"x":{"filter":"none","data":[[2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020],[543,609,505,388,366,232,203,322,374,429,478,451,436,391,247,230,327,484],[3006.29281767956,3385.81116584565,3676.01188118812,3840.60567010309,4073.07650273224,3519.75862068966,3844.74876847291,3810.59627329193,3801.95454545455,3662.10023310023,3617.7949790795,3752.42350332594,3729.04128440367,3582.90242966752,3314.61943319838,3435.01565217391,3914.77064220184,4387.20661157025],[1688.93309023941,2194.29786699507,2489.13086336634,2504.08448453608,2749.03936338798,2323.41788793103,2217.74332019704,2244.31433850932,2131.92309358289,2208.77573659674,2085.42282635983,2302.81570066519,2312.07205963303,2070.89809462916,1884.87037651822,1921.76548695652,2173.07329357798,2394.58622727273],[1175.48,1645,1829,1932.5,2000,1865,1537.5,1700,1539.75,1631.25,1675,1775,1797.5,1625,1475,1462.5,1800,1953.5],[561.799263300982,648.086310639542,677.128078966336,652.002496384604,674.929469540753,660.107165949859,576.823988704445,588.966706927072,560.743972105538,603.14453346539,576.434772677594,613.687580472753,620.017823160883,577.994554772547,568.653631134796,559.463385775345,555.095941037238,545.811136625651],[55.8011049723757,48.8472906403941,51.5861386138614,48.5309278350515,47.5273224043716,52.5905172413793,50.743842364532,48.5931677018634,52.8877005347594,55.8927738927739,55.918410041841,58.5454545454545,58.4954128440367,57.0920716112532,64.5141700404858,58.8695652173913,58.3272171253823,56.7252066115703]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>Year<\/th>\n      <th>Annual Units<\/th>\n      <th>Avg. Sqft.<\/th>\n      <th>Avg. Price ($k)<\/th>\n      <th>Median Price ($k)<\/th>\n      <th>Avg Price/Sqft. ($)<\/th>\n      <th>Avg. Age<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":18,"scrollY":true,"columnDefs":[{"targets":1,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":2,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":3,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":4,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":5,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":6,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"className":"dt-right","targets":[0,1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,18,25,50,100]}},"evals":["options.columnDefs.0.render","options.columnDefs.1.render","options.columnDefs.2.render","options.columnDefs.3.render","options.columnDefs.4.render","options.columnDefs.5.render"],"jsHooks":[]}</script>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"filter":"none","data":[[2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020],[543,609,505,388,366,232,203,322,374,429,478,451,436,391,247,230,327,484],[3006.29281767956,3385.81116584565,3676.01188118812,3840.60567010309,4073.07650273224,3519.75862068966,3844.74876847291,3810.59627329193,3801.95454545455,3662.10023310023,3617.7949790795,3752.42350332594,3729.04128440367,3582.90242966752,3314.61943319838,3435.01565217391,3914.77064220184,4387.20661157025],[1688.93309023941,2194.29786699507,2489.13086336634,2504.08448453608,2749.03936338798,2323.41788793103,2217.74332019704,2244.31433850932,2131.92309358289,2208.77573659674,2085.42282635983,2302.81570066519,2312.07205963303,2070.89809462916,1884.87037651822,1921.76548695652,2173.07329357798,2394.58622727273],[1175.48,1645,1829,1932.5,2000,1865,1537.5,1700,1539.75,1631.25,1675,1775,1797.5,1625,1475,1462.5,1800,1953.5],[561.799263300982,648.086310639542,677.128078966336,652.002496384604,674.929469540753,660.107165949859,576.823988704445,588.966706927072,560.743972105538,603.14453346539,576.434772677594,613.687580472753,620.017823160883,577.994554772547,568.653631134796,559.463385775345,555.095941037238,545.811136625651],[55.8011049723757,48.8472906403941,51.5861386138614,48.5309278350515,47.5273224043716,52.5905172413793,50.743842364532,48.5931677018634,52.8877005347594,55.8927738927739,55.918410041841,58.5454545454545,58.4954128440367,57.0920716112532,64.5141700404858,58.8695652173913,58.3272171253823,56.7252066115703]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>Year<\/th>\n      <th>Annual Units<\/th>\n      <th>Avg. Sqft.<\/th>\n      <th>Avg. Price ($k)<\/th>\n      <th>Median Price ($k)<\/th>\n      <th>Avg Price/Sqft. ($)<\/th>\n      <th>Avg. Age<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":18,"scrollY":true,"columnDefs":[{"targets":1,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":2,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":3,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":4,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":5,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":6,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":0,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"className":"dt-right","targets":[0,1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,18,25,50,100]}},"evals":["options.columnDefs.0.render","options.columnDefs.1.render","options.columnDefs.2.render","options.columnDefs.3.render","options.columnDefs.4.render","options.columnDefs.5.render","options.columnDefs.6.render"],"jsHooks":[]}</script>
 <p class="caption">
-Figure 1: Summary of Subset of Greenwich, CT Home Sale Statistics from 2003-2020
+Figure 2: Summary of Subset of Greenwich, CT Home Sale Statistics from 03-2020
 </p>
 </div>
 </div>
@@ -99,7 +103,7 @@ Figure 1: Summary of Subset of Greenwich, CT Home Sale Statistics from 2003-2020
 </div>
 <div id="correlations-over-early-years" class="section level1">
 <h1>Correlations over Early Years</h1>
-<p>Over the 2003-2016 period shown in Figure <a href="#fig:corr-plot-all">2</a>, we can see that <code>sqft</code> is likely to be the most important variable for predicting <code>price</code>, with 88% positive correlation (shown in red), but related variables like <code>beds</code> and <code>bath</code> are also highly correlated. Similarly, <code>assess_land</code> and <code>assess_improve</code> are positively correlated, though less than <code>sqft</code>. We are focusing on prediction in this series, but several of our many important independent variables are highly correlated with each other, which would cause problems if our focus was inference. The Floor Area Ratio (<code>far</code>) is a function of <code>acre</code> and zoning (not shown here). FAR has become an increasingly important consideration over the period, as it governs the maximum size of home which can be built on a given lot. With the move towards smaller lots in the Coastal areas, builders scooped up lots perceived to be less than the best use of that land. Not surprisingly, <code>age</code> is negatively correlated (older homes are less desired). Older homes sold also have fewer bathrooms, bedrooms, square feet and even acreage shown in blue. The higher correlation of <code>price</code> with <code>bath</code> than <code>beds</code> is interesting, but this may be a function of <code>age</code>. Newer homes probably are built with more bathrooms on balance.</p>
+<p>Over the 2003-2016 period shown in Figure <a href="#fig:corr-plot-all">3</a>, we can see that <code>sqft</code> is likely to be the most important variable for predicting <code>price</code>, with 88% positive correlation (shown in red), but related variables like <code>beds</code> and <code>bath</code> are also highly correlated. Similarly, <code>assess_land</code> and <code>assess_improve</code> are positively correlated, though less than <code>sqft</code>. We are focusing on prediction in this series, but several of our many important independent variables are highly correlated with each other, which would cause problems if our focus was inference. The Floor Area Ratio (<code>far</code>) is a function of <code>acre</code> and zoning (not shown here). FAR has become an increasingly important consideration over the period, as it governs the maximum size of home which can be built on a given lot. With the move towards smaller lots in the Coastal areas, builders scooped up lots perceived to be less than the best use of that land. Not surprisingly, <code>age</code> is negatively correlated (older homes are less desired). Older homes sold also have fewer bathrooms, bedrooms, square feet and even acreage shown in blue. The higher correlation of <code>price</code> with <code>bath</code> than <code>beds</code> is interesting, but this may be a function of <code>age</code>. Newer homes probably are built with more bathrooms on balance.</p>
 <p>Days on market (<code>dom</code>) is only slightly correlated with <code>price</code>, but we have filtered out the really stale listings (over 365 days), so it would probably look different if we had all sales. We can also see that <code>dom</code> is negatively correlated to <code>sp_olp</code> (selling price divided by original listing price). Homes which are on the market longer sell for relatively less compared to the original listing price as prices are reduced. The Assessment Ratio (<code>AR</code>), the ratio of selling price to assessed value, should be unbiased with respect to selling prices, but we can see that the correlation is somewhat positive during this period. This suggests that homes with higher priced homes were sold for relatively more versus assessed value than would have been expected (ie: they were under-assessed). We can also see that <code>AR</code> is positively correlated to <code>sqft</code>, <code>beds</code>, <code>bath</code>, and negatively correlated to <code>age</code>. It suggests that the assessment process may have not fully accounted on the tax rolls for newer, larger homes, at least in the population which was sold, at least up until 2016.</p>
 <details>
 <p><summary>Click to see code generating table</summary></p>
@@ -132,13 +136,13 @@ p &lt;- plot_correlation(
 <div class="figure"><span id="fig:corr-plot-all"></span>
 <img src="index_files/figure-html/corr-plot-all-1.png" alt="Pairwise Correlations of Key Numeric Variables from 2003-2016" width="100%" />
 <p class="caption">
-Figure 2: Pairwise Correlations of Key Numeric Variables from 2003-2016
+Figure 3: Pairwise Correlations of Key Numeric Variables from 2003-2016
 </p>
 </div>
 </div>
 <div id="correlations-since-2017" class="section level1">
 <h1>Correlations Since 2017</h1>
-<p>In Figure <a href="#fig:corr-plot-late">3</a> below, we isolate the years 2017-20 where we have additional variables including: <code>age_renov</code> (years since renovation), <code>age_add</code> (years since addition), <code>court</code>, <code>pool</code>, <code>garage</code> (number of garages) and <code>taxcard</code> (source of <code>sqft</code> data). There don’t seem to be many significant differences in the correlations of key variables linked to <code>price</code> from the earlier period in Figure <a href="#fig:corr-plot-all">2</a> above. One key difference though, is that the Assessor’s Office seems to have adjusted assessed values to better reflect selling prices in the 2015 revaluations. Selling prices of larger homes are now negatively correlated with Assessed Value. Not surprisingly, <code>age_renov</code> (age of renovation) and <code>age_add</code> (age of addition), which we didn’t have for the early period, are the similarly negatively correlated with <code>price</code> as above. <code>age</code> now is essentially uncorrelated to <code>AR</code>. We will see in Figure <a href="#fig:run-scatter-time-vars"><strong>??</strong></a> below, the price relationship with age may be “multimodal”. If we were to just look at <code>taxcard</code> (the source of <code>sqft</code>), it would have a positive correlation of 20% with <code>price</code> and <code>sqft</code>. Builders and architects reporting newer homes are likely larger and more expensive.</p>
+<p>In Figure <a href="#fig:corr-plot-late">4</a> below, we isolate the years 2017-20 where we have additional variables including: <code>age_renov</code> (years since renovation), <code>age_add</code> (years since addition), <code>court</code>, <code>pool</code>, <code>garage</code> (number of garages) and <code>taxcard</code> (source of <code>sqft</code> data). There don’t seem to be many significant differences in the correlations of key variables linked to <code>price</code> from the earlier period in Figure <a href="#fig:corr-plot-all">3</a> above. One key difference though, is that the Assessor’s Office seems to have adjusted assessed values to better reflect selling prices in the 2015 revaluations. Selling prices of larger homes are now negatively correlated with Assessed Value. Not surprisingly, <code>age_renov</code> (age of renovation) and <code>age_add</code> (age of addition), which we didn’t have for the early period, are the similarly negatively correlated with <code>price</code> as above. <code>age</code> now is essentially uncorrelated to <code>AR</code>. We will see in Figure <a href="#fig:run-scatter-time-vars"><strong>??</strong></a> below, the price relationship with age may be “multimodal”. If we were to just look at <code>taxcard</code> (the source of <code>sqft</code>), it would have a positive correlation of 20% with <code>price</code> and <code>sqft</code>. Builders and architects reporting newer homes are likely larger and more expensive.</p>
 <details>
 <p><summary>Click to see code generating table</summary></p>
 <pre class="r"><code># Select vars
@@ -163,7 +167,7 @@ p &lt;- plot_correlation(
 <div class="figure"><span id="fig:corr-plot-late"></span>
 <img src="index_files/figure-html/corr-plot-late-1.png" alt="Pairwise Correlations of Key Numeric Variables from 2017-2020" width="100%" />
 <p class="caption">
-Figure 3: Pairwise Correlations of Key Numeric Variables from 2017-2020
+Figure 4: Pairwise Correlations of Key Numeric Variables from 2017-2020
 </p>
 </div>
 </div>
@@ -190,7 +194,7 @@ p &lt;- plot_histogram(
 <div class="figure"><span id="fig:plot-hist"></span>
 <img src="index_files/figure-html/plot-hist-1.png" alt="Histograms of Key Numeric Variables on Log10 Scale from 2003-2020" width="100%" />
 <p class="caption">
-Figure 4: Histograms of Key Numeric Variables on Log10 Scale from 2003-2020
+Figure 5: Histograms of Key Numeric Variables on Log10 Scale from 2003-2020
 </p>
 </div>
 <p>As mentioned above, most are “nearly normal”, but <code>acre</code>, <code>assess_improve</code> and <code>assess_land</code> show moderate skew. One place we are still not clear is how much we should worry about the remaining skew affecting our predictions. It seems likely that it would be possible to further reduce with Box Cox transformations, or dropping outliers. As we will discuss further down, further transformation of <code>acre</code> may be needed.</p>
@@ -241,7 +245,7 @@ p &lt;- plot_histogram(
 <div class="figure"><span id="fig:plot-hist-1"></span>
 <img src="index_files/figure-html/plot-hist-1-1.png" alt="Histograms of Key Numeric Variables on Ordinal Scale from 2004-20" width="100%" />
 <p class="caption">
-Figure 5: Histograms of Key Numeric Variables on Ordinal Scale from 2004-20
+Figure 6: Histograms of Key Numeric Variables on Ordinal Scale from 2004-20
 </p>
 </div>
 </div>
@@ -271,7 +275,7 @@ p &lt;- plot_scatterplot(
 <div class="figure"><span id="fig:scatter-log-vars"></span>
 <img src="index_files/figure-html/scatter-log-vars-1.png" alt="Scatter of Sample of Key Numeric Variables from 2004-2020" width="100%" />
 <p class="caption">
-Figure 6: Scatter of Sample of Key Numeric Variables from 2004-2020
+Figure 7: Scatter of Sample of Key Numeric Variables from 2004-2020
 </p>
 </div>
 <p>The next group of scatter plots shown below are time-related variables. The newest homes sell for the highest prices, but there appears to be some homes that hold up beyond 50 years, then several higher points before falling off again after 110 (although the data gets thin at this point). There are a considerably number of 200+ year old homes sold, but these may be historical landmarks. At least recorded in the data, there is a surge of renovations in the last 20 years, which seems to add considerably to price, though less relevant to price after about 25 years. Additions don’t seem add as noticeably to price as renovations.</p>
@@ -296,7 +300,7 @@ p &lt;- plot_scatterplot(
 <div class="figure"><span id="fig:scatter-time-vars"></span>
 <img src="index_files/figure-html/scatter-time-vars-1.png" alt="Scatter Plot of Sample of Time-Related Variables from 2004-20" width="100%" />
 <p class="caption">
-Figure 7: Scatter Plot of Sample of Time-Related Variables from 2004-20
+Figure 8: Scatter Plot of Sample of Time-Related Variables from 2004-20
 </p>
 </div>
 <p>The convention in Connecticut is that assessed value should represent 70% of the market value, so on balance, homes should sell for about 1.4 assessed value (1 / 0.7), and we have filtered out <code>AR</code> below 0.75 and above 1.8. The chart seems to peak around this level, but it is hard to say much about density in this chart which is sampled. We also see that some homes have turned over every few years, and these seem to have lower prices though above “num_sales” was slightly positively correlated with <code>price</code>. Also, we can see that the highest valued home sales sell for less than the original listing price. On balance, homes which are selling above original list are towards the lower end of sales prices, though we filtered below 75% of original list price when they took more than a year to sell.</p>
@@ -319,13 +323,13 @@ p &lt;- plot_scatterplot(
 <div class="figure"><span id="fig:scatter-ratios"></span>
 <img src="index_files/figure-html/scatter-ratios-1.png" alt="Scatter Plot of Sample of Other Variables Grouped by Price from 2003-2020" width="100%" />
 <p class="caption">
-Figure 8: Scatter Plot of Sample of Other Variables Grouped by Price from 2003-2020
+Figure 9: Scatter Plot of Sample of Other Variables Grouped by Price from 2003-2020
 </p>
 </div>
 </div>
 <div id="catagorical-variables" class="section level1">
 <h1>Catagorical Variables</h1>
-<p>There are over 50 neighborhoods defined by the Town, but we have divided these into 4 larger groups with “North of Coastal” being the largest by volume, but significantly lower selling prices on average. We will talk more about school and neighborhood in greater detail in the next post as cross-sections of location seems like an important aspect of this project. There are a few other geographical variables in our data, including <code>elem</code>, <code>area</code> and <code>assess</code>. For now, the four super-neighborhoods are defined in the legend, and the categorical variables are divided by location and aggregated by sale price in Figure <a href="#fig:plot-bar">9</a> below.</p>
+<p>There are over 50 neighborhoods defined by the Town, but we have divided these into 4 larger groups with “North of Coastal” being the largest by volume, but significantly lower selling prices on average. We will talk more about school and neighborhood in greater detail in the next post as cross-sections of location seems like an important aspect of this project. There are a few other geographical variables in our data, including <code>elem</code>, <code>area</code> and <code>assess</code>. For now, the four super-neighborhoods are defined in the legend, and the categorical variables are divided by location and aggregated by sale price in Figure <a href="#fig:plot-bar">10</a> below.</p>
 <p>Homes with &lt;4 beds or &lt;2.6 bathrooms were small, &lt;5 beds or &lt;6 baths were regular and above those numbers were large (denoted <code>bed_factor</code> and <code>bath_factor</code>). Home sales closing between May and August, when families try to prepare for the start of school, which were more than half the sales by volume, are marked as <code>peak</code>. Elementary schools in the four highest priced districts were denoted by <code>school</code>. The <code>build</code> variable refers to properties which have the potential to add 25% more space given their <code>far</code>, and we set up <code>zng_levels</code> based on lowest, middle and highest average sales prices. We thought that properties which sold often might sell for less, so we denoted properties selling 3 or more times as <code>high_sales</code>. Almost 1/4 of the properties by price sold this frequently in 17 years, which is surprisingly high.</p>
 <p>In these charts, we can see that “North of Coastal” is less represented in the highly desired elementary school districts, and has a bigger share of smaller and older homes and less expensive zoning. Among homes which were sold, it has more on lots which could still be expanded or rebuilt into larger square footage.</p>
 <details>
@@ -361,13 +365,13 @@ p &lt;- plot_bar(
 <div class="figure"><span id="fig:plot-bar"></span>
 <img src="index_files/figure-html/plot-bar-1.png" alt="Bar Plot of Key Categorical Variables by Price and Location from 2003-2020" width="100%" />
 <p class="caption">
-Figure 9: Bar Plot of Key Categorical Variables by Price and Location from 2003-2020
+Figure 10: Bar Plot of Key Categorical Variables by Price and Location from 2003-2020
 </p>
 </div>
 <div class="figure"><span id="fig:plot-bar-2"></span>
 <img src="index_files/figure-html/plot-bar-2-1.png" alt="Bar Plot of Key Categorical Variables by Price from 2003-2020 (continued)" width="100%" />
 <p class="caption">
-Figure 10: Bar Plot of Key Categorical Variables by Price from 2003-2020 (continued)
+Figure 11: Bar Plot of Key Categorical Variables by Price from 2003-2020 (continued)
 </p>
 </div>
 </div>

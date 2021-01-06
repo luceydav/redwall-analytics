@@ -36,7 +36,12 @@ knitr::opts_chunk$set(
 
 
 
-![Average Single Family Homes in Towns of Connecticut Over Time](/2020-12-10-in-search-of-a-better-home-price-prediction-in-greenwich-ct/index_files/Screen Shot 2020-12-12 at 1.32.40 PM.png)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Average Single Family Homes in Towns of Connecticut 1999-2018'}
+knitr::include_graphics("index_files/ct_real_estate_screenshot.png")
+```
+
+
 
 # Introduction 
 
@@ -129,13 +134,15 @@ dt <-
         pageLength = 18,
         scrollY = TRUE)
   ) %>%
+  formatRound(columns = 1,
+              digits = 0) %>%
   formatRound(columns = c(2:7),
               mark = ",",
               digits = 0) 
 ```
 </details>
 
-```{r 'summary', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Summary of Subset of Greenwich, CT Home Sale Statistics from 2003-2020'}
+```{r 'summary', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Summary of Subset of Greenwich, CT Home Sale Statistics from 03-2020'}
 dt
 ```
 
