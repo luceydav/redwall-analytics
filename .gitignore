@@ -36,8 +36,9 @@ vignettes/*.pdf
 rsconnect/
 
 # blogdown, see https://bookdown.org/yihui/blogdown/version-control.html
-blogdown
-public
+/blogdown
+/public/
+/resources/
 
 # secret key in .Renviron
 .Renviron
@@ -45,3 +46,6 @@ public
 
 # mac hidden file
 .DS_Store
+
+# check said to add
+Thumbs.db
