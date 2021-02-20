@@ -7,7 +7,7 @@ categories: ["Nutmeg Project", "R"]
 tags: ["connecticut", "shiny", "dataviz", "income"]
 ---
 
-[![](images/irs_dash.png "IRS Tax Dashboard")](https://luceyda.shinyapps.io/irs_dash/)
+[![](/img/irs_dash.png "IRS Tax Dashboard")](https://luceyda.shinyapps.io/irs_dash/)
 
 # Introduction
 
