@@ -1,0 +1,419 @@
+---
+title: Using Census of Govts to Show that if You Know R, You Know SQL
+author: David Lucey
+date: '2021-03-06'
+slug: using-census-of-govts-to-show-if-you-know-r-you-know-sql
+categories: ["Nutmeg Project", "Code-Oriented", "R", "SQL"]
+tags: ["connecticut", "income", "pension"]
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+<script src="{{< blogdown/postref >}}index_files/htmlwidgets/htmlwidgets.js"></script>
+<script src="{{< blogdown/postref >}}index_files/jquery/jquery.min.js"></script>
+<link href="{{< blogdown/postref >}}index_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+<script src="{{< blogdown/postref >}}index_files/datatables-binding/datatables.js"></script>
+<link href="{{< blogdown/postref >}}index_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="{{< blogdown/postref >}}index_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="{{< blogdown/postref >}}index_files/dt-core/js/jquery.dataTables.min.js"></script>
+<link href="{{< blogdown/postref >}}index_files/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="{{< blogdown/postref >}}index_files/crosstalk/js/crosstalk.min.js"></script>
+<script src="{{< blogdown/postref >}}index_files/plotly-binding/plotly.js"></script>
+<script src="{{< blogdown/postref >}}index_files/typedarray/typedarray.min.js"></script>
+<link href="{{< blogdown/postref >}}index_files/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="{{< blogdown/postref >}}index_files/plotly-main/plotly-latest.min.js"></script>
+
+
+<div class="figure">
+<img src="images/rstudio_connections.png" alt="" />
+<p class="caption">The Government Finance Database Viewed in RStudio Connections Pane</p>
+</div>
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>We have been exploring Willamette University <a href="https://willamette.edu/mba/research-impact/public-datasets/index.html">Government Finance Database</a>, a cleaned up and aggregated version of 50 years of annual Census of Governments. For those interested in learning more, please see Willamette’s paper <a href="https://willamette.edu/mba/research-impact/public-datasets/index.html">The Government Finance Database: A Common Resource for Quantitative Research in Public Financial Analysis</a> describing the database and its creation. It is an amazing resource of 2.4 GB in .csv form, but with 500+ fields of nested levels of government entities and over 500 financial statement items, very complicated even after the extensive work Willamette have done to compile it. This is exactly the kind of less well known, but valuable longitudinal data, for which we have had the most interest. Our recent <a href="https://redwallanalytics.com/2021/02/03/introducing-the-redwall-irs-soi-tax-dashboard/">Introducing the Redwall IRS SOI Tax Dashboard</a> describes our similar project with 15 years of detailed IRS tax data by zip code, and related new package <code>{irsSOI}</code> and {golem} Shiny app <code>{irsApp}</code>. We dug a bit into SQL in <a href="https://redwallanalytics.com/2020/09/10/learning-sql-and-exploring-xbrl-with-secdatabase-com-part-1/">Learning SQL and Exploring XBRL with secdatabase.com - Part 1</a>, but it took a long time to generate queries we felt confident in. In this post, we will describe how we can use the amazing <code>{dplyr}</code> SQL translation layer as a tool to quickly develop and explore with elaborate queries. This may also help us to find a durable solution of a back-end for our projects and apps with <code>{SQLite}</code> databases.</p>
+</div>
+<div id="where-this-is-going" class="section level1">
+<h1>Where This is Going</h1>
+<p>When we began, it was fine to load a .csv file into memory, but as our projects, size of data have grown, and most urgently, the need for responsive apps backed by larger amounts of data, a strategy to use remote relational databases has become more pressing. We looked at solving this problem with <a href="https://redwallanalytics.com/2020/10/27/tapping-yelp-data-with-apache-drill-from-mac-using-sergeant/">Tapping Yelp data with Apache Drill from Mac using {sergeant}</a>, but Drill was complicated to install, and ultimately couldn’t get it to work as hoped. With <code>{SQLite}</code> widely available and built into our local system, ready to store and fast retrieval from an RStudio connection with a simple line of <code>{dplyr}</code> code seems like a winner. Our ultimate goal find the right back-end for larger data, allowing fast, easy filtering and aggregations across many categories in Shiny apps. When we built the trial version of <a href="https://luceyda.shinyapps.io/irs_dash/">IRS Tax Dashboard</a>, we found that the app was very responsive despite having tens of thousands of nested filtering options backed by a .fst file, but could only host a fraction of fields that we hoped to include on our introductory Shinyapps.io account. We now have an much reworked <code>{golem}</code> version ready to go with many more fields and viewing modules, but at 300MB+ of data, it is too big to deploy through that channel. With the <code>{SQLite}</code> solution, all that remains would remain is to set up to access the database from an AWS in a docker container.</p>
+</div>
+<div id="the-willamette-government-finance-database-and-govfin-package" class="section level1">
+<h1>The Willamette Government Finance Database and <code>{govFin}</code> Package</h1>
+<p>For this project, we built <a href="https://github.com/luceydav/govFin"><code>{govFin}</code></a> to download and convert the Government Finance Database’s aggregated .csv into a <code>{SQLite}</code> database all with one function shown in the code chunk below. The downloaded zip file is 292 MB, but expands to into a 2.4 GB csv, before fitting in a 1.1 GB database. With separate tables for each type of government entity (federal, county, state, local, school districts and special districts). Response to queries lagged a bit until we added the Census identifier (“id”) as index for all the tables. After that, responses to joins and aggregations were instantaneous. We have set up separate tables for the identifier and population counts also indexed by “id”.</p>
+<p>Within tables, there is still a lot of complexity, flattened with detail and summary rows included side-by-side for balance sheet, income and cash flow items. There are also two separate surveys, the full census every five years and annual surveys which have a lot fewer responses and are biased to larger municipalities. For those wanting to replicate some of the strategies in this post or to access the data, please install our <code>{govFin}</code> package from Github. Running <code>govFin::full_gov_census_db_wrapper()</code> with the desired local path will download the full Willamette data set and build a <code>{SQLite}</code> database leaving behind only the original zipped folder.</p>
+<pre class="r"><code># Not run here
+# install.packages(&quot;devtools&quot;)
+devtools::install_github(&quot;luceydav/govFin&quot;)
+
+# Download zip and create SQLite database at path
+path &lt;- &quot;/Users/davidlucey/Desktop/David/Projects/govFin/inst/extdata/&quot;
+govFin::full_gov_census_db_wrapper(path = path)</code></pre>
+</div>
+<div id="the-sqlite-database" class="section level1">
+<h1>The <code>{SQLite}</code> Database</h1>
+<p>Once built, the database can be easily accessed from RStudio with the DBI package, but unfortunately a SQLite connection in memory can’t be viewed in the Connections pane. It possible to use Connections (pictured at the beginning of this post) by using <code>connections::connections_open()</code> instead of <code>DBI::dbConnect()</code>. However, <code>{connections}</code> didn’t allow us to interact with the database using DBI functions like <code>DBI::dbListTables()</code> or <code>DBI::dbListFields()</code>, so we went with <code>{DBI}</code>, because we are going to use the <code>{dplyr}</code> <code>tbl()</code> function to create a table object in the Global Environment and to interact with tables anyhow.</p>
+<pre class="r"><code># Set up connection with DBI package
+gov_census &lt;- 
+  &quot;/Users/davidlucey/Desktop/David/Projects/govFin/inst/extdata/gov_census.db&quot;
+conn &lt;-
+  DBI::dbConnect(RSQLite::SQLite(), dbname = gov_census)
+
+# Alternative to use RStudio connections pane
+# conn &lt;-
+#   connections::connection_open(RSQLite::SQLite(), dbname = gov_census)</code></pre>
+<p>As shown in the code chunk below, there are 526 fields in our local table, and when considering that it is relatively consistent over so many entities and years, is a impressive resource and surprisingly little cited and discussed.</p>
+<details>
+<summary>
+Click to see code generating output
+</summary>
+<pre class="r"><code>d &lt;- DT::datatable(
+  data.frame(
+    fields = DBI::dbListFields(conn, &quot;local&quot;)[1:175], 
+    fields2 = DBI::dbListFields(conn, &quot;local&quot;)[176:350],
+    fields3 = DBI::dbListFields(conn, &quot;local&quot;)[351:525]), 
+  rownames = FALSE
+)</code></pre>
+</details>
+<div id="htmlwidget-1" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"filter":"none","data":[["id","year4","fy_end_date","sch_lev_code","function_code","total_revenue","total_rev_own_sources","general_revenue","gen_rev_own_sources","total_taxes","property_tax","tot_sales_gr_rec_tax","total_gen_sales_tax","total_select_sales_tax","alcoholic_beverage_tax","amusement_tax","insurance_premium_tax","motor_fuels_tax","pari_mutuels_tax","public_utility_tax","tobacco_tax","other_select_sales_tax","total_license_taxes","alcoholic_beverage_lic","amusement_license","corporation_license","motor_vehicle_license","motor_veh_oper_license","public_utility_license","occup_and_bus_lic_nec","other_license_taxes","total_income_taxes","individual_income_tax","corp_net_income_tax","death_and_gift_tax","docum_and_stock_tr_tax","severance_tax","taxes_nec","total_ig_revenue","total_fed_ig_revenue","fed_igr_air_transport","fed_igr_education","fed_igr_emp_sec_adm","fed_igr_gen_rev_shar","fed_igr_gen_support","fed_igr_health_hos","fed_igr_highways","fed_igr_transit_sub","fed_igr_hous_com_dev","fed_igr_natural_res","fed_igr_public_welf","fed_igr_sewerage","fed_igr_other","total_state_ig_revenue","state_igr_education","state_igr_tax_relief","state_igr_oth_gen_sup","state_igr_health_hos","state_igr_highways","state_igr_transit_sub","state_igr_hous_com_dev","state_igr_public_welf","state_igr_sewerage","state_igr_other","tot_local_ig_rev","local_igr_other_education","local_igr_oth_gen_sup","local_igr_health_hos","local_igr_highways","local_igr_transit_sub","local_igr_hous_com_dev","local_igr_public_welf","local_igr_sewerage","local_igr_other","tot_chgs_and_misc_rev","total_general_charges","chg_air_transportation","chg_misc_com_activ","chg_total_education","chg_elem_ed_sch_lunch","chg_elem_ed_tuition","chg_elem_ed_nec","chg_total_high_ed","chg_hospitals","chg_regular_highways","chg_toll_highways","chg_housing_comm_dev","chg_total_nat_res","chg_parking","chg_parks_recreation","chg_sewerage","chg_solid_waste_mgmt","chg_water_transport","chg_all_other_nec","misc_general_revenue","special_assessments","prop_sale_hous_com_dev","prop_sale_other","interest_revenue","fines_and_forfeits","rents_and_royalties","net_lottery_revenue","misc_general_rev_nec","liquor_stores_revenue","total_utility_revenue","water_utility_revenue","electric_utility_rev","gas_utility_rev","transit_utility_rev","total_insur_trust_rev","total_insur_trust_ctrb","tot_ins_trust_inv_rev","total_emp_ret_rev","emp_ret_total_ctrib","emp_ret_loc_emp_ctrib","emp_ret_loc_to_loc_sys","emp_ret_from_other_gov","emp_ret_sta_to_sta_ctr","emp_ret_int_rev","emp_ret_other_earnings","total_unemp_rev","unemp_payroll_tax","unemp_int_revenue","unemp_federal_advances","total_expenditure","total_ig_expenditure","direct_expenditure","total_current_expend","total_current_oper","total_capital_outlays","total_construction","tot_assist_subsidies","total_interest_on_debt","total_insur_trust_ben","total_salaries_wages","general_expenditure","ig_exp_to_state_govt","ig_exp_to_local_govts","ig_exp_to_federal_govt","direct_general_expend","general_current_expend","general_current_oper","general_capital_outlay","general_construction","general_assist_sub","general_debt_interest","air_trans_total_expend","air_trans_direct_expend","air_trans_cap_outlay","air_trans_construction","air_trans_ig_to_state","air_trans_ig_local_govts","misc_com_activ_tot_exp","misc_com_activ_cap_out","misc_com_activ_constr","correct_total_exp","correct_direct_exp","correct_cap_outlay","correct_construct","correct_ig_to_st","correct_ig_loc_govts","total_educ_total_exp","total_educ_direct_exp","total_educ_cap_outlay","total_educ_construct","elem_educ_total_exp","elem_educ_direct_exp","elem_educ_cap_outlay","elem_educ_construction","elem_educ_ig_to_state","elem_educ_ig_local_govts","elem_educ_ig_sch_to_sch","higher_ed_total_exp","higher_ed_direct_exp","higher_ed_cap_outlay"],["higher_ed_construct","higher_ed_ig_to_st","higher_ed_ig_loc_govts","educ_nec_total_expend","educ_nec_direct_expend","educ_nec_cap_outlay","educ_nec_construction","educ_nec_ig_to_state","educ_nec_ig_local_govts","emp_sec_adm_direct_exp","emp_sec_adm_cap_outlay","fin_admin_total_exp","fin_admin_direct_exp","fin_admin_cap_outlay","fin_admin_construction","fin_admin_ig_to_state","fin_admin_ig_local_govts","fire_prot_total_expend","fire_prot_direct_exp","fire_prot_cap_outlay","fire_prot_construction","fire_prot_ig_to_state","fire_prot_ig_local_govts","judicial_total_expend","judicial_direct_expend","judicial_cap_outlay","judicial_construction","judicial_ig_to_state","judicial_ig_local_govts","cen_staff_total_expend","cen_staff_direct_exp","cen_staff_cap_outlay","cen_staff_construction","cen_staff_ig_to_state","cen_staff_ig_local_govts","gen_pub_bldg_total_exp","gen_pub_bldg_cap_out","gen_pub_bldg_construct","health_total_expend","health_direct_expend","health_capital_outlay","health_construction","health_ig_to_state","health_ig_local_govts","total_hospital_total_exp","total_hospital_dir_exp","total_hospital_cap_out","total_hospital_construct","total_hospital_ig_to_state","total_hospital_ig_loc_govts","own_hospital_total_exp","own_hospital_cap_out","own_hospital_construct","hosp_other_total_exp","hosp_other_direct_exp","hosp_other_cap_outlay","hosp_other_construct","hosp_other_ig_to_state","hosp_other_ig_loc_govts","total_highways_tot_exp","total_highways_dir_exp","total_highways_cap_out","total_highways_construct","regular_hwy_total_exp","regular_hwy_direct_exp","regular_hwy_cap_outlay","regular_hwy_construct","regular_hwy_ig_to_sta","regular_hwy_ig_loc_govts","toll_hwy_total_expend","toll_hwy_cap_outlay","toll_hwy_construction","transit_sub_total_exp","transit_sub_direct_sub","transit_sub_ig_to_sta","transit_sub_ig_loc_govts","transit_sub_to_own_sys","hous_com_total_exp","hous_com_direct_exp","hous_com_cap_outlay","hous_com_construct","hous_com_ig_to_state","hous_com_ig_loc_govts","libraries_total_expend","libraries_direct_exp","libraries_cap_outlay","libraries_construction","libraries_ig_to_state","libraries_ig_local_govts","natural_res_total_exp","natural_res_direct_exp","natural_res_cap_outlay","natural_res_construct","natural_res_ig_to_sta","natural_res_ig_loc_govts","parking_total_expend","parking_direct_expend","parking_capital_outlay","parking_construction","parking_ig_to_state","parking_ig_local_govts","parks_rec_total_exp","parks_rec_direct_exp","parks_rec_cap_outlay","parks_rec_construct","parks_rec_ig_to_sta","parks_rec_ig_loc_govts","police_prot_total_exp","police_prot_direct_exp","police_prot_cap_outlay","police_prot_construct","police_prot_ig_to_sta","police_prot_ig_loc_govts","prot_insp_total_exp","prot_insp_direct_exp","prot_insp_cap_outlay","prot_insp_construction","prot_insp_ig_to_state","prot_insp_ig_local_govts","public_welf_total_exp","public_welf_direct_exp","public_welf_cash_asst","public_welf_cap_outlay","public_welf_construct","welf_categ_total_exp","welf_categ_cash_assist","welf_categ_ig_to_state","welf_categ_ig_loc_govts","welf_cash_total_exp","welf_cash_cash_assist","welf_cash_ig_local_govts","welf_vend_pmts_medical","welf_vend_pmts_nec","welf_state_share_part_d","welf_ins_total_exp","welf_ins_cap_outlay","welf_ins_construction","welf_nec_total_expend","welf_nec_direct_expend","welf_nec_cap_outlay","welf_nec_construction","welf_nec_ig_to_state","welf_nec_ig_local_govts","sewerage_total_expend","sewerage_direct_expend","sewerage_cap_outlay","sewerage_construction","sewerage_ig_to_state","sewerage_ig_local_govts","sw_mgmt_total_expend","sw_mgmt_direct_expend","sw_mgmt_capital_outlay","sw_mgmt_construction","sw_mgmt_ig_to_state","sw_mgmt_ig_local_govts","water_trans_total_exp","water_trans_direct_exp","water_trans_cap_outlay","water_trans_construct","water_trans_ig_to_sta","water_trans_ig_loc_govts","interest_on_gen_debt","general_nec_total_exp","general_nec_direct_exp","general_nec_cap_outlay","general_nec_construct","general_nec_ig_to_st","general_nec_ig_loc_govts","general_nec_ig_to_fed","liquor_stores_tot_exp","liquor_stores_cap_out","liquor_stores_constr","total_util_total_exp","total_util_inter_exp","total_util_cap_outlay"],["total_util_construct","water_util_total_exp","water_util_inter_exp","water_util_cap_outlay","water_util_construct","elec_util_total_exp","elec_util_inter_exp","elec_util_cap_outlay","elec_util_construct","gas_util_total_exp","gas_util_inter_exp","gas_util_cap_outlay","gas_util_construct","trans_util_total_exp","trans_util_inter_exp","trans_util_cap_outlay","trans_util_construct","emp_ret_total_expend","emp_ret_benefit_paymts","emp_ret_withdrawals","emp_ret_other_paymts","unemp_comp_total_exp","unemp_comp_ben_paymts","unemp_ext_spec_pmts","total_long_term_debt_out","st_debt_end_of_year","total_beg_ltd_out","beg_ltd_out_private_purp","beg_ltd_out_all_other","beg_ltd_out_utility","beg_ltd_out_water_util","beg_ltd_out_elec_util","beg_ltd_out_gas_util","beg_ltd_out_trans_util","beg_ltd_out_general","beg_ltd_out_education","beg_ltd_out_priv_purp","beg_ltd_out_other_nec","total_ltd_issued","ltd_iss_private_purp","ltd_iss_all_other","ltd_iss_utility","ltd_iss_util_water","ltd_iss_util_electric","ltd_iss_util_gas_supply","ltd_iss_util_transit","ltd_iss_general","ltd_iss_gen_elem_educ","ltd_iss_gen_other_educ","ltd_iss_gen_other_nec","total_ltd_iss_ffc","ltd_iss_ffc_utility","ltd_iss_ffc_water_util","ltd_iss_ffc_elec_util","ltd_iss_ffc_gas_util","ltd_iss_ffc_trans_util","ltd_iss_ffc_general","ltd_iss_ffc_elem_educ","ltd_iss_ffc_other_educ","ltd_iss_ffc_other_nec","total_ltd_iss_ng","ltd_iss_ng_utility","ltd_iss_ng_water_util","ltd_iss_ng_elec_util","ltd_iss_ng_gas_util","ltd_iss_ng_trans_util","ltd_iss_ng_general","ltd_iss_ng_elem_educ","ltd_iss_ng_other_educ","ltd_iss_ng_private_purp","ltd_iss_ng_other_nec","total_ltd_iss_unsp","ltd_iss_unsp_utility","ltd_iss_unsp_water_util","ltd_iss_unsp_elec_util","ltd_iss_unsp_gas_util","ltd_iss_unsp_trans_util","ltd_iss_unsp_general","ltd_iss_unsp_elem_educ","ltd_iss_unsp_other_educ","ltd_iss_unsp_other_nec","total_ltd_retired","ltd_ret_private_purp","ltd_ret_all_other","ltd_ret_utility","ltd_ret_util_water","ltd_ret_util_electric","ltd_ret_util_gas_supply","ltd_ret_util_transit","ltd_ret_general","ltd_ret_gen_elem_educ","ltd_ret_gen_other_educ","ltd_ret_gen_other_nec","total_ltd_ret_ffc","ltd_ret_ffc_utility","ltd_ret_ffc_water_util","ltd_ret_ffc_elec_util","ltd_ret_ffc_gas_util","ltd_ret_ffc_trans_util","ltd_ret_ffc_general","ltd_ret_ffc_elem_educ","ltd_ret_ffc_other_educ","ltd_ret_ffc_other_nec","total_ltd_ret_ng","ltd_ret_ng_utility","ltd_ret_ng_water_util","ltd_ret_ng_elec_util","ltd_ret_ng_gas_util","ltd_ret_ng_trans_util","ltd_ret_ng_general","ltd_ret_ng_elem_educ","ltd_ret_ng_other_educ","ltd_ret_ng_private_purp","ltd_ret_ng_other_nec","total_ltd_ret_unsp","ltd_ret_unsp_utility","ltd_ret_unsp_water_util","ltd_ret_unsp_elec_utili","ltd_ret_unsp_gas_util","ltd_ret_unsp_trans_util","ltd_ret_unsp_general","ltd_ret_unsp_elem_educ","ltd_ret_unsp_other_educ","ltd_ret_unsp_other_nec","total_ltd_out","ltd_out_private_purp","ltd_out_all_other","total_ltd_out_utility","ltd_out_util_water","ltd_out_util_electric","ltd_out_util_gas_supply","ltd_out_util_transit","ltd_out_general","ltd_out_gen_elem_educ","ltd_out_gen_other_educ","ltd_out_gen_other_nec","total_ltd_out_ffc","ltd_out_ffc_utility","ltd_out_ffc_water_util","ltd_out_ffc_elec_util","ltd_out_ffc_gas_util","ltd_out_ffc_trans_util","ltd_out_ffc_general","ltd_out_ffc_elem_educ","ltd_out_ffc_other_educ","ltd_out_ffc_other_nec","tot_ltd_out_ng","ltd_out_ng_utility","ltd_out_ng_water_util","ltd_out_ng_elec_util","ltd_out_ng_gas_util","ltd_out_ng_trans_util","ltd_out_ng_general","ltd_out_ng_elem_educ","ltd_out_ng_other_educ","ltd_out_ng_private_purp","ltd_out_ng_other_nec","total_cash_securities","insur_trust_cash_sec","emp_retire_cash_sec","emp_retire_cash_dep","emp_retire_total_sec","emp_retire_sec_tot_fed","emp_retire_sec_s_l_secur","emp_retire_sec_tot_nong","emp_retire_sec_corp_bds","emp_retire_sec_corp_stk","emp_retire_sec_mortgages","emp_retire_sec_misc_inv","emp_retire_sec_oth_nong","unemp_comp_cash_sec","unemp_comp_bal_in_us_trs","nonin_trust_cash_sec","sinking_fd_cash_sec","bond_fd_cash_sec"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>fields<\/th>\n      <th>fields2<\/th>\n      <th>fields3<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<p>There are large number of financial variables spread across a many tables, and also some identifying data stored in “id_cols” and time-related demographic data in “popu”. In order to aggregate values per population by state or local entities, complicated <code>{SQL}</code> queries involving five separate tables (“state”, “county”, “local”, “school” and “special”) are required. We would also need to separately link our id and demographic data which are also in separate tables. This post will show how easy this can be using a familiar <code>{dplyr}</code> environment.</p>
+<pre class="r"><code># Assign tables to dplyr SQL connections using tbl()
+tables &lt;- DBI::dbListTables(conn)
+for (table in tables) {
+  assign(table, tbl(conn, table))
+}</code></pre>
+</div>
+<div id="squaring-up-population-data-across-governments" class="section level1">
+<h1>Squaring Up Population Data Across Governments</h1>
+<p>With the code in the chunk above, we set up a SQLite Connection object in our RStudio Global Environment pane to represent each table in the database like any other data.frame. The key difference is that the data in a connection object is a “lazy query” displayed in 1,000 row samples and is not brought into our local environment until we <code>collect()</code> it. Because of this feature, we can perform our joins and aggregations with other objects within the database, and only bring back the needed data into our environment. This enables us to explore without the memory constraints we have sometimes experienced even at this size of data, and also to experiment with generating complicated <code>{SQL}</code> queries.</p>
+<pre class="r"><code>head(select(local, 1:10), 5)</code></pre>
+<pre><code># Source:   lazy query [?? x 10]
+# Database: sqlite 3.34.1
+#   [/Users/davidlucey/Desktop/David/Projects/govFin/inst/extdata/gov_census.db]
+        id year4 fy_end_date sch_lev_code function_code total_revenue
+     &lt;int&gt; &lt;int&gt;       &lt;int&gt;        &lt;int&gt;         &lt;int&gt;         &lt;int&gt;
+1 12001001  1972         930           NA            NA            17
+2 12001001  1977         930           NA            NA            59
+3 12001001  1979         930           NA            NA            66
+4 12001001  1981         930           NA            NA            82
+5 12001001  1982         930           NA            NA            92
+# … with 4 more variables: total_rev_own_sources &lt;int&gt;, general_revenue &lt;int&gt;,
+#   gen_rev_own_sources &lt;int&gt;, total_taxes &lt;int&gt;</code></pre>
+<p>In order to look at per capita statistics without double counting, we would like to check if the data duplicates population counts across tables in the various government entities. In the query below, we remove the Federal Government rows from our id_cols table, because those only go up until 1995, leaving all other government entities. In the output below, the aggregated population counts look about right at the state level (state code = 0), but it might also be interesting to check if the town-by-town aggregations add up to the state totals.</p>
+<details>
+<summary>
+Click to see code generating output
+</summary>
+<pre class="r"><code>state_level &lt;- 
+  id_cols %&gt;%
+  filter(type_code == 0) %&gt;%
+  left_join(popu, by = &quot;id&quot;) %&gt;%
+  filter(year4 == 2016) %&gt;%
+  group_by(state_code, year4) %&gt;%
+  summarize(
+    name, 
+    tot_state = sum(population, na.rm = TRUE),
+    .groups = &quot;drop&quot;) %&gt;% 
+  select(name, state_code, tot_state) </code></pre>
+</details>
+<pre><code># Source:   lazy query [?? x 3]
+# Database: sqlite 3.34.1
+#   [/Users/davidlucey/Desktop/David/Projects/govFin/inst/extdata/gov_census.db]
+  name        state_code tot_state
+  &lt;chr&gt;            &lt;int&gt;     &lt;int&gt;
+1 ALABAMA              1   4858979
+2 ALASKA               2    738432
+3 ARIZONA              3   6828065
+4 ARKANSAS             4   2978204
+5 CALIFORNIA           5  39144818
+6 COLORADO             6   5456574
+7 CONNECTICUT          7   3590886</code></pre>
+<p>In the code below, we add up any populations tied to the County, Municipal, Township and other districts (type_code from 1-5). We live in Connecticut which doesn’t have county governments, but other states may have different structures, so we need to look across county, municipality, townships, school and special districts, so we are talking about a pretty complicated query including joins, filtering, pivots and aggregation. Now we can see that this is getting into some really complicated <code>{SQL}</code> for a guy who doesn’t know <code>{SQL}</code>. We haven’t added the state name yet, but the aggregations by state_code of the local totals are shown below.</p>
+<details>
+<summary>
+Click to see code generating output
+</summary>
+<pre class="r"><code>local_level &lt;-
+  id_cols %&gt;%
+  filter(type_code %in% c(1:5)) %&gt;%
+  select(id, state_code, state_code, type_code) %&gt;% 
+  left_join(popu) %&gt;%
+  filter(year4 == 2016) %&gt;%
+  select(state_code, type_code, population) %&gt;% 
+  pivot_wider(
+    names_from = type_code,
+    values_from = population,
+    values_fill = 0,
+    values_fn = sum
+  ) %&gt;% 
+  rename(
+    state_code = 1 ,
+    county = 2,
+    munis = 3,
+    school = 4,
+    special = 5,
+    townships = 6) %&gt;% 
+  select(state_code, county, munis, townships, school, special) %&gt;%
+  mutate(tot_local = county + munis + townships + school + special)</code></pre>
+</details>
+<pre><code># Source:   lazy query [?? x 7]
+# Database: sqlite 3.34.1
+#   [/Users/davidlucey/Desktop/David/Projects/govFin/inst/extdata/gov_census.db]
+   state_code   county    munis townships school special tot_local
+        &lt;int&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;
+ 1          1  3633629  2067036         0      0       0   5700665
+ 2          2   319022   470256         0      0       0    789278
+ 3          3  6828065  5044676         0      0       0  11872741
+ 4          4  2468014  1444504         0      0       0   3912518
+ 5          5 38280002 15706524         0      0       0  53986526
+ 6          6  4560451  3170808         0      0       0   7731259
+ 7          7        0  1376121   2080762      0       0   3456883
+ 8          8   945934   268772         0      0       0   1214706
+ 9          9        0   672228         0      0       0    672228
+10         10 19358262  6145441         0      0       0  25503703
+# … with more rows</code></pre>
+<p>Adding the state name and joining the state_level and local_level tables, the summary table below compares the state populations with the aggregate local counts. The total population at the state level is generally in the range, but often considerably lower than “state” totals. It looks like we will have to aggregate up to the state level in order to calculate any per population amounts and not rely on the local totals.</p>
+<details>
+<summary>
+Click to see code generating output
+</summary>
+<pre class="r"><code># Save query
+pop_comp &lt;-
+  state_level %&gt;%
+  left_join(local_level, by = &quot;state_code&quot;) %&gt;%
+  select(name, county, munis, townships, tot_local, tot_state) %&gt;%
+  mutate(percent_diff = tot_local/tot_state - 1)
+
+# Collect query for display locally 
+population_DT &lt;- 
+  pop_comp %&gt;% 
+  collect %&gt;%
+  mutate_at(vars(county:tot_state), function(x) x/1000)</code></pre>
+</details>
+<div class="figure"><span id="fig:popu-comp-DT"></span>
+<div id="htmlwidget-2" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2">{"x":{"filter":"none","data":[["ALABAMA","ALASKA","ARIZONA","ARKANSAS","CALIFORNIA","COLORADO","CONNECTICUT","DELAWARE","FLORIDA","GEORGIA","HAWAII","IDAHO","ILLINOIS","INDIANA","IOWA","KANSAS","KENTUCKY","LOUISIANA","MAINE","MARYLAND","MASSACHUSETTS","MICHIGAN","MINNESOTA","MISSISSIPPI","MISSOURI","MONTANA","NEBRASKA","NEVADA","NEW HAMPSHIRE","NEW JERSEY","NEW MEXICO","NEW YORK","NORTH CAROLINA","NORTH DAKOTA","OHIO","OKLAHOMA","OREGON","PENNSYLVANIA","RHODE ISLAND","SOUTH CAROLINA","SOUTH DAKOTA","TENNESSEE","TEXAS","UTAH","VERMONT","VIRGINIA","WASHINGTON","WEST VIRGINIA","WISCONSIN","WYOMING"],[3633.629,319.022,6828.065,2468.014,38280.002,4560.451,0,945.934,19358.262,7843.997,432.8,1654.93,11869.209,4748.285,2575.904,2074.784,2974.156,3480.284,1329.328,5384.552,1994.82,8166.517,4821.549,2924.316,4241.159,989.188,1709.279,2836.324,1330.608,8958.013,2085.109,10201.182,9100.985,756.927,9910.947,3911.338,4028.977,11235.061,0,4896.146,858.469,4877.401,22075.897,2995.919,570.305,4620.637,7170.351,1844.128,4686.504,586.107],[2067.036,470.256,5044.676,1444.504,15706.524,3170.808,1376.121,268.772,6145.441,2795.794,998.714,1030.238,7989.804,3711.165,1810.473,2243.829,2003.006,1815.401,371.631,1240.877,3455.358,4314.773,3716.74,1061.356,2836.777,525.965,1275.269,1643.412,418.898,2656.16,1343.027,10981.301,4264.275,539.38,5935.163,2315.438,2110.114,3294.675,545.988,1422.838,543.433,3038.069,14681.333,2319.295,138.438,2698.557,3458.546,500.479,3313.154,383.717],[0,0,0,0,0,0,2080.762,0,0,0,0,0,166.535,685.713,0,44.528,0,0,471.428,0,2712.38,1621.904,24.143,0,0,0,0.14,0,705.443,2891.675,0,4698.595,0,6.393,796.182,0,0,1888.92,510.31,0,3.608,0,0,0,376.098,0,0,0,77.125,0],[5700.665,789.278,11872.741,3912.518,53986.526,7731.259,3456.883,1214.706,25503.703,10639.791,1431.514,2685.168,20025.548,9145.163,4386.377,4363.141,4977.162,5295.685,2172.387,6625.429,8162.558,14103.194,8562.432,3985.672,7077.936,1515.153,2984.688,4479.736,2454.949,14505.848,3428.136,25881.078,13365.26,1302.7,16642.292,6226.776,6139.091,16418.656,1056.298,6318.984,1405.51,7915.47,36757.23,5315.214,1084.841,7319.194,10628.897,2344.607,8076.783,969.824],[4858.979,738.432,6828.065,2978.204,39144.818,5456.574,3590.886,945.934,20271.272,10214.86,1431.603,1654.93,12859.995,6619.68,3123.899,2911.641,4425.092,4670.724,1329.328,6006.401,6794.422,9922.576,5489.594,2992.333,6083.672,1032.949,1896.19,2890.845,1330.608,8958.013,2085.109,19795.791,10042.802,756.927,11613.423,3911.338,4028.977,12787.085,1056.298,4896.146,858.469,6600.299,27469.114,2995.919,626.042,8382.993,7170.351,1844.128,5771.337,586.107],[0.173222810800376,0.0688567126018373,0.738814876542622,0.313717260469733,0.37914872921366,0.416870549176095,-0.0373175311051367,0.284133988206365,0.258120506695386,0.0415992974940429,-6.2168073131974e-05,0.622526632546392,0.557197183980243,0.381511341937979,0.404135344964738,0.498516128877152,0.124758988061717,0.133803881368285,0.634199384952397,0.103061384013488,0.201361646362266,0.421323857836917,0.559756878195364,0.331961382640234,0.163431559097861,0.466822660170057,0.5740447950891,0.549628568809466,0.844982895037456,0.619315354867201,0.644103977298069,0.307403073714003,0.330829782365519,0.721037827954347,0.433022115874019,0.591981056098962,0.523734436806167,0.284003039003807,0,0.290603670723871,0.637228601149255,0.199259306282943,0.338129435117565,0.774151437338593,0.732856581507311,-0.126899664594734,0.482339846403614,0.271390597615784,0.399464803389578,0.654687625297087]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>State<\/th>\n      <th>County<\/th>\n      <th>Municipality<\/th>\n      <th>Township<\/th>\n      <th>Local Total<\/th>\n      <th>State Total<\/th>\n      <th>Percent Diff<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"targets":6,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatPercentage(data, 0, 3, \",\", \".\");\n  }"},{"targets":1,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":2,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":3,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":4,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"targets":5,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 0, 3, \",\", \".\");\n  }"},{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":["options.columnDefs.0.render","options.columnDefs.1.render","options.columnDefs.2.render","options.columnDefs.3.render","options.columnDefs.4.render","options.columnDefs.5.render"],"jsHooks":[]}</script>
+<p class="caption">
+Figure 1: Population Data from Local Tables vs State Aggregates (Thousands)
+</p>
+</div>
+<p>A shown in in the code chunk below, this is a complicated query for a relatively novice <code>{SQL}</code> and infrequent <code>{dplyr}</code> user, but was easily put together in a couple of hours. It was also easier to experiment and seemed less likely that we would make an error than if working in <code>{SQL}</code>. Though it may not be fully optimized, it seems like it could take a long time to learn SQL at that level. The <code>{dbplyr}</code> package has the <code>sql_optimise()</code> function, but it didn’t change our query at all. It will be interesting to see if tools develop to help users further optimize queries. As habitual <code>{data.table}</code> users, a similar translation layer would also be a big help.</p>
+<pre class="r"><code># View SQL query
+show_query(pop_comp)</code></pre>
+<pre><code>&lt;SQL&gt;
+SELECT `name`, `county`, `munis`, `townships`, `tot_local`, `tot_state`, `tot_local` / `tot_state` - 1.0 AS `percent_diff`
+FROM (SELECT `name`, `LHS`.`state_code` AS `state_code`, `tot_state`, `county`, `munis`, `townships`, `school`, `special`, `tot_local`
+FROM (SELECT `name`, `state_code`, `tot_state`
+FROM (SELECT `state_code`, `year4`, `name`, SUM(`population`) AS `tot_state`
+FROM (SELECT `LHS`.`id` AS `id`, `state_code`, `type_code`, `county`, `name`, `fips_code_state`, `fips_county`, `fips_place`, `fips_combined`, `year4`, `year_pop`, `population`, `enrollment`
+FROM (SELECT *
+FROM `id_cols`
+WHERE (`type_code` = 0.0)) AS `LHS`
+LEFT JOIN `popu` AS `RHS`
+ON (`LHS`.`id` = `RHS`.`id`)
+)
+WHERE (`year4` = 2016.0)
+GROUP BY `state_code`, `year4`)) AS `LHS`
+LEFT JOIN (SELECT `state_code`, `county`, `munis`, `townships`, `school`, `special`, `county` + `munis` + `townships` + `school` + `special` AS `tot_local`
+FROM (SELECT `state_code`, `1` AS `county`, `2` AS `munis`, `3` AS `townships`, `4` AS `school`, `5` AS `special`
+FROM (SELECT `state_code`, SUM(CASE WHEN (`type_code` = 1) THEN (`population`) WHEN NOT(`type_code` = 1) THEN (0.0) END) AS `1`, SUM(CASE WHEN (`type_code` = 2) THEN (`population`) WHEN NOT(`type_code` = 2) THEN (0.0) END) AS `2`, SUM(CASE WHEN (`type_code` = 4) THEN (`population`) WHEN NOT(`type_code` = 4) THEN (0.0) END) AS `4`, SUM(CASE WHEN (`type_code` = 5) THEN (`population`) WHEN NOT(`type_code` = 5) THEN (0.0) END) AS `5`, SUM(CASE WHEN (`type_code` = 3) THEN (`population`) WHEN NOT(`type_code` = 3) THEN (0.0) END) AS `3`
+FROM (SELECT `state_code`, `type_code`, `population`
+FROM (SELECT `LHS`.`id` AS `id`, `state_code`, `type_code`, `year4`, `year_pop`, `population`, `enrollment`
+FROM (SELECT `id`, `state_code`, `type_code`
+FROM `id_cols`
+WHERE (`type_code` IN (1, 2, 3, 4, 5))) AS `LHS`
+LEFT JOIN `popu` AS `RHS`
+ON (`LHS`.`id` = `RHS`.`id`)
+)
+WHERE (`year4` = 2016.0))
+GROUP BY `state_code`))) AS `RHS`
+ON (`LHS`.`state_code` = `RHS`.`state_code`)
+)</code></pre>
+</div>
+<div id="aggregating-all-income-and-spending-by-population" class="section level1">
+<h1>Aggregating All Income and Spending by Population</h1>
+<p>To take it to another level, now we can get back to the original challenge: calculating the state total income and spending per population by all forms of government. In order to do this, we have to merge the 5 non-federal government tables together, aggregate the selected items, join on the identifier and population tables and filter for only full census years (ending in 2 or 7). We also then calculate the per population amounts for and tidy up our three selected variables, which just about doubles the query size.</p>
+<details>
+<summary>
+Click to see code generating output
+</summary>
+<pre class="r"><code># State population and identifier SQL Connection object
+state_pop &lt;- popu %&gt;%
+  left_join(id_cols) %&gt;%
+  filter(type_code == 0) %&gt;%
+  select(state_code, year4, population, name)</code></pre>
+<pre><code>Joining, by = &quot;id&quot;</code></pre>
+<pre class="r"><code># Fields to keep from tables
+fields &lt;-
+  c(&quot;id&quot;,
+    &quot;total_revenue&quot;,
+    &quot;total_taxes&quot;,
+    &quot;total_expenditure&quot;,
+    &quot;year4&quot;)
+
+# Years to keep
+full_census &lt;- seq(1972, 2017, 5)
+
+# Union of tables 
+all_govs &lt;- 
+  union_all(
+    select(county, fields), 
+    select(local, fields), 
+    select(state, fields), 
+    select(special, fields),
+    select(school, fields)
+    )</code></pre>
+<pre><code>Note: Using an external vector in selections is ambiguous.
+ℹ Use `all_of(fields)` instead of `fields` to silence this message.
+ℹ See &lt;https://tidyselect.r-lib.org/reference/faq-external-vector.html&gt;.
+This message is displayed once per session.</code></pre>
+<pre class="r"><code># Aggregations after merging tables
+vars &lt;- c(&quot;year4&quot;, &quot;name&quot;, &quot;rev_pop&quot;, &quot;tax_pop&quot;, &quot;spend_pop&quot;)
+
+# Final SQL connection object
+state_agg &lt;- all_govs %&gt;%
+  left_join(select(id_cols, c(&quot;id&quot;, &quot;state_code&quot;))) %&gt;%
+  group_by(state_code, year4) %&gt;%
+  summarize_at(vars(total_revenue:total_expenditure), sum, na.rm = TRUE) %&gt;%
+  ungroup() %&gt;%
+  left_join(state_pop, by = c(&quot;state_code&quot;, &quot;year4&quot;)) %&gt;%
+  mutate(
+    rev_pop = total_revenue * 1000 / population,
+    tax_pop = total_taxes * 1000 / population,
+    spend_pop = total_expenditure * 1000 / population
+  ) %&gt;%
+  select(any_of(vars)) %&gt;%
+  tidyr::pivot_longer(names_to = &quot;variable&quot;,
+                      cols = contains(&quot;pop&quot;)) %&gt;%
+  filter(year4 %in% full_census)</code></pre>
+<pre><code>Joining, by = &quot;id&quot;</code></pre>
+</details>
+<pre class="r"><code># View SQL query
+dplyr::show_query(state_agg)</code></pre>
+<pre><code>&lt;SQL&gt;
+SELECT *
+FROM (SELECT `year4`, `name`, &#39;rev_pop&#39; AS `variable`, `rev_pop` AS `value`
+FROM (SELECT `year4`, `name`, `total_revenue` * 1000.0 / `population` AS `rev_pop`, `total_taxes` * 1000.0 / `population` AS `tax_pop`, `total_expenditure` * 1000.0 / `population` AS `spend_pop`
+FROM (SELECT `LHS`.`state_code` AS `state_code`, `LHS`.`year4` AS `year4`, `total_revenue`, `total_taxes`, `total_expenditure`, `population`, `name`
+FROM (SELECT `state_code`, `year4`, SUM(`total_revenue`) AS `total_revenue`, SUM(`total_taxes`) AS `total_taxes`, SUM(`total_expenditure`) AS `total_expenditure`
+FROM (SELECT `LHS`.`id` AS `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`, `state_code`
+FROM (SELECT `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`
+FROM `county`
+UNION ALL
+SELECT `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`
+FROM `local`) AS `LHS`
+LEFT JOIN (SELECT `id`, `state_code`
+FROM `id_cols`) AS `RHS`
+ON (`LHS`.`id` = `RHS`.`id`)
+)
+GROUP BY `state_code`, `year4`) AS `LHS`
+LEFT JOIN (SELECT `state_code`, `year4`, `population`, `name`
+FROM (SELECT `LHS`.`id` AS `id`, `year4`, `year_pop`, `population`, `enrollment`, `state_code`, `type_code`, `county`, `name`, `fips_code_state`, `fips_county`, `fips_place`, `fips_combined`
+FROM `popu` AS `LHS`
+LEFT JOIN `id_cols` AS `RHS`
+ON (`LHS`.`id` = `RHS`.`id`)
+)
+WHERE (`type_code` = 0.0)) AS `RHS`
+ON (`LHS`.`state_code` = `RHS`.`state_code` AND `LHS`.`year4` = `RHS`.`year4`)
+))
+UNION ALL
+SELECT `year4`, `name`, &#39;tax_pop&#39; AS `variable`, `tax_pop` AS `value`
+FROM (SELECT `year4`, `name`, `total_revenue` * 1000.0 / `population` AS `rev_pop`, `total_taxes` * 1000.0 / `population` AS `tax_pop`, `total_expenditure` * 1000.0 / `population` AS `spend_pop`
+FROM (SELECT `LHS`.`state_code` AS `state_code`, `LHS`.`year4` AS `year4`, `total_revenue`, `total_taxes`, `total_expenditure`, `population`, `name`
+FROM (SELECT `state_code`, `year4`, SUM(`total_revenue`) AS `total_revenue`, SUM(`total_taxes`) AS `total_taxes`, SUM(`total_expenditure`) AS `total_expenditure`
+FROM (SELECT `LHS`.`id` AS `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`, `state_code`
+FROM (SELECT `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`
+FROM `county`
+UNION ALL
+SELECT `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`
+FROM `local`) AS `LHS`
+LEFT JOIN (SELECT `id`, `state_code`
+FROM `id_cols`) AS `RHS`
+ON (`LHS`.`id` = `RHS`.`id`)
+)
+GROUP BY `state_code`, `year4`) AS `LHS`
+LEFT JOIN (SELECT `state_code`, `year4`, `population`, `name`
+FROM (SELECT `LHS`.`id` AS `id`, `year4`, `year_pop`, `population`, `enrollment`, `state_code`, `type_code`, `county`, `name`, `fips_code_state`, `fips_county`, `fips_place`, `fips_combined`
+FROM `popu` AS `LHS`
+LEFT JOIN `id_cols` AS `RHS`
+ON (`LHS`.`id` = `RHS`.`id`)
+)
+WHERE (`type_code` = 0.0)) AS `RHS`
+ON (`LHS`.`state_code` = `RHS`.`state_code` AND `LHS`.`year4` = `RHS`.`year4`)
+))
+UNION ALL
+SELECT `year4`, `name`, &#39;spend_pop&#39; AS `variable`, `spend_pop` AS `value`
+FROM (SELECT `year4`, `name`, `total_revenue` * 1000.0 / `population` AS `rev_pop`, `total_taxes` * 1000.0 / `population` AS `tax_pop`, `total_expenditure` * 1000.0 / `population` AS `spend_pop`
+FROM (SELECT `LHS`.`state_code` AS `state_code`, `LHS`.`year4` AS `year4`, `total_revenue`, `total_taxes`, `total_expenditure`, `population`, `name`
+FROM (SELECT `state_code`, `year4`, SUM(`total_revenue`) AS `total_revenue`, SUM(`total_taxes`) AS `total_taxes`, SUM(`total_expenditure`) AS `total_expenditure`
+FROM (SELECT `LHS`.`id` AS `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`, `state_code`
+FROM (SELECT `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`
+FROM `county`
+UNION ALL
+SELECT `id`, `total_revenue`, `total_taxes`, `total_expenditure`, `year4`
+FROM `local`) AS `LHS`
+LEFT JOIN (SELECT `id`, `state_code`
+FROM `id_cols`) AS `RHS`
+ON (`LHS`.`id` = `RHS`.`id`)
+)
+GROUP BY `state_code`, `year4`) AS `LHS`
+LEFT JOIN (SELECT `state_code`, `year4`, `population`, `name`
+FROM (SELECT `LHS`.`id` AS `id`, `year4`, `year_pop`, `population`, `enrollment`, `state_code`, `type_code`, `county`, `name`, `fips_code_state`, `fips_county`, `fips_place`, `fips_combined`
+FROM `popu` AS `LHS`
+LEFT JOIN `id_cols` AS `RHS`
+ON (`LHS`.`id` = `RHS`.`id`)
+)
+WHERE (`type_code` = 0.0)) AS `RHS`
+ON (`LHS`.`state_code` = `RHS`.`state_code` AND `LHS`.`year4` = `RHS`.`year4`)
+)))
+WHERE (`year4` IN (1972.0, 1977.0, 1982.0, 1987.0, 1992.0, 1997.0, 2002.0, 2007.0, 2012.0, 2017.0))</code></pre>
+<p>When we run this query against the database, the response is pretty close to instantaneous, and we still haven’t even taken the data into memory when we plot it below with ggplot.</p>
+<details>
+<summary>
+Click to see code generating output
+</summary>
+<pre class="r"><code># Prepare plot directly from our SQL Connection object
+p &lt;- ggplotly(
+  state_agg %&gt;%
+    ggplot(aes(year4, 
+               value, 
+               group = name, 
+               color = name)
+           )+
+    geom_line() +
+    facet_wrap( ~variable) +
+    scale_y_continuous(labels = scales::dollar,
+                       trans = &quot;log10&quot;) +
+    theme_bw() +
+    theme(legend.position = &quot;none&quot;) +
+    labs(
+      title = &quot;State Select Revenue and Spending Items - 1972-2017&quot;,
+      x = &quot;Year&quot;,
+      y = &quot;Amount per Population&quot;
+    )
+)</code></pre>
+</details>
+<p>As a final step, we can add our two queries as “Views” in the database so that they are immediately available in the future.</p>
+<details>
+<summary>
+Click to see code generating output
+</summary>
+<pre class="r"><code># SQL render 
+q &lt;- dbplyr::sql_render(pop_comp)
+q1 &lt;- dbplyr::sql_render(state_agg)
+
+# Add SQL queries as views in database
+view_pop_comp &lt;- paste(&quot;CREATE VIEW pop_comp AS&quot;, q)
+view_state_agg &lt;- paste(&quot;CREATE VIEW state_agg AS&quot;, q1)
+rs &lt;- DBI::dbSendQuery(conn, view_pop_comp)
+dbClearResult(rs)
+rs &lt;- DBI::dbSendQuery(conn, view_state_agg)
+dbClearResult(rs)</code></pre>
+</details>
+<pre class="r"><code># Showing views now in database
+DBI::dbListTables(conn)</code></pre>
+<pre><code> [1] &quot;county&quot;    &quot;federal&quot;   &quot;id_cols&quot;   &quot;local&quot;     &quot;pop_comp&quot;  &quot;popu&quot;     
+ [7] &quot;school&quot;    &quot;special&quot;   &quot;state&quot;     &quot;state_agg&quot;</code></pre>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>The need to know <code>{SQL}</code> in the data profession is widely agreed upon, but there is so much to learn. This post might show that spending some of that time getting really good at <code>{dplyr}</code> might offer 2 skills for the price of 1. Complicated joins, aggregations and indexing may not be beginner data manipulations, but given how easy this was at this stage, it might have been better if we had been nudged away from .csv’s earlier. Now at a more advanced levels, the missing pieces we would like to see are mainly a translation layer to use <code>{data.table}</code> to interact with the connection object and also that the ability to use regular expressions with <code>{stringr}</code>, which don’t seem to be implemented yet.</p>
+</div>
