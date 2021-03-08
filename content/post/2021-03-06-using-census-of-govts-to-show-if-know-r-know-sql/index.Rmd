@@ -301,7 +301,7 @@ p <- ggplotly(
 ```
 </details>
 
-```{r 'ggplot-state-agg', message=FALSE, warning=FALSE, include=FALSE}
+```{r 'ggplot-state-agg', echo=FALSE, message=FALSE, warning=FALSE}
 # Show ggplot
 p
 ```
