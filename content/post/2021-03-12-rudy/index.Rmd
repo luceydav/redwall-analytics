@@ -6,3 +6,5 @@ slug: rudy
 categories: []
 tags: []
 ---
+
+![Rudy!!](images/IMG_2988.JPG)
