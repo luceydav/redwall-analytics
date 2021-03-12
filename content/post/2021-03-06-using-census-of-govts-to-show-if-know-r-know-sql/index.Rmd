@@ -111,7 +111,7 @@ head(select(local, 1:10), 5)
 
 In order to look at per capita statistics without double counting, we would like to check if the data duplicates population counts across tables in the various government entities. In the query below, we remove the Federal Government rows from our id_cols table, because those only go up until 1995, leaving all other government entities. In the output below, the aggregated population counts look about right at the state level (state code = 0), but it might also be interesting to check if the town-by-town aggregations add up to the state totals.
 
-<details><summary>Click to see code generating table</summary>
+<details><summary>Click to see code generating output</summary>
 ```{r 'state-level', echo=TRUE, message=FALSE, warning=FALSE}
 state_level <- 
   id_cols %>%
@@ -133,7 +133,7 @@ head(state_level, 7)
 
 In the code below, we add up any populations tied to the County, Municipal, Township and other districts (type_code from 1-5). We live in Connecticut which doesn't have county governments, but other states may have different structures, so we need to look across county, municipality, townships, school and special districts, so we are talking about a pretty complicated query including joins, filtering, pivots and aggregation. Now we can see that this is getting into some really complicated `{SQL}` for a guy who doesn't know `{SQL}`. We haven't added the state name yet, but the aggregations by state_code of the local totals are shown below.
 
-<details><summary>Click to see code generating table</summary>
+<details><summary>Click to see code generating output</summary>
 ```{r 'local-level', echo=TRUE, message=FALSE, warning=FALSE}
 local_level <-
   id_cols %>%
@@ -166,7 +166,7 @@ local_level
 
 Adding the state name and joining the state_level and local_level tables, the summary table below compares the state populations with the aggregate local counts. The total population at the state level is generally in the range, but often considerably lower than "state" totals. It looks like we will have to aggregate up to the state level in order to calculate any per population amounts and not rely on the local totals.
 
-<details><summary>Click to see code generating table</summary>
+<details><summary>Click to see code generating output</summary>
 ```{r 'popu-comp', echo=TRUE, message=FALSE, warning=FALSE}
 # Save query
 pop_comp <-
@@ -218,7 +218,7 @@ show_query(pop_comp)
 
 To take it to another level, now we can get back to the original challenge:  calculating the state total income and spending per population by all forms of government. In order to do this, we have to merge the 5 non-federal government tables together, aggregate the selected items, join on the identifier and population tables and filter for only full census years (ending in 2 or 7). We also then calculate the per population amounts for and tidy up our three selected variables, which just about doubles the query size.
 
-<details><summary>Click to see code generating query</summary>
+<details><summary>Click to see code generating output</summary>
 ```{r}
 # State population and identifier SQL Connection object
 state_pop <- popu %>%
@@ -276,7 +276,7 @@ dplyr::show_query(state_agg)
 
 When we run this query against the database, the response is pretty close to instantaneous, and we still haven't even taken the data into memory when we plot it below with ggplot. 
 
-<details><summary>Click to see code generating graphic</summary>
+<details><summary>Click to see code generating output</summary>
 ```{r 'format-ggplot', echo=TRUE, message=FALSE, warning=FALSE}
 # Prepare plot directly from our SQL Connection object
 p <- ggplotly(
