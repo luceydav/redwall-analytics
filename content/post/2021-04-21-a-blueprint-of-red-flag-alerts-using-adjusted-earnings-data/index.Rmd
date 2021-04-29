@@ -8,7 +8,7 @@ tags:
   - XBRL
 ---
 
-![Photo by \<a href="https://unsplash.com/\@biblioteca_valenciana?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText"\>Biblioteca Valenciana Nicolau Primitiu\</a\> on \<a href="https://unsplash.com/s/photos/blimp?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText"\>Unsplash\</a\>](images/biblioteca-valenciana-nicolau-primitiu-QOPkIw4e52k-unsplash.jpg){width="600"}
+![Photo by \<a href="[https://unsplash.com/\\\@biblioteca_valenciana?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText"\\](https://unsplash.com/\@biblioteca_valenciana?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText%22\){.uri}\>Biblioteca Valenciana Nicolau Primitiu\</a\> on \<a href="[https://unsplash.com/s/photos/blimp?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText"\\](https://unsplash.com/s/photos/blimp?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText%22\){.uri}\>Unsplash\</a\>](images/biblioteca-valenciana-nicolau-primitiu-QOPkIw4e52k-unsplash.jpg){width="600"}
 
 # Introduction
 
@@ -36,7 +36,7 @@ The most recent of these sources is almost 20 years old at a time when arguably 
 
 ![](images/Screen%20Shot%202021-04-23%20at%205.17.09%20PM.png)
 
-We would have guessed that the rise of free analytic software and machine readable data like XBRL would have led to a revolution in financial statement sleuthing, but we were wrong. [Core Earnings: New Data and Evidence](<https://www.connectedpapers.com/main/04422906f2bd9a718221f91867e037a732fe849f/Core-Earnings-New-Data-and-Evidence/graph>) is also a lonely paper, although there are a few more recent papers which are similar.
+We would have guessed that the rise of free analytic software and machine readable data like XBRL would have led to a revolution in financial statement sleuthing, but we were wrong. [Core Earnings: New Data and Evidence](https://www.connectedpapers.com/main/04422906f2bd9a718221f91867e037a732fe849f/Core-Earnings-New-Data-and-Evidence/graph) is also a lonely paper, although there are a few more recent papers which are similar.
 
 # Key Accounting Diseases
 
@@ -99,19 +99,19 @@ Similar to Inventory and Sales Days Outstanding, the overall change in Reserves 
 
 NC takes pains to [adjust earnings](https://www.newconstructs.com/education/accounting-loopholes/) to remove items in the MD&A and footnotes which are non-recurring (positive and negative), but have been included in the main financial statements. NC also adds items which affect earnings, which have been excluded in order to derive its [CORE_EARNINGS_AFTER_TAX](https://www.newconstructs.com/core-earnings-earnings-distortion-explanation-examples/). It then derives [EARNINGS_DISTORTION](https://www.newconstructs.com/core-earnings-earnings-distortion-explanation-examples/) based on the difference between the derived Core Earnings and the GAAP Net Earnings. We would use the EARNINGS_DISTORTION as a percentage of net income and net assets as indicators of earnings quality, and likely a superior proxy to Mr. Gulliver's measurements. Thorough adjustments such as these are the main challenge, and we doubt there would be a more thorough and comprehensive data set for this purpose than that of NC.
 
-+-------------+--------------------------------------------+-----------------------------+
-| Torpedo     | NC Ticker                                  | Comment                     |
-+=============+============================================+=============================+
-| Net Income  | None                                       | Skip                        |
-+-------------+--------------------------------------------+-----------------------------+
-| Adj Income  | None                                       | Skip                        |
-+-------------+--------------------------------------------+-----------------------------+
-| Core Income | None                                       | Skip                        |
-+-------------+--------------------------------------------+-----------------------------+
-| None        | EARNINGS_DISTORTION_TOTAL_PER_ASSETS       | Divides Net Inc by Core Inc |
-+-------------+--------------------------------------------+-----------------------------+
-| None        | EARNINGS \_DISTORTION_TOTAL_PER_INCOME_NET | Divides Net Inc by Core Inc |
-+-------------+--------------------------------------------+-----------------------------+
++-------------+------------------------------------------+-----------------------------+
+| Torpedo     | NC Ticker                                | Comment                     |
++=============+==========================================+=============================+
+| Net Income  | None                                     | Skip                        |
++-------------+------------------------------------------+-----------------------------+
+| Adj Income  | None                                     | Skip                        |
++-------------+------------------------------------------+-----------------------------+
+| Core Income | None                                     | Skip                        |
++-------------+------------------------------------------+-----------------------------+
+| None        | EARNINGS_DISTORTION_TOTAL_PER_ASSETS     | Divides Net Inc by Core Inc |
++-------------+------------------------------------------+-----------------------------+
+| None        | EARNINGS_DISTORTION_TOTAL_PER_INCOME_NET | Divides Net Inc by Core Inc |
++-------------+------------------------------------------+-----------------------------+
 
 ## EFFICIENCY
 
