@@ -8,7 +8,7 @@ tags:
   - XBRL
 ---
 
-![Photo by Valenciana Nicolau Primitiu via Unsplash](images/biblioteca-valenciana-nicolau-primitiu-QOPkIw4e52k-unsplash.jpg){width="600"}
+![Photo by Valenciana Nicolau Primitiu via Unsplash](images/biblioteca-valenciana-nicolau-primitiu-QOPkIw4e52k-unsplash.jpg)
 
 # Introduction
 
