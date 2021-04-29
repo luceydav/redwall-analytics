@@ -63,10 +63,10 @@ disqusShortname = "www-redwallanalytics-com"
     width = 50
     height = 50
     
-    #[params.copyright]
+    [params.copyright]
     #prefix = ""
-    #holder = "David Lucey"
-    #startYear = "2018"
+    holder = "Redwall Analytics LLC"
+    startYear = "2018"
     #suffix = ""
     
     #[params.sidebar]

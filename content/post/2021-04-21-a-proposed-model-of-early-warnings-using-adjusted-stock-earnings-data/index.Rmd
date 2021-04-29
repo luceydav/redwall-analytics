@@ -1,0 +1,255 @@
+---
+title: A Blueprint of "Red Flag" alerts Using Adjusted Earnings Data
+author: David Lucey
+date: '2021-04-21'
+slug: a-blueprint-of-red-flag-alerts-using-adjusted-earnings-data
+categories:
+tags:
+  - XBRL
+---
+
+![Photo by \<a href="https://unsplash.com/\@biblioteca_valenciana?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText"\>Biblioteca Valenciana Nicolau Primitiu\</a\> on \<a href="https://unsplash.com/s/photos/blimp?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText"\>Unsplash\</a\>](images/biblioteca-valenciana-nicolau-primitiu-QOPkIw4e52k-unsplash.jpg){width="600"}
+
+# Introduction
+
+In [A Walk Though of Accessing Financial Statements with XBRL in R - Part 1](https://redwallanalytics.com/2020/02/18/a-walk-though-of-accessing-financial-statements-with-xbrl-in-r-part-1/) and [Learning SQL and Exploring XBRL with secdatabase.com - Part 1](https://redwallanalytics.com/2020/09/10/learning-sql-and-exploring-xbrl-with-secdatabase-com-part-1/), we set out with the hope of building a model to mine for "red flags" in financial statements following a roadmap set out in by Bruce Gulliver in the 2003 AIMR Conference Proceedings [Revelations in Financial Reporting](https://www.tandfonline.com/toc/ufaj20/current). Unfortunately, this paper is still behind a pay wall, but it is one of the most valuable research publications we have seen from the CFA Institute. We wish it were in the public domain after almost 20 years. Mr Gulliver used a similar methodology at his firm Jefferson Research to generate ["Torpedo Alerts"](http://www.quantpartners.com/research/jefferson/concept.html). We don't know the status of his work more recently, but he could not be reached and the Jefferson Research website appears to no longer to be live. Our thanks for the way he synthesized and shared his research in a simple and understandable framework, and all the credit for the blueprint we are about to lay out here, goes to him.
+
+While both of the previous posts mentioned above started out with ambitious intentions, neither could be completed with the available machine readable financial statement data. As reported, aggregated raw XBRL of many companies and periods didn't allow for meaningful comparisons even with a company's own past reports, because of changing tags over time. Comparisons with close competitors and those in other industries, are also complicated because of the leeway which companies have to customize reporting tags under XBRL rules. Finally, raw reported XBRL doesn't offer ready tools to adjust the income statement for items in the MD&A and footnotes in the way we would like. We were probably naive to hope for this, though we can still wish for a full open data set of the clean quarterly financial statements of all public companies, and all the adjustments for upload into analytic software environment like Python or R with the click of a mouse (like we have been able to do with so many other important open source data sets).
+
+Though contrary to our goal to stick with mainly open source data in this blog, we concluded that we may have to explore commercial sources. We recently learned that [New Constructs](https://www.newconstructs.com) (NC) has built a perfect data set for this purpose, which we will discuss in the next section. We were able to access New Constructs' website to explore stock-by-stock data within their UI, but not to mine the full set of data as a whole in R. Please do not read on if expecting to see a completed study or code in R, but our intention is to pass on our findings and lay out a blueprint of what long-term forensic accounting "red flag" analysis might look like for others in the future.
+
+# New Constructs
+
+Last month, we learned of NC from their joint paper [Distribution Is Not Enough](https://www.newconstructs.com/wp-content/uploads/2021/03/Investment-Industry-Opinion-Paper-Distribution-Is-Not-Enough.pdf). Having operated since 2003, the accounting research firm had gradually built an impressive process combining man and machine, which has enabled them to scale up and reduce errors, which normally might be expected when conducting financial analysis on so many companies. This data set is in a different league from what we had seen with SEC Edgar, Financial Modeling Prep or SECDatabase.com. NC has gone through every earnings report since the late 1990s and adjusted annual 10-K's for items left off the face of the balance sheets and income statements, but included in the MD&A, footnotes and cash flow statements. They also have similarly adjusted quarterly data since 2013. We would advise anybody looking to learn about this topic to read their [Learn From Value-Investing Experts](https://www.newconstructs.com/education/), and particularly the section about "Accounting Fixes", it is like a textbook on its own. They also offer many excellent webinars on the subject.
+
+A team of Harvard and MIT researchers who had access to NC's data recently published [Core Earnings: New Data and Evidence](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3467814) in the Journal of Financial Economics verifying the accuracy in a sample of reports and comparing the overall quality to Compustat. Though there are armies of analysts pouring over financial statements, they also demonstrating that NC's adjustments were not really discounted by the market (finding an 8% excess return in back tests when comparing the companies with the most to the least adjustments). By the researchers count, NC found that approximately 30% of non-core items or almost 20% of net earnings over the period where non-core items dispersed throughout the 10-K, on and off the face of the income statement. They estimated that roughly half of these items on average were off the income statement (certainly a material amount), and found that the quantity and magnitude of such items had been increasing over time. The researchers found that NC's core earnings had a significantly higher year-to-year persistence (ie: future earnings were more highly correlated with past periods once non-recurring items had been removed), and hence represent a better baseline in any model.
+
+Mr. Gulliver never outlined how he cleaned his data although he did mention a service called Simplystocks, which was purchased by S&P Global Intelligence in 2003. The main comparison used in the Harvard/MIT paper were with Compustat. In this post, we will outline the model we built as if we would be able to back test Mr. Gulliver's "red flags" (using NC's superior data). We found that the NC's variables as shown in their [Data Feeds & Dictionaries](https://client.newconstructs.com/nc/documentation/data-feed.htm). Without the access to the data, we thought of dropping the post, but having spent the time to do the research, we wanted to share the ideas and information with others who might have greater resources than ours. This post will be a walk-through of what a process like this would look like in hopes we one day get access to similar data.
+
+# The Forgotten Art of Forensic Accounting
+
+In the best of circumstances, it has been challenging predicting winners and losers with the rise of the digital economy using reported GAAP metrics. Still, we believe that financial reporting remains a vital, although incomplete component of an investor's toolkit. Just to cite some of the sources that we used to prepare for this project (aside from "Revelations in Financial Reporting"). Mr. Gulliver himself recommended [Quality of Earnings](https://www.amazon.com/Quality-Earnings-Thornton-L-Oglove/dp/0684863758) by Thornton O'Glove (1987) and [Financial Warnings: Detecting Earnings Surprises, Avoiding Business Troubles and Implementing Corrective Strategies](https://www.amazon.com/Financial-Warnings-Implementing-Corrective-Strategies/dp/0471120448) by Charles W. Mulford and Eugene E. Comiskey (1996). We also purchased Mulford & Comiskey's [The Financial Numbers Game: Detecting Creative Accounting Practices](https://www.amazon.com/Financial-Numbers-Game-Detecting-Accounting/dp/0471770736) (2002) in our research.
+
+[![Source: Connected Papers](images/Screen%20Shot%202021-04-29%20at%2012.03.43%20PM.png "Mulford's "Financial Numbers Game" a lonely academic endeavor")](https://www.connectedpapers.com/main/d6861aa68adfc861fafa2a90c51771d6e7fce6f7/The-Financial-Numbers-Game-Detecting-Creative-Accounting-Practices/graph)
+
+The most recent of these sources is almost 20 years old at a time when arguably it should be most relevant (more than a decade into an historic bull market). When we look at it in this fantastic new tool called [Connected Papers](https://www.connectedpapers.com/main/d6861aa68adfc861fafa2a90c51771d6e7fce6f7/The-Financial-Numbers-Game-Detecting-Creative-Accounting-Practices/graph), we see that Mulford's work stands completely on its own with no connections and among other ancient papers. We could speculate about why this approach to investing feels so out of favor at a time when data mining would seem to be at the top of mind. In the current environment, as seen after other extended bull markets, there is the feeling that people are more willing to invest in concepts and with less concern for future cash generation. But, this trend has been increasing for more than two decades, even prior to the GFC. It could be a bubble, but it also correspond with the shift of firm's investment spending from fixed and measurable to internally-generated intangible assets as the Sparkline Capital below shows this clearly. In a future post, we will explore this possibility at greater length.
+
+![](images/Screen%20Shot%202021-04-23%20at%205.17.09%20PM.png)
+
+We would have guessed that the rise of free analytic software and machine readable data like XBRL would have led to a revolution in financial statement sleuthing, but we were wrong. [Core Earnings: New Data and Evidence](<https://www.connectedpapers.com/main/04422906f2bd9a718221f91867e037a732fe849f/Core-Earnings-New-Data-and-Evidence/graph>) is also a lonely paper, although there are a few more recent papers which are similar.
+
+# Key Accounting Diseases
+
+For this post, we will stick to the goal of possibility of mining the full financial statement corpus for "red flags". Mr. Gulliver gives four categories for diagnosing what he calls the "diseases":
+
+-   Cash Flow Quality
+-   Earnings Quality
+-   Efficiency of Operations
+-   Balance Sheet Quality (Liquidity)
+
+In his ["*Torpedo Alerts*"](http://www.quantpartners.com/research/jefferson/concept.html) research, he also added a final screen for valuation. Within these larger categories, he often offers several sub-category, which we outline below. We will choose variables from NC's website which we thought would best replicate these filters. The other key consideration is how to calculate and weight the "red flags", because some must be more significant than others. As far as we can tell, Mr. Gulliver used equal-weighting, but with the data loaded up in an analytic software tool like R and Python, we would be able to iterate and even let a model tell us the most meaningful coefficients in predicting earnings warnings and/or significant stock price adjustment.
+
+We would also be able to generate more complicated variables. Mr. Gulliver appeared to mainly use single year-on-year changes, but we would try out increasing the weight of persistent negative year-over-year changes over several years. Also, Mr. Gulliver did his analysis using quarterly data, but NC's has only annual data before 2013, so we would have to mine for bigger disappointments if we wanted to use the longer time periods.
+
+## CASH FLOW Quality
+
+Mr. Gulliver argues that an increasing gap between reported and adjusted cash flow is an indicator of poor cash flow quality. We would compare the trend in reported Operating Cash Flow with NC's Free Cash Flow giving a penalty for the difference as it grows sequentially over reporting periods. His *Torpedo* methodology also compares Operating Cash Flow to Current Liabilities. We had not seen that as a significant factor, so perhaps we would consider giving this a lower weighting in the overall measure.
+
++--------------------+---------------------+----------------------------+
+| Torpedo            | NC Ticker           | Comment                    |
++====================+=====================+============================+
+| Op/Free Cash Flow  | CASH_FLOW_OPERATING | Supporting CF - OpCF/FCF   |
++--------------------+---------------------+----------------------------+
+| Op/Free Cash Flow  | FREE_CASH_FLOW      | NC version of FCF          |
++--------------------+---------------------+----------------------------+
+| Flow Ratio         | CASH_FLOW_OPERATING | Operating CF/Current Liab. |
++--------------------+---------------------+----------------------------+
+| Flow Ratio         | LIABILITIES_CURRENT |                            |
++--------------------+---------------------+----------------------------+
+
+## EARNINGS QUALITY
+
+### A/R & Inventory (Balance Sheet)
+
+The change in Inventory or Receivable levels relative to revenue run rates can be early indicators of changing interest in a company's product or services. We propose to use a 3-year weighted average, with a growing penalty if the trend in Days continues to deteriorate year-on-year for more than one period.
+
++-------------+---------------------------------------+-----------------+
+| Torpedo     | NC Ticker                             | Comment         |
++=============+=======================================+=================+
+| Inventory   | DAYS_IN_INVENTORY                     | Weighted change |
++-------------+---------------------------------------+-----------------+
+| Receivables | DAYS_IN_REVENUE_OUTSTANDING           | Weighted change |
++-------------+---------------------------------------+-----------------+
+
+### Accruals (Balance Sheet)
+
+Similar to Inventory and Sales Days Outstanding, the overall change in Reserves per change in revenue could be an early indicator of a change in operating conditions as a company reaches to meet expectations with less conservative assumptions. The NC RESERVES variable includes the ending balances for the LIFO, inventory and accounts receivable reserves. Reductions in these accounts relative to the underlying rate of growth in the business may indicate that the company is postponing current expenses for future periods, gradually making expectations more challenging to achieve. In a single year or on their own, such a movement might not say anything, but combined with other signals, may be significant.
+
++--------------------+--------------------------------+-----------------------------------------+
+| Torpedo            | NC Ticker                      | Comment                                 |
++====================+================================+=========================================+
+| Accruals/Sales     | RESERVES_YOY_DELTA_PER_REVENUE | Reserves/Revenues                       |
++--------------------+--------------------------------+-----------------------------------------+
+| Accruals vs. Sales | None                           | Unsure what of diff with Accruals/Sales |
++--------------------+--------------------------------+-----------------------------------------+
+| None               | RESERVES_PERCENT_IMPACT        | Reserves divided by Net Assets          |
++--------------------+--------------------------------+-----------------------------------------+
+
+### Earnings Quality (Earnings Quality)
+
+NC takes pains to [adjust earnings](https://www.newconstructs.com/education/accounting-loopholes/) to remove items in the MD&A and footnotes which are non-recurring (positive and negative), but have been included in the main financial statements. NC also adds items which affect earnings, which have been excluded in order to derive its [CORE_EARNINGS_AFTER_TAX](https://www.newconstructs.com/core-earnings-earnings-distortion-explanation-examples/). It then derives [EARNINGS_DISTORTION](https://www.newconstructs.com/core-earnings-earnings-distortion-explanation-examples/) based on the difference between the derived Core Earnings and the GAAP Net Earnings. We would use the EARNINGS_DISTORTION as a percentage of net income and net assets as indicators of earnings quality, and likely a superior proxy to Mr. Gulliver's measurements. Thorough adjustments such as these are the main challenge, and we doubt there would be a more thorough and comprehensive data set for this purpose than that of NC.
+
++-------------+--------------------------------------------+-----------------------------+
+| Torpedo     | NC Ticker                                  | Comment                     |
++=============+============================================+=============================+
+| Net Income  | None                                       | Skip                        |
++-------------+--------------------------------------------+-----------------------------+
+| Adj Income  | None                                       | Skip                        |
++-------------+--------------------------------------------+-----------------------------+
+| Core Income | None                                       | Skip                        |
++-------------+--------------------------------------------+-----------------------------+
+| None        | EARNINGS_DISTORTION_TOTAL_PER_ASSETS       | Divides Net Inc by Core Inc |
++-------------+--------------------------------------------+-----------------------------+
+| None        | EARNINGS \_DISTORTION_TOTAL_PER_INCOME_NET | Divides Net Inc by Core Inc |
++-------------+--------------------------------------------+-----------------------------+
+
+## EFFICIENCY
+
+### Returns (Efficiency)
+
+Mr. Gulliver used ROE and ROA in addition to ROIC and CF ROI as measures of returns, but these are again derived from reported GAAP net income. NC makes the case against using reported ROE in [Don't Get Misled about Return on Equity (ROE)](%5B%3Chttps://www.newconstructs.com/dont-get-misled-by-return-on-equity-roe%3E)](<https://www.newconstructs.com/dont-get-misled-by-return-on-equity-roe/>), so we would rely on NC's metrics (as built into its ROIC and Invested Capital). NC charges companies for past write-offs, by adding back to Shareholder's Equity (so management has to carry the full weight of past missteps and can't hide behind "serial charges"). In the case of NC's RATING_ROIC, returns relative to Invested Capital are bundled into five categories from relatively low to high. According to NC's methodology, [ECONOMIC_PROFIT](https://www.newconstructs.com/education/education-close-the-loopholes/education-economic-earnings/) is the amount of ROIC in excess of WACC times Invested Capital as a hurdle rate or charge for use of the capital during the period. As for Free Cash Flow, NC explains their metric in [Free Cash Flow And FCF Yield](https://www.newconstructs.com/education-free-cash-flow/). For our purposes, we would use the Free Cash Flow per Invested Capital. Because NC doesn't provide a Free Cash Flow Yield rating, we might construct an index for the companies in that industry during the period and cut them into five categories according to SIC (Industry) code. The beauty of working with R is that we can quickly iterate and reshape variables in any form we would like once we have the data in our environment.
+
++---------+-------------------------------------+--------------------------------------+
+| Torpedo | NC Ticker                           | Comment                              |
++=========+=====================================+======================================+
+| ROE/ROA | None                                | Skip                                 |
++---------+-------------------------------------+--------------------------------------+
+| ROIC    | RATING_ROIC                         | NC rating version grades ROIC level  |
++---------+-------------------------------------+--------------------------------------+
+| None    | RATING_INCOME_NET_ECONOMIC_PROFIT   | Economic EPS vs Reported Ranking     |
++---------+-------------------------------------+--------------------------------------+
+| CF ROI  | FREE_CASH_FLOW_PER_CAPITAL_INVESTED | NC version measuring Cash Generation |
++---------+-------------------------------------+--------------------------------------+
+
+### Margins & Return Trends (Efficiency)
+
+This category is distinguished from Returns above in that we would consider using the 3-year weighted trend with growing penalties for ongoing negative variance (instead of the absolute level of returns relative to peer companies). It is easy to understand that negative incremental changes in margins and returns on capital could be an early indication of deteriorating operating or business conditions. For example, declining gross margins might indicate a weakening competitive position, and higher overhead costs through increased SG&A could pressure EBIT margins. NOPAT might reflect increased tax rates, and ROIC that the company might be effectively buying more business. Since we are looking for combinations of factors across many metrics, we are able to spread our net widely to capture any possible signal of deteriorating business conditions for an enterprise and allow a seemingly small change in one margin might interact with another in the cash flow, balance sheet or earnings quality metrics.
+
++--------------+----------------------------------+-------------------------------+
+| Torpedo      | NC Ticker                        | Comment                       |
++==============+==================================+===============================+
+| Gross Margin | PROFIT_GROSS_PER_REVENUE         | Calculate weighted 3 yr Trend |
++--------------+----------------------------------+-------------------------------+
+| EBIT Margin  | EBIT                             | Calculate weighted 3 yr Trend |
++--------------+----------------------------------+-------------------------------+
+| EBIT Margin  | REVENUE                          |                               |
++--------------+----------------------------------+-------------------------------+
+| SG&A Margin  | EXPENSES_SGA                     | SG&A / Revenue                |
++--------------+----------------------------------+-------------------------------+
+| SG&A Margin  | REVENUE                          | Calculate weighted 3 yr Trend |
++--------------+----------------------------------+-------------------------------+
+| None         | RESEARCH_AND_DEVELOPMENT_EXPENSE | Calculate R&D / Revenue       |
++--------------+----------------------------------+-------------------------------+
+| None         | REVENUE                          | Calculate weighted 3 yr Trend |
++--------------+----------------------------------+-------------------------------+
+| NOPAT Margin | NOPAT                            | Calculate NOPAT /Revenue      |
++--------------+----------------------------------+-------------------------------+
+| NOPAT Margin | REVENUE                          | Calculate weighted 3 yr Trend |
++--------------+----------------------------------+-------------------------------+
+| ROIC         | ROIC                             | Calculate weighted 3 yr Trend |
++--------------+----------------------------------+-------------------------------+
+| Tax Rate     | Skip                             | NOPAT margin seems sufficient |
++--------------+----------------------------------+-------------------------------+
+
+### Turnover (Efficiency)
+
+Mr. Gulliver used the inventory and receivables 12-month turnover ratios as indicators of an efficiently run business, but we would use the full working capital efficiency given the available NC metric. This metric uses current assets minus non-interest bearing liabilities and is scrubbed of non-operating items. We might construct ranking groupings relative to other companies in the same industry (by SIC) as we did with the other efficiency metrics above. This is distinguished from the Inventory and Receivable days outstanding in the sense of being a one-year metric and with a ranking instead of a signal of change in operating conditions leading to inventory build-up or slow sell-through of products. He also uses reported Assets/Equity, so we would use NC's fixed income EQUITY_MULTIPLIER, which is a reflection of Adjusted Assets over operating Shareholder's Equity.
+
++-------------------+-----------------------------------------------------+--------------------------------+
+| Torpedo           | NC Ticker                                           | Comment                        |
++===================+=====================================================+================================+
+| Asset/Equity      | Unknown                                             | Fixed income Equity Multiplier |
++-------------------+-----------------------------------------------------+--------------------------------+
+| Receivables 12 mo | CAPITAL_WORKING_NET_TURNS                           | Combine                        |
++-------------------+-----------------------------------------------------+--------------------------------+
+| Inventory 12 mo   | CAPITAL_WORKING_NET_TURNS                           | Combine                        |
++-------------------+-----------------------------------------------------+--------------------------------+
+| None              | CASH_CONVERSION_CYCLE                               |                                |
++-------------------+-----------------------------------------------------+--------------------------------+
+| None              | CAPITAL_WORKING_NET_YOY_DELTA_PER_REVENUE_YOY_DELTA |                                |
++-------------------+-----------------------------------------------------+--------------------------------+
+
+## LIQUIDITY
+
+### Liquidity (Fixed income data set)
+
+After all that work to clean up the financial reports, why not also construct [fixed income ratings](https://www.newconstructs.com/education-fixed-income/), which is exactly what NC did. Mr. Gulliver uses current ratio and quick ratio, so we would use the same as they are already available in the NC fixed income database and likely not needing adjustment. NC itself uses the 3-yr average FCF-to-Debt and EBITDA-to-Debt as its liquidity proxies, so we would use the available DEBT_NET_OF_CASH_PER_EBITDA and calculate EBITDA-to-Debt using NC's DEBT_FINANCING and the adjusted EBITDA. NC has a really interesting metric (EXCESS_CASH), which is the cash retained, but not needed to maintain operations. It seems like changes in this especially around zero might offer information. It is entirely possible that a company in a tight liquidity situation might offload inventory at lower prices to the detriment of margins or start to obtain less favorable terms from suppliers.
+
++---------------+-----------------------------+-------------------------------------------+
+| Torpedo       | NC Ticker                   | Comment                                   |
++===============+=============================+===========================================+
+| Current Ratio | Unknown                     | Fixed Income data set                     |
++---------------+-----------------------------+-------------------------------------------+
+| Quick Ratio   | Unknown                     | Fixed Income data set                     |
++---------------+-----------------------------+-------------------------------------------+
+| Cash          | EXCESS_CASH                 | Calculate Debt - Excess Cash/3-yr avg FCF |
++---------------+-----------------------------+-------------------------------------------+
+| None          | DEBT_FINANCING              | NC Total Debt                             |
++---------------+-----------------------------+-------------------------------------------+
+| None          | EBITDA                      | NC Adjusted EBITDA                        |
++---------------+-----------------------------+-------------------------------------------+
+| None          | DEBT_NET_OF_CASH_PER_EBITDA | NC Liquidity measure                      |
++---------------+-----------------------------+-------------------------------------------+
+
+## VALUATION
+
+### Valuation
+
+Valuation was not part of Mr. Gulliver's CFA Revelations paper, but he understandably used one for work with his firm in order to make investment decisions. Obviously, a highly valued stock which missed expectations would have more downside. NC has spent more than a little time explaining why traditional metrics like P/E, P/Cash, P/Sales and PEG ratios are poor indicators of stock performance in [Basic Metrics](https://www.newconstructs.com/education/basic-metrics/). Without going into great detail, NC found a more robust link between EV/IC and their adjusted ROIC than any of these other metrics, so we would use these.
+
++------------+-------------------------------+-------------------------+
+| Torpedo    | NC Ticker                     | Comment                 |
++============+===============================+=========================+
+| P/E        | Skip                          | NC version seems better |
++------------+-------------------------------+-------------------------+
+| P/Cash     | Skip                          | NC version seems better |
++------------+-------------------------------+-------------------------+
+| P/Sales    | Skip                          | NC version seems better |
++------------+-------------------------------+-------------------------+
+| P/Growth   | Skip                          | NC version seems better |
++------------+-------------------------------+-------------------------+
+| None       | CAPITAL_INVESTED              | EV/IC                   |
++------------+-------------------------------+-------------------------+
+| None       | ENTERPRISE_VALUE              |                         |
++------------+-------------------------------+-------------------------+
+| None       | RATING_GAP                    | Proxy for PEG           |
++------------+-------------------------------+-------------------------+
+| None       | RATING_PRICE_TO_EBV_RATIO     | Proxy for P/Book        |
++------------+-------------------------------+-------------------------+
+| None       | RATING_FCF_YIELD              | Proxy for P/Cash        |
++------------+-------------------------------+-------------------------+
+
+## OTHER ORTHOGONAL FACTORS
+
+*Revelations* also did not discuss potential orthogonal factors directly, but a change in the Auditor, changes in significant accounting policies or a qualified opinion are fields in the NC database which might be risk factors. Frequent amendments are certainly a risk factor, but NC do not keep track of past filing changes. Natural language processing could be used to assess changes in tone by the management in the MD&A. Factors for executive compensation alignment might be added, and indeed NC does have a ranking for this in its data. Aggressive accounting might be more prevalent depending on industry. For the purposes of this exercise, we would need to remove cases where the filing has already been amended as the underlying problem would already have been discovered and no longer a risk factor. Other future addition would be to include the short interest ratio and insider selling metrics. Data such as these could be easily added to the analysis with R, so that is a future opportunity.
+
+| Torpedo | Ticker  | Comment                        |
+|---------|---------|--------------------------------|
+| None    | Unknown | Auditor                        |
+| None    | Unknown | Auditor Opinion                |
+| None    | Unknown | CEO name                       |
+| None    | Unknown | CFO name                       |
+| None    | Unknown | SIC code                       |
+| None    | Unknown | filing type (ie: 10-K, 10-K/A) |
+| None    | Unknown | Report date                    |
+| None    | Unknown | Filing date                    |
+| None    | None    | Restatements                   |
+| None    | None    | Management Incentives          |
+| None    | None    | Short Interest                 |
+| None    | None    | SEC Insider Selling Metrics    |
+| None    | None    | Dividend coverage              |
+| None    | None    | Stock Price on reporting date  |
+
+# Conclusion
+
+In the old days, we used Datastream and then Bloomberg to look for insight in financial data, so it is surprising that such a data rich field as financial analysis feels to us like it stalled out compared to our rich new world of advanced analytics. The main potential sponsors, like the SEC, CFA Institute and AICPA, don't seem unaware or to have fallen behind in adopting the habits of the free and open source data movements. The opportunity to look at all core earnings from all of the companies in one data set, and to iterate over it in search of revealing patterns, is an exciting prospect, and we have written several posts to try to get there. We read Mr. Gulliver's piece in 2003 when there was no R or Python, no way to get data in that form and building something like that was unimaginable. Now it feels like it could take a few weeks to build something really exceptional, tease out some real signals and maybe cause a management inclined to push the envelope to think twice. If any readers are aware of research or data available along these lines, we would appreciate knowing.
