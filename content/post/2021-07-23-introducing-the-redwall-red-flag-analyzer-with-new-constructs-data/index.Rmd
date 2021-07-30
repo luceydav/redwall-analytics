@@ -1,56 +1,260 @@
 ---
-title: "Introducing the Redwall Red Flag Analyzer with New Constructs Data"
+title: "Introducing the Redwall 'Red Flag' Analyzer with New Constructs Data"
 author: "David Lucey"
-date: '2021-07-23'
-slug: introducing-the-redwall-red-flag-analyzer-with-new-constructs-data
+date: '`r Sys.Date()`'
 categories: ["R"]
 tags: ["XBRL", "quantmod", "dataviz", "shiny"]
 draft: true
+slug: introducing-the-redwall-red-flag-analyzer-with-new-constructs-data
 ---
 
-![Red Flag Explorer](images/red_flag_app.png)
+```{r 'set-up', message=FALSE, warning=FALSE, include=FALSE}
+# Libraries
+if(!require("pacman")) {
+  install.packages("pacman")
+}
 
+pacman::p_load(
+  data.table,
+  scales,
+  ggplot2,
+  plotly, 
+  DT)
 
-# Introduction
+knitr::opts_chunk$set(
+  comment = NA,
+  fig.width = 12,
+  fig.height = 8,
+  out.width = '100%'
+)
+```
 
-A few months ago in [A Blueprint of "Red Flag" alerts Using Adjusted Earnings Data](https://redwallanalytics.com/2021/04/21/a-blueprint-of-red-flag-alerts-using-adjusted-earnings-data/), we mused about using fantastic New Constructs historical data to back-test the 2003 CFA Conference Proceedings [Revelations in Financial Reporting](https://www.tandfonline.com/toc/ufaj20/current) by Bruce Gulliver. This article gave the hypothesis that impending difficulties could be forecast with a simple set of financial statement metrics, or "red flags". That article always stuck with us, and especially now that R has become a daily tool, this opportunity was too big to resist.
+[![Red Flag Explorer[](https://luceyda.shinyapps.io/redflagapp/)](images/red_flag_app.png)](https://luceyda.shinyapps.io/redflagapp/)
 
-After our blog post, New Constructs kindly offered to let us use their data to test out the theory on thousands of companies over 20 years. In this post, we will describe our analysis and describe the interactive [Red Flag Explorer](https://luceyda.shinyapps.io/redflagapp/) Shiny app we have built for anyone who would like to interact with the data.
+# Introduction {#introduction}
 
-# Methodology
+A few months ago in [A Blueprint of "Red Flag" alerts Using Adjusted Earnings Data](https://redwallanalytics.com/2021/04/21/a-blueprint-of-red-flag-alerts-using-adjusted-earnings-data/), we mused about using [New Constructs](https://www.newconstructs.com) historical data to back-test ideas from a 2003 CFA Conference Proceedings article entitled [Revelations in Financial Reporting](https://www.tandfonline.com/toc/ufaj20/current) by Bruce Gulliver. This article succinctly offered the theory that, in the aftermath of the collapse of "Dot-com Bubble", impending difficulties for many stocks might have been avoided by using a simple set of financial statement ratios, collectively as "red flags". Mr. Gulliver's work always stuck with us, and especially now that R can easily be used to test the hypothesis and to take the analysis to a different scale and interactivity. The only other missing piece would be thousands of companies with consistently and meticulously adjusted financial statement data over a very long period, which as far as we know, only resides at New Constructs.
 
-The methodology for generating "red flags" was close to what we laid out in [A Blueprint of "Red Flag" alerts Using Adjusted Earnings Data](https://redwallanalytics.com/2021/04/21/a-blueprint-of-red-flag-alerts-using-adjusted-earnings-data/). One difference was with Turnover where we factored in sector when determining companies with unfavorable metrics. The other major difference was in the cash flow metric, where we never quite understood the "Revelations" adjustments to operating cash flow. The major adjustment from the article had to do with cash flow differences related to the expensing of employee share options. We are not sure this if this is still significant problem, and didn't have data from New Constructs to calculate it anyhow. If we were to do it again though, we would have requested the data to calculate the difference between New Constructs "True Free Cash Flow" and "Traditional Free Cash Flow" as laid out in [The Most Overstated And Understated FCF In The S&P 500 Post 1Q21 Earnings](https://www.forbes.com/sites/greatspeculations/2021/06/16/the-most-overstated-and-understated-fcf-in-the-sp-500-post-1q21-earnings/?sh=536bff042be2) by David Trainer in Forbes in June (after we had already requested the data). We also calculated the trend-related variables (ie: increasing days of inventory/receivables, and declining margins and returns) taking more than one year of change into account to give an added penalty to and extended negative trend. We also added "red flags" for companies with amended filings and companies with more than 2 flags showing filing-on-filing increases in total flags. With the exception of amended filings, most of the "red flags" were calibrated to occur in about 20% of the cases. There was no special knowledge consideration given to an "informed" level where past evidence supported likely problems, just that it was deviating negatively relative to the large majority of others.
+After our blog post, New Constructs kindly offered to let us use their data to test the theory on a very large sample of companies and over a time period, which includes two of the great busts in recent memory. In this post, we will describe our analysis, summarize the unparalleled New Constructs data and the interactive [Red Flag Explorer](https://luceyda.shinyapps.io/redflagapp/) Shiny app we have built for anyone who would like to interact with the "red flags" and subsequent performance. It is striking that analysis on this scale (ie: essentially analyzing \~150,000 financial statements), impossible to produce for most of our years following markets, can now be conducted in a few weeks of coding. We think our "red flags" built on top of New Construct's data represent a unique historical accounting fingerprint and record of the markets in the controversial post-2000 period.
 
-In order to calculate ex post quarterly returns, we collected weekly prices for every company using the R `{BatchGetSymbols}` package (which uses Yahoo as its source). About 1,600 companies were not available by this method, so we switched to `{quantmod}` using Alpha Vantage, where we were able to collect the closing price histories of an additional \~800 companies. While Yahoo maintains, and we used the "adjusted prices" (ie: for splits, dividends and corporate actions) for our analysis, Alpha Vantage only had the closing price. Although we assume that many of the residual companies collected from Alpha Vantage would have gotten into difficulty and been de-listed, while others would have been subsumed into other companies. If the stock price went to zero or was otherwise de-listed from trading, we think the fact that it was not adjusted is likely to be less relevant. All in all, we had almost 5 million prices on 5,000 companies, and we calculated the log returns over 1 through 13 quarters relative to the Vanguard Total Market Index fund ("TMI").
+# Red Flag Calculations {#red-flag-calculations}
 
-In most single years, this amounts to several thousand stocks so on average, across all the periods and companies, we expect the aggregated relative returns we are showing to be good, but not perfect, representations of the true returns of those groups. If a user of the app filters down into a smaller group of measurements, this will become less true. In addition, we expect the 800 companies we were unable to collect returns were likely perform less well than the rest of the companies. In addition, we calculated that the companies we were unable to match to returns had a higher average number of "red flags" on these stocks. This means that we our returns may be biased on the high side because of "survivor bias", and we guess if anything, we are likely to be underestimating the negative effects of high "red flags" groups.
+The methodology for generating "red flags" was close to what we laid out in [A Blueprint of "Red Flag" alerts Using Adjusted Earnings Data](https://redwallanalytics.com/2021/04/21/a-blueprint-of-red-flag-alerts-using-adjusted-earnings-data/), but there were several differences.
 
-# Using the Shiny App
+-   We didn't fully understand the "Revelations" [Cash Flow]{.ul} adjustments, which primarily had to do with timing differences related to the expensing of employee share options. According th Mr. Gullver's article, this became very significant during the Dot-com Bubble, but we are not sure this if it is still so, and didn't have comparable data from New Constructs to calculate it. If we were to do it again, we would have requested the data to calculate the difference between New Constructs "True Free Cash Flow" and "Traditional Free Cash Flow" as laid out in [The Most Overstated And Understated FCF In The S&P 500 Post 1Q21 Earnings](https://www.forbes.com/sites/greatspeculations/2021/06/16/the-most-overstated-and-understated-fcf-in-the-sp-500-post-1q21-earnings/?sh=536bff042be2) by David Trainer in Forbes in June. For now, our app won't have a "red flag" pertaining to Cash Flow.
 
-The triple horizontal line icon at the top left allows the user to change any of the inputs to the app. The "View" switch allows to toggle between 67,000 annual and 78,500 quarterly filings. It should be noted that a flag on the same filing, for the same company and period, might differ on the annual and quarterly basis, because they are calculated with reference to the other filings in that group. It is possible to filter by sector or by selecting a customized group of companies. This enables the user to see the aggregated return metrics for the selected items in the "Summary" table on the left. The chart on the right shows the evolution of the metrics over time. The "Summary Plot" loses its meaning if there are only a few items, because the same company will most likely fall into multiple "red flag" groups over time. If the selection is small enough, there might not even be a data point for a higher number of flags in a given year, and as a result, there may be an extended time difference between two points when there were no members of that group between those periods (usually 5+ flags in a period).
+-   [Asset Turnover]{.ul} was calibrated relative to other companies in the sector and considering the full 20+ year period when determining unfavorable ratios.
 
-When the app loads, it includes the aggregate for all 13 quarterly return periods, but we would not advise to look at it in this way, because these periods overlap each other (ie: the one quarter return is part of the two quarter return). The quarterly data set does not show beyond eight quarters, and though the annual data set shows up to 13 quarters, using this many will result in the loss of data in 2020 and 2021, because we have to leave that much lead time. The "Flags" tab shows the descriptions and counts of all "red flags" in the filtered selection. As mentioned earlier, most flags occur in approximately 15-20% of the cases, so seeing more than a few tends to be the exception. The number of unique companies included in the "red flag" group is a more important indicator, and when looking at just one return period, this number should be pretty close to the number of reports unless an unusually long quarterly return period is selected.
+-   Trend-related variables (ie: increasing days of inventory/receivables, declining margins and ROIC and reserves) were calculated by taking more than one year of change into account to give an added penalty when the negative trend was persistent. This had a cost of losing some periods at the very beginning of the series (ie: 1997-1998).
 
-# Cursory Analysis
+-   The [High Valuation]{.ul} "red flag" was calculated using New Constructs 1-5 ratings, themselves derived variables, rather than raw valuation metrics.
 
-The beauty of our Shiny app is that we are able leave it for the user to judge for themselves. In aggregate considering all periods, we observe that returns tend to be stable between 0 and 2-3 flags, but fall off and become more volatile with a higher number of flags. This trend tends to be visible and persistent for most sectors and periods, although there are exceptions. The pattern seems a little more visible in the cyclical sectors. The pattern seems less pronounced in the quarterly data, but this starts 13 years later. If later years are selected with the filters, the difference in median and mean returns with higher and lower flags seems to be smaller and both are more negative relative to the index.
+-   The cutoff for "high" [Earnings Distortion]{.ul} was set for cases simultaneously with greater than 1% of assets and 10% of earnings, which varied over the time period.
 
-Leaving the "red flags" aside, we were surprised to see that at the beginning of the period, the average stock in most "red flag" groups outperformed, but over time most trailed the TMI. In the year 2000 (the very beginning of our data), there was a more significant number of companies with 5-7 red flags, and they really under-performed the lower red flag groups by a lot. We recall the post technology bubble period as being a golden age of stock picking. After 2004 or 2005, almost all red flag groups under-performed the TMI. Certainly, when Mr. Gulliver wrote his piece when the difference was more striking, so maybe more market observers took note than we thought. Interestingly, 2020 seems to be the only year when all "red flag" groups (from 0-7) actually outperformed the TMI, and the higher total flag groups outperformed lower groups, so this year in particular looks exceptional.
+-   For [liquidity]{.ul}, we first screened that a company did not have "excess cash", a New Constructs derived variable measuring the amount of cash over and above what was needed to conduct operations. If the company did not have "excess cash", we then used several credit metrics similar to those mentioned in *Revelations*.
 
-# Fun Themes to Filter
+-   We also added two additional "red flags" of our own, for companies having amended filings and with more than 2 flags previously still showing filing-on-filing increases in total flags.
+
+We don't know what thresholds Mr. Gulliver would have used in his analysis, but with the exception of amended filings, our "red flags" were calibrated to occur in about 15-20% of the filings over the whole period (shown in Figure \@ref(fig:red-flag-summary-chart) below). When we say "over the whole period", this is significant because it means that the cut-offs for a "red flag" is the same regardless of the reporting period. There was no special knowledge consideration given to an "informed" threshold level where past evidence supported likely problems, just that the selected metric was deviating negatively relative to the large majority of filings.
+
+```{r 'red-flag-summary-chart', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Most Red Flag Percentages Peaked in the Early 2000s'}
+path <- "~/Desktop/David/Projects/new_constructs_targets/_targets/objects/"
+data <- readRDS(paste0(path, "nc_annual_red_flags"))
+cols <- names(data)[sapply(data, is.logical)]
+
+# Shift data to long
+data <-
+  data[data.table::between(fiscal_year, 1999, 2020),
+       lapply(.SD, mean),
+       .SDcols = cols,
+       fiscal_year][
+       ][order(fiscal_year)][
+       ][, data.table::melt(.SD, measure.vars = cols)]
+
+# Make ggplot
+p <- 
+  data[, ggplot2::ggplot(.SD,
+                         ggplot2::aes(
+                           x = fiscal_year,
+                           y = value,
+                           color = variable,
+                           fill = variable)) +
+           ggplot2::geom_line() +
+           ggplot2::geom_point(size = 1) +
+           ggplot2::labs(x = "Fiscal Year",
+                y = "Percentage of Filings") +
+           ggplot2::scale_y_continuous(labels = scales::percent) +
+           ggplot2::theme_bw()]
+
+p <- plotly::plotly_build(p)
+names <- c(
+  "Amend.",
+  "Low Return",
+  "Earns. Distort.",
+  "Reserve Decline",
+  "Days Inv or A/R ",
+  "Mgn & ROIC decline",
+  "Asset Turns",
+  "High Val'n",
+  "Poor Liquid.",
+  "Neg. Trend")
+
+vars <-
+  c(
+    "amended",
+    "agg_returns",
+    "aggregate_distortion",
+    "reserves_indicator",
+    "bs_indicator",
+    "margins",
+    "turnover_flag",
+    "agg_rating",
+    "liquidity",
+    "trend"
+  )
+
+# Add labels and tooltip
+for (i in 1:10) {
+  p$x$data[[i]]$name <- names[i]
+  
+  d <- data[variable == vars[i]]
+          p$x$data[[i]]$text <- paste(
+            "Period: ",
+            d$fiscal_year,
+            "<br>",
+            "Red Flag Indicator: ",
+            names[i],
+            "<br>",
+            "Percent of Occurrences: ",
+            paste0(round(d$value * 100, 0), "%"),
+            "<br>")
+}
+p[["x"]][["layout"]][["annotations"]][[1]][["text"]] <- "Red Flag"
+p
+```
+
+# Ex-Post Return Data {#ex-post-return-data}
+
+In order to calculate *ex post* quarterly returns, we tried to find matching weekly prices for every company in the New Constructs database using the R `{BatchGetSymbols}` package, a wrapper to use `{quantmod}` when more than a few hundred tickers are needed. Both packages source prices from Yahoo Finance by default, and provided us price histories for almost 4,000 companies. About 2,200 companies, usually defunct since the earlier periods, were not available in Yahoo Finance, but we were able to recover an additional \~800 price histories using Alpha Vantage, the main alternative to Yahoo Finance, from `{quantmod}` directly.
+
+Figure \@ref(fig:return-coverage) below shows the percentage of companies with returns collected over time. We were able to download and match returns for just over half of the stocks covered by New Constructs in the earlier periods, but at a much higher rate in the later years. In the end, we have return data to go along with filings for almost 5,000 distinct companies, but were unable to match approximately 12,000 of the 67,000 annual reports. While we do have all the needed return data for many 2020 filings, the absolute number is lower because of the need to look ahead to calculate returns. We had significantly greater success matching quarterly reports, because those only started in a later period (around 2013 when New Constructs began analyzing them) when we had more complete pricing data.
+
+This missing returns are unfortunate, because as shown in Figure \@ref(fig:red-flag-summary-chart), aggressive accounting and other risky behaviors appear to have been most common between 2000-2005. During that period, most of our "red flags" occurred in 20-30% of cases, and a much larger number of reports had to be amended. It is likely that companies which went out of business, and hence stopped contributing price data, are the most relevant to our analysis. While Yahoo maintains, and we used the "adjusted prices" (ie: for splits, dividends and corporate actions) for our analysis, Alpha Vantage only had the closing prices (un-adjusted). Although we assume that many of the companies not available from either source must have gotten into difficulty and otherwise been de-listed, others might have been subsumed into other companies possibly at a premium. If the stock price went to zero or was otherwise de-listed from trading, we think the fact that the price data was not adjusted might be less relevant.
+
+```{r 'return-coverage', echo=FALSE, message=FALSE, warning=FALSE, fig.cap='New Constructs Covered Companies Matched with Return Data'}
+path <- "~/Desktop/David/Projects/new_constructs_targets/_targets/objects/"
+data <- readRDS(paste0(path, "nc_annual_final"))
+DT::datatable(
+  data[, {
+    coverage = .N
+    matched = .SD[!is.na(rel_ret_q_1), .N]
+    percent_matched = matched / coverage
+    list(coverage, matched, percent_matched)
+  },
+  fiscal_year][order(fiscal_year)],
+  rownames = FALSE,
+  colnames =
+    c("Fiscal Year",
+      "New Constructs Coverage",
+      "Matched with Returns",
+      "Percent Matched"),
+options =
+  list(
+    pageLength = 24,
+    scrollY = "400px",
+    dom = 't'
+  )) %>%
+  DT::formatPercentage(
+    columns = 4,
+    digits = 1) %>%
+  DT::formatRound(
+    columns = c(2:3), 
+    mark = ",", 
+    digits = 0)
+
+```
+
+# Bias From Missing Return Data {#bias-from-missing-return-data}
+
+All in all, we collected almost 4 million weekly prices for 5,000 unique companies, and calculated the comparative log returns relative to the Vanguard Total Market Index fund ("TMI") over the subsequent 1 through 13 quarters after every filing date. As shown in Figure \@ref(fig: \@ref(fig:red-flag-summary-chart) above, this amounted to several thousand stocks both covered by New Constructs and matched to pricing data in most years. As a result, we expect that across all the periods and companies, the aggregated relative returns by "red flag" group as shown in the "Summary Returns" table and "Returns over Time" chart (on our Shiny app) should be broadly accurate representations of the true returns for companies with those attributes, though certainly not precise. If a user of the app filters down into a smaller group of measurements, the data in a group will become more sparse and the estimated returns more uncertain. The returns for higher "red flag" groups will also always be less precise, because there are fewer and fewer companies as the number of flags increase.
+
+In addition, there were about 800 companies for which we were unable to collect returns, often because the company stopped trading. We expect these were likely perform less well than others which survived. In fact, in a list of 40 companies which ran into problems, our pricing sources were missing for about 1/4. In addition, we calculated that the companies we were unable to match to returns had a higher average number of "red flags" on these stocks. We expect our estimated returns for higher "red flag" groups are likely to be somewhat better than the true returns, because of "survivor bias". Since there are often only a small number of members in the highest "red flag" groups, this could be signf
+
+# A Sampling of Collapses and Scandals {#a-sampling-of-collapses-and-scandals}
+
+Since this effort is about learning from historical patterns, another interesting screen is past historical accounting, fraud-related and other collapses many found in [Accounting Scandals](https://en.wikipedia.org/wiki/Accounting_scandals) and [List of corporate collapses and scandals](https://en.wikipedia.org/wiki/List_of_corporate_collapses_and_scandals) on Wikipedia. Among these, we would include JCI (formerly TYC), CSCO, SUNW (Sun Microsystems), LU (Lucent), CEB (missing prices), PDYN (missing prices), AIG, WCOM (missing from NC), EHC (formerly HealthSouth), BLIAQ (Blockbuster), BGPIQ (Borders Books), CFC (Countrywide Financial), BSC (Bear Sterns), LEHMQ (missing prices), WAMUQ (Wamu prices missing), EKDKQ (Kodak prices missing), WM (1999), MSTR, DYNIQ (Dynegy prices missing), GLBC (Global Crossing), HAL, Q (Qwest prices missing), NTRLQ (Nortel prices missing), TSCO (Tesco), VRX, KGC (Kinross), MOS (Monsanto prices missing), FMC (Freddie Mac), SBL (Symbol Technologies missing prices), MIR (Mirant), DRE (Duke Energy), CMS (CMS Energy), EE (El Paso Energy), IDMCQ (Indy Mac missing prices), BRCM (Broadcom Corp. missing prices), RAD (Rite-Aid), XRX (Xerox), CMVT (Comverse Technology) and KG (King Pharmaceutical missing prices). in some cases, like Enron (ENE), New Constructs did not have coverage, and in many others, we were unable to find prices so far.
+
+```{r 'historical-scandals', echo=FALSE, message=FALSE, warning=FALSE}
+tickers <- c("BSC", "JCI", "CSCO", "SUNW", "LU", "CEB", "PDYN", "AIG", "WCOM", "EHC", "BLIAQ", "BGPIQ", "CFC", "LEHMQ", "WAMUQ", "GLBC", "HAL", "Q", "NTRLQ", "EKDKQ", "WM", "MSTR", "DYNIQ", "TSCO", "VRX", "KGC", "MOS", "FMC", "SBL", "MIR", "DRE", "CMS", "EE", "IDMCQ", "BRCM", "KG", "ENE", "RAD", "XRX", "CMVT")
+cols <- names(data)[c(6, 16:17, 19:29)]
+data <- 
+  data[ticker %chin% tickers][
+    data.table::between(fiscal_year, 1999, 2020), ..cols]
+setcolorder(data, c(3, 2, 13, 1, 4:12, 14))
+DT::datatable(
+  data,
+  rownames = FALSE,
+  colnames = c(
+    "Company",
+    "Fiscal_year",
+    "Total Flags",
+    "12-mo Return",
+    "Amend.",
+    "Low Return",
+    "Earns. Distort.",
+    "Reserve Decline",
+    "Days Inv or A/R ",
+    "Mgn & ROIC decline",
+    "Asset Turns",
+    "High Val'n",
+    "Poor Liquid.",
+    "Neg. Trend"
+  ),
+  options =
+        list(
+          pageLength = 10,
+          scrollY = TRUE,
+          scrollX = TRUE
+        )
+    ) %>%
+    formatRound(columns = c(2:3), 
+                digits = 0,
+                mark = "") %>%
+  formatPercentage(columns = 4, digits = 0)
+```
+
+# Using the Shiny App {#using-the-shiny-app}
+
+The triple horizontal line icon at the top left allows the user to change any of the inputs to the app. The "View" switch allows to toggle between 67,000 annual and 78,500 quarterly filings. It should be noted that a flag on the same filing, for the same company and period, might differ on the annual and quarterly basis. This is because the flags are calculated with reference only to the other filings of the same type (ie: 10-K or 10-Q. It is possible to filter by sector or by selecting a customized group of companies. Changing any of the inputs alters the data viewed for all of the tables and charts displayed when the app loads and on the tabs.
+
+The "Returns over Time" chart on the right shows the evolution returns by number of red flags over time. It should be noted that when a flag group had a decline greater than 50% for a period, we truncated it to 50% in order to keep the scaling so that the differences in "red flag" groups was able to be discerned. There were generally only a handful of companies in the groups with such big median declines. It is also possible to choose a selection of companies, but "Returns over Time" loses its meaning if there are only a few items, because the same company will most likely fall into multiple "red flag" groups over time. If the selection is small enough, there might not even be a data point for a higher number of flags in a given year, and as a result, there may be an extended time difference between two points when there were no members of that group between those periods (usually 5+ flags in a period).
+
+When the app loads, it includes the aggregate for all 13 quarterly return periods, but we would not advise to look at it in this way, because most of these periods encompass each other (ie: the one quarter return is part of the two quarter return). The quarterly data set does not show returns beyond eight quarters, and though the annual data set shows up to 13 quarters, using this many will result in the loss of data in 2020 and 2021, because we have to leave that much lead time. We observe that there is not much differentiation among flag groups when the quarterly returns are only a quarter or two, so we recommend a default of six quarters, but were unable to hard code this into the app menu.
+
+The "Flags" tab shows the descriptions and counts of all "red flags" in the filtered selection. As mentioned earlier, most flags occur in approximately 15-20% of the cases, so seeing more than a few tends to be the exception. The number of unique companies included in the "red flag" group is a more important indicator than the number of reports, and when looking at just one return period, this number should be pretty close to the number of reports unless an unusually long quarterly return period is selected.
+
+Lastly, the "Counts over Time" tab shows the percentage of filings with that "red flag" during that period. Because "red flags" are calculated relative to the whole 20 year period, they are not evenly distributed by year. This offers an objective perspective on effectively how risky a given period is, and as mentioned earlier, the clear winner was the early period in the chart with by far the highest percentages of red flags in most cases. There were also spikes in several of the more cyclical indicators (ie: margins and ROIC declining and rising inventory/receivable days) in 2009-10 and last year. Interestingly, the percentage Asset Turn flags seem to be rising steadily over much of the period.
+
+# Cursory Analysis {#cursory-analysis}
+
+The beauty of our Shiny app is that we are able leave it for the user to judge for themselves. In aggregate considering all periods, we observe that returns tend to be stable between 0 and 2-3 flags, but fall off and become considerably more volatile with a higher number of flags. This trend tends to be visible and persistent for most sectors and periods, although there are exceptions. The pattern seems a little more visible in the cyclical sectors. The pattern seems less pronounced in the quarterly data, but this starts 13 years later. If later years are selected with the filters, the difference in median and mean returns with higher and lower flags seems to be smaller and both are more negative relative to the index.
+
+Leaving the "red flags" aside, we were surprised to see that at the beginning of the period, the average stock in most "red flag" groups outperformed, but over time most trailed the TMI. In the year 2000 (the very beginning of our data), there was a more significant number of companies with 5-7 red flags, and they significantly under-performed the lower red flag groups. We recall the post technology bubble period as being a golden age of stock picking. After 2004 or 2005, almost all red flag groups under-performed the TMI. Certainly, when Mr. Gulliver wrote his piece when the difference was more striking, so maybe more market observers took note than we thought. Interestingly, 2020 seems to be the only year when all "red flag" groups (from 0-7) actually outperformed the TMI, and the higher total flag groups outperformed lower groups, so this year in particular looks exceptional.
+
+# Other Suggested Filters {#other-suggested-filters}
 
 As mentioned earlier, the app can be sorted by sector and year, but we also suggest trying some themes by specifying individual tickers. As we mentioned earlier, it is important to give a significant number of tickers, and even these recommendations may be too few. One group might be high internally generated intangible companies which have defied valuation-based predictions in the recent periods. In this group, we might include FB, GOOGL, NFLX, AMZN, SHOP, MSFT, APPL, BABA, UBER, LYFT, TWTR, SNAP, TCEHY, TSLA, ZM, CRWD, PINS, PTON, PDD, MRNA, GRUB, TDOC, DOCU, SFIX, SPOT, INTU & CRM (and hopefully RBLX and SNOW in the future if covered in the future). Another interesting list of covered names would be a selection of "Meme" and penny stocks found on [WSB's Hottest Meme Stocks](https://memestocks.org): BBBY, BB, GME, AMC, CLNE, CLF, A, X, NIO, EDU, TAL, DTE, ACOR, CCJ, BIO, SQ, CC, SPRT and FLT.
 
-# Next Steps
+# Next Steps {#next-steps}
 
-There are so many possible next steps it is difficult to know where to start. The model proposed by the CFA Conference Proceedings was rules-based, aggregating a large number of weak boolean signals. It's power comes from systematically taking more elements over a larger number of companies than any single analyst could ever consider at the same time. It isn't clear if the relationship between the number of flags and returns should be linear, and the few very high number of flags showed a bigger than linear impact on returns. The statistical modeling tools we have learned so far rely on finding a few highly significant numeric variables, so we are not quite sure how to build a model primarily from weak variables where the signal comes from aggregation.
+There are so many possible next steps it is difficult to know where to start. The first place would be to find the price histories for the missing 1,400 companies. With our code in an R `{targets}` project, it would only take minutes to add these. We have included mainly accounting ratios in our analysis so far, but we could also easily add variables from other data sources, such as NLP signals such as sentiment scores from the MD&A, management incentive alignment measures, short interest or insider selling. At the moment out of almost 145,000 filings, we found only about 400 with six or more "red flags", so it might be beneficial to take into consideration more risk factors.
 
-We have included mainly accounting ratios in our analysis so far, but we could add variables from other data sources, such as NLP signals such as sentiment scores from the MD&A, management incentive alignment measures, short interest or insider selling. At the moment out of almost 145,000 filings, we found only about 400 with six or more "red flags", so it might be beneficial to take into consideration more risk factors.
+A second more complicated step would be to build a better model. The model proposed by the CFA Conference Proceedings was rules-based, aggregating a large number of weak boolean signals. It's power comes from systematically taking more elements over a larger number of companies than any single analyst could ever consider at the same time. It isn't clear if the relationship between the number of flags and returns should be linear, and the few very high number of flags showed a bigger than linear impact on returns. The statistical modeling tools we have learned so far rely on finding a few highly significant numeric variables, so we are not quite sure how to build a model primarily from weak variables where the signal comes from aggregation.
 
 The nature of the data is also a consideration. We would like to measure our confidence that a certain number of "red flags" has been better or worse than another level. The challenge is that we have the longitudinal aspects of the data, and also that there are a lot fewer cases of companies with a high number of "red flags", and the returns become much more variable in those cases. This is a situation best addressed with a Bayesian mixture model, which would allow us to get a posterior for each "red flag" taking into account measurements during other periods and gauge our confidence in the differences of the means of the "red flag" groups. This is likely something we will try in the future, but it is still beyond our capabilities.
 
 Another aspect of the analysis is that by collapsing the ratios down into boolean "red flags", we surrendered a lot of data and are not able to allow the component variables to interact. We are even treating the aggregated variables equally when some may be more important than others, or may have more importance when interacted with others. New Constructs was kind enough to share their data, but that was on a temporary basis, so this is likely beyond what we can achieve, but we may be able to look more closely at the interactions among the variables we have already calculated.
 
-# Conclusion
+# Conclusion {#conclusion}
 
 When we wrote [A Blueprint of "Red Flag" alerts Using Adjusted Earnings Data](https://redwallanalytics.com/2021/04/21/a-blueprint-of-red-flag-alerts-using-adjusted-earnings-data/), it felt like our proposal was out on a limb compared to what might be achievable. Thanks to the generosity of New Constructs and the powers of R, we have taken a long-held personal research question, and built a working prototype which we can share with others and possibly add onto over time. It is possible that the disappearance of the "red flag" return spread may be an indication that others have already done this, but if it exists, we haven't seen that work in public. We will include the code for our calculations and app on Github in the future. Our work is only a back-test, so we encourage others to subscribe to New Constructs API and
