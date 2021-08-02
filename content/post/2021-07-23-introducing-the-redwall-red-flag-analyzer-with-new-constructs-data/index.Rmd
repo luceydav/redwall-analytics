@@ -8,15 +8,11 @@ draft: true
 slug: introducing-the-redwall-red-flag-analyzer-with-new-constructs-data
 ---
 
-![Red Flag Explorer](images/red_flag_app.png){width="2517"}
+[![Red Flag Explorer](images/red_flag_app.png){width="12in" height="6in"}](https://luceyda.shinyapps.io/redflagapp/)
 
 <details>
 
-<summary>
-
-Click to see R set-up code
-
-</summary>
+<summary> Click to see R set-up code </summary>
 
 ```{r 'set-up', echo=TRUE, message=FALSE, warning=FALSE}
 # Libraries
@@ -77,11 +73,7 @@ We don't know what thresholds Mr. Gulliver would have used in his analysis, but 
 
 <details>
 
-<summary>
-
-Click to see R plot code
-
-</summary>
+<summary> Click to see R plot code </summary>
 
 ```{r 'red-flag-summary-code', message=FALSE, warning=FALSE}
 
@@ -182,11 +174,7 @@ When we matched companies with returns, we used a "rolling join" on ticker and d
 
 <details>
 
-<summary>
-
-Click to see R table code
-
-</summary>
+<summary> Click to see R table code </summary>
 
 ```{r 'return-coverage-code', message=FALSE, warning=FALSE}
 
@@ -229,11 +217,7 @@ Figure \@ref(fig:return-coverage-table) above shows the percentage of companies 
 
 <details>
 
-<summary>
-
-Click to see R plot code
-
-</summary>
+<summary> Click to see R plot code </summary>
 
 ```{r 'summary-return-code', message=FALSE, warning=FALSE}
 
