@@ -45,7 +45,7 @@ Using the three horizontal line icon at the top left, it is possible to access o
 
 ![](images/irs_dash_per_cap_agi.png "IRS Dash Per Capita AGI over Time")
 
-As mentioned above, it is possible to filter all of these tables and charts by State, Counties, Cities or all the way down to individual or groups of zip codes using the black tab on the left. There is also the option to select income bands (\\\$\<25k, \\\$25-50k, \\\$50-75, \\\$75-100k and \$\\100+). We would have liked to show more granularity above \$100k, but that would have meant showing a shorter time period. Given the richness of this data set and the incredible functionality of Shiny and the flexibility of `{golem}`, we hope to add many more avenues of exploration in the future.
+As mentioned above, it is possible to filter all of these tables and charts by State, Counties, Cities or all the way down to individual or groups of zip codes using the black tab on the left. There is also the option to select income bands (\$\<25k, \$25-50k, \$50-75, \$75-100k and \$\\100+). We would have liked to show more granularity above \$100k, but that would have meant showing a shorter time period. Given the richness of this data set and the incredible functionality of Shiny and the flexibility of `{golem}`, we hope to add many more avenues of exploration in the future.
 
 # Assessing the App {#assessing-the-app}
 
