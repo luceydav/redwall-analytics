@@ -62,7 +62,7 @@ annual_data <-
 # Key Findings {#key_findings}
 
 -   1999-2000 was an exceptional period for both "Red Flag" prevalence and return differentiation, though apparent benefits of the strategy appear in most periods.
--   About 2.5% of companies we checked had 5 or more "Red Flags" among annual and quarterly filings, so sparsity is challenge in estimating true relative returns.
+-   2.5% of companies we checked had 5 or more "Red Flags" among annual and quarterly filings, so sparsity is challenge in estimating true relative returns.
 -   Finding price histories for de-listed companies in open source channels is an challenge, which likely creates "survivor bias" in relative return estimates.
 -   Prevalence of accounting distortion declined considerably since 1999-2000.
 
@@ -92,7 +92,11 @@ The methodology for generating "red flags" was close to what we laid out in [A B
 
 -   We also added two additional "red flags" of our own, for companies having amended filings (by far the least common "red flag") and with more than two flags previously still showing filing-on-filing increases in total flags.
 
-We don't know what thresholds Mr. Gulliver would have used in his calculations, but where we had discretion, our "red flags" were calibrated to occur in about 20% of filings over the "whole period" (as shown in Figure \@ref(fig:red-flag-summary-chart) below). When we say "over the whole period", this is significant because it means that the cut-offs for a "red flag" is the same regardless of the reporting period. Another option would have been to calculate by period (ie: attributing a similar number of each red flag in each period), but that would have taken away the ability to compare behavior over time. There was no special knowledge consideration given to "informed" threshold levels, where evidence supported likely problems, just that the selected metric was deviating negatively relative to the large majority of filings during the 20-year period. Further work in this regard might even improve the quality of the signalling.
+# Thoughts on Red Flags {#thoughts-on-red-flags}
+
+We don't know what thresholds Mr. Gulliver would have used in his calculations, but where we had discretion, our "red flags" were calibrated to occur in about 20% of filings over the "whole period" (as shown in Figure \@ref(fig:red-flag-summary-chart) below). Because some flags were less frequent, the average rate of occurrence over all 10 flags was 16.3%. If the probability of raising flags was independent, this would translate into a 1.4% probability of having 5 or more flags (based on the binomial), but 2.5% of our companies had that many flags, so there is evidence that some flags contribute to the likelihood of others and may not be independent.
+
+When we say "over the whole period" above, this is significant because it means that the cut-offs for a "red flag" is the same regardless of the reporting period. Another option would have been to calculate by period (ie: attributing a similar number of each red flag in each period), but that would have taken away the ability to compare behavior over time. There was no special knowledge consideration given to "informed" threshold levels, where evidence supported likely problems, just that the selected metric was deviating negatively relative to the large majority of filings during the 20-year period. Further work in this regard might even improve the quality of the signalling.
 
 <details>
 
@@ -378,7 +382,7 @@ p <-
 p
 ```
 
-Figure \@ref(fig:summary-return-chart) above shows the median returns for all companies over the 6 quarters after reporting their 10-K filing. Using the tooltip, it is possible to see the number of companies, reports and flags during the selected period on the line chart. The graphic shown here is static and only shows annual reports, but we will discuss how to change the parameters of the inputs using our interactive [Red Flag Explorer](https://luceyda.shinyapps.io/redflagapp/) Shiny app further down. In the next section, we will also discuss some of the ways that this picture probably understates the true differences in the relative performance of the "red flag" groups shown in the chart.
+Figure \@ref(fig:summary-return-chart) above shows the median returns for all companies over the 6 quarters (after reporting their 10-K filing). Using the tooltip, it is possible to see the number of companies, reports and flags during the selected period on the line chart. The graphic shown here is static and only shows annual reports, but we will discuss how to change the parameters of the inputs using our interactive [Red Flag Explorer](https://luceyda.shinyapps.io/redflagapp/) Shiny app further down. In the next section, we will also discuss some of the ways that this picture probably understates the true differences in the relative performance of the "red flag" groups shown in the chart.
 
 # Bias From Missing Return Data {#bias-from-missing-return-data}
 
@@ -422,4 +426,4 @@ In our next blog post in this series, we plan to add a series of filters to the 
 
 # Conclusion {#conclusion}
 
-When we wrote [A Blueprint of "Red Flag" alerts Using Adjusted Earnings Data](https://redwallanalytics.com/2021/04/21/a-blueprint-of-red-flag-alerts-using-adjusted-earnings-data/), it felt like our proposal was out on a limb compared to what might be achievable. Thanks to the generosity of New Constructs and the powers of R, we have taken a long-held research question, and in our Shiny app, built a working prototype which we can share with others and add to over time. It is possible that the apparent shrinkage of the "red flag" return spread may be an indication that others have already done this, but if it exists, we haven't seen that work. We plan to include the code for our calculations and Shiny app, and the derived "red flag" data on Github. Our work is only a back-test, so we encourage others to subscribe to New Constructs API and their real time data to mine for future accounting troubles.
+When we wrote [A Blueprint of "Red Flag" alerts Using Adjusted Earnings Data](https://redwallanalytics.com/2021/04/21/a-blueprint-of-red-flag-alerts-using-adjusted-earnings-data/), it felt like our goal was at the least a stretch. Thanks to the generosity of New Constructs and the powers of R, we have taken a long-held research question, and in our Shiny app, built a working prototype which we can share with others and add to over time. The nature of the project is to see how effective the strategy is at filtering the small group of companies likely to have poor returns. Because of the sparsity of high "red flag" companies (which is actually by design), we struggle to know if there is a true difference in performance or if any difference changes over time. It is possible that the shrinkage of spread among "red flag" returns may be an indication that others have been increasingly employing these methods. We plan to include the code for our calculations and Shiny app, and the derived "red flag" data on Github. Our work is only a back-test, so we encourage others to subscribe to New Constructs API and their real time data to mine for future accounting troubles.
