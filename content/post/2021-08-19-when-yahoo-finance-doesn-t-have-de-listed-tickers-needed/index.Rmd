@@ -145,7 +145,7 @@ get_ticker("EDO")
 
 Here is another example of SKP illustrating the potential problems, considering our desire to find accurate return data after a given date. These price sequences would give a lot of cases of zero returns, and others with very positive or negative returns.
 
-```{r 'show-skp-prices', echo=FALSE, message=FALSE, warning=FALSE}
+```{r 'show-skp-prices', echo=TRUE, message=FALSE, warning=FALSE}
 get_ticker("SKP")
 ```
 
