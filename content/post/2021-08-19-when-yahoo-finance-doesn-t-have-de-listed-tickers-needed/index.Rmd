@@ -1,0 +1,170 @@
+---
+title: When Yahoo Finance doesn't have de-listed tickers needed
+author: David Lucey
+date: '2021-08-19'
+slug: when-yahoo-finance-doesn-t-have-de-listed-tickers-needed
+categories: ["R", "Code-Oriented"]
+tags: ["XBRL", "quantmod", "data.table"]
+---
+
+<details>
+
+<summary> Click to see R set-up code </summary>
+
+```{r 'set-up', echo=TRUE, message=FALSE, warning=FALSE}
+# Libraries
+if(!require("pacman")) {
+  install.packages("pacman")
+}
+pacman::p_load(
+  data.table
+  )
+
+# Set knitr params
+knitr::opts_chunk$set(
+  comment = NA,
+  fig.width = 12,
+  fig.height = 8,
+  out.width = '100%'
+)
+```
+
+</details>
+
+Introduction {#introduction}
+============
+
+As we discussed in our last post [Introducing the Redwall 'Red Flag' Explorer with New Constructs Data](https://redwallanalytics.com/2021/08/09/introducing-the-redwall-red-flag-analyzer-with-new-constructs-data/), we were able to test the response of 125,000 quarterly and annual financial statements to incidence of "red flag" ratios, but some of the most interesting results may have been hidden in de-listed tickers, often not available to the default R `{quantmod}` pricing sources (Yahoo Finance and Alpha Vantage). As a result, 15-25% of financial statements in New Constructs the first five years of New Constructs' data, could not be matched to return history, exposing our analysis to "survivor bias". Redwall's mission is multifaceted: to conduct research on topic of interest in available financial and government data, but also to explore and share how to best solve problems encountered while using R.
+
+We would love to see market sponsors make weekly or monthly prices available to the open source community, as has become almost expected in so many other areas where open data is used. Even though every closing price was once publicly disclosed in the newspaper, that doesn't mean that those prices are available for analysis, and it takes a lot of work to collect them. One of the only options suggested online, was to go to the local library and look through the stacks, but this was not feasible for a personal project involving over 900 securities. It turns out that there are several providers of financial statement data for a price. Since many other R users will likely face this same problem, one objective of this post will be to lay out the options for others looking for older and de-listed securities.
+
+Financial Data API's for De-Listed Securities {#financial-data-apis-for-de-listed-securities}
+=============================================
+
+Just to make clear, this is not the [first article](https://daytradingz.com/yahoo-finance-api-alternatives/) about what to do when Yahoo Finance fails. In our case, we looked at four providers, the first being [Sharadar](https://sharadar.com), as above mentioned. Sharadar had a substantial listing of 16,512 tickers, going back to 1986 and including ADRs, Canadian and US companies. We discovered that we could match the large majority of our still-missing tickers, but the cost for the level of access allowing the full history needed would be a full year's access at their recently reduced price of \$299 (through the Quandl API). We also looked at [Algoseek](www.algoseek.com), but their data only went back to January 2007, so that wouldn't solve the problem. [Norgate](https://norgatedata.com) offered access to de-listed securities back to 1990 for \$346 under their 6-month "Platinum" plan option. Norgate also offered a free 3-week trial, but that only included 2 years of data, which would involve time to figure out the API and wouldn't solve the problem, unless we went for the subscription. Lastly, there was [EOD Historical Data](https://eodhistoricaldata.com/list-of-stock-markets), which offered \$20 per month for world prices going back 30+ years.
+
+Finding Matching Prices {#finding-matching-prices}
+=======================
+
+Sharadar's comprehensive spreadsheet, offering certainty that needed prices would actually be available without having to download through the API (a helpful feature while deciding how to proceed). Given that this is only a personal project, we thought we would try EOD first to see if we could access the data we needed for only \$20, though this forced us to invest time to get the API working from R without knowing if what we were looking for would even be there.
+
+EOD gave a [code example](https://eodhistoricaldata.com/financial-apis/r-language-example/) for accessing the API, but we struggled at first to use it with the suggested default .csv format. The error messages were confusing, and sometimes unclear if the data we needed was not available (404) or if there was a problem with the API preventing the download. Customer support was very responsive, considering they are not charging a lot for it, and after some wheel spinning, helped us to understand that using JSON would work better. By adding "&fmt=json" to the set-up string and parsing with `{jsonlite}` as in the code example below worked perfectly, and we were able to collect over 800 of our 930 missing tickers.
+
+As we were doing this, we also discovered other problems in our Yahoo Finance prices, so decided to collect the tickers we previously thought we would use from Yahoo. The [All-World](https://eodhistoricaldata.com/pricing) package allows up to 100,000 calls per day, which was more than enough, and we would be able to expand beyond the US to 60 overseas exchanges. Unlike with Alpha Vantage, these were adjusted prices. All in all, EOD seemed to be perfect for our use-case.
+
+<details>
+
+<summary> Click to see R code sample API call </summary>
+
+```{r 'eod-api', echo=TRUE, message=FALSE, warning=FALSE}
+# Tickers and API token
+api.token <- "OeAFFmMliFG5orCUuwAKQ8l4WWFQ67YX"
+tickers <- c("AAPL.US")
+ticker_list <- list()
+
+# Loop to collect prices
+for ( ticker in tickers ) {
+  
+  # Set up API string
+  ticker.link <-
+    paste(
+      "http://nonsecure.eodhistoricaldata.com/api/eod/",
+      ticker,
+      "?api_token=",
+      api.token,
+      "&period=w&order=d&fmt=json&from=1997-01-01",
+      sep = ""
+    )
+  
+  # Call to API
+  ticker_prices <- try(jsonlite::fromJSON(ticker.link))
+  
+  # Wait to avoid overloading API
+  Sys.sleep(2)
+  
+  # Append new ticker data to list
+  ticker_list <-
+    append(ticker_list, list(ticker_prices))
+  
+}
+
+# Name list by ticker
+names(ticker_list) <- tickers
+```
+
+</details>
+
+```{r 'appl-example', echo=TRUE, message=FALSE, warning=FALSE}
+ticker_list$AAPL.US[1:10,]
+```
+
+Some thoughts on the collected data {#some-thoughts-on-the-collected-data}
+===================================
+
+We collected pricing data for an additional 400 tickers than with our original sources, so we are still missing price histories for about 500. Of these, only about 200 had 10 or more filings, so many of these were short-lived listings, and possibly not as relevant for our analysis. We also learned that in cases where the ticker had been used more than once, EOD price history would generally have the most recent, but not for the previous entity. For example, "DELL" went private in 2014 and was re-listed in 2016, so only data for the latter entity was available with EOD. In these cases, we were often able to use the Yahoo data.
+
+In addition, we learned that Yahoo sometimes gave surprising results. In the case if ticker "EOD" below, the reliability of the Yahoo data on the same dates during the early period, is shown to be very bad. Here we are showing for prices when there should be none, very small and unchanging prices in some periods, and then jumping all over the place when the history should have ended.
+
+<details>
+
+<summary> Click to see R function used to generate output </summary>
+
+```{r 'load-eod-prices', echo=TRUE, message=FALSE, warning=FALSE}
+get_ticker <- function(ticker) {
+  # Load prices for ticker from EOD and Yahoo
+  path <- "~/Desktop/David/Projects/new_constructs_targets/data/"
+  eod <-
+    fread(cmd = paste0("grep ", ticker, " ", path, "eod_weekly_prices.csv"))
+  setnames(eod, c("ticker", "date", "adjusted.close"))
+  yahoo <-
+    fread(cmd = paste0("grep ", ticker, " ", path, "historical_prices/nc_complete_prices2.csv"))
+  yahoo <- yahoo[, c(1:2, 8)]
+  setnames(yahoo, c("ticker", "date", "adjusted.close"))
+  
+  # Rbind, order by date and dcast for comparison
+  prices <- list(eod, yahoo)
+  names(prices) <- c("eod", "yahoo")
+  prices <-
+    rbindlist(prices, idcol = "source")[order(date)]
+  
+  # Return
+  prices[
+    , dcast(
+      .SD, 
+      date ~ source,
+      fun = identity,
+      fill = NA_real_)]
+}
+```
+
+</details>
+
+```{r 'show-eod-prices', echo=TRUE, message=FALSE, warning=FALSE}
+get_ticker("EDO")
+```
+
+Here is another example of SKP illustrating the potential problems, considering our desire to find accurate return data after a given date. These price sequences would give a lot of cases of zero returns, and others with very positive or negative returns.
+
+```{r 'show-skp-prices', echo=FALSE, message=FALSE, warning=FALSE}
+get_ticker("SKP")
+```
+
+For this reason, we favored EOD prices, followed by Alpha Vantage when not available, and finally Yahoo Finance as the last resort, which meant the large majority were coming from EOD as shown in the table below.
+
+```{r 'price-source-table', echo=TRUE, message=FALSE, warning=FALSE}
+path <- "~/Desktop/David/Projects/redwall-analytics/content/post/2021-08-19-when-yahoo-finance-doesn-t-have-de-listed-tickers-needed/"
+source(paste0(path, "prices_source_table.R"))
+prices_source_table()
+```
+
+Now, we find that we are missing about 200 tickers out of the 5,500 we set out to match. Many of these were ending in "Q" (so were already on the pink sheets), are foreign or may have bad tickers. In any case, we have probably covered the bulk of the meaningful companies with our analysis.
+
+```{r 'still-missing-tickers', echo=FALSE, message=FALSE, warning=FALSE}
+readRDS(paste0(path, "missing.RDS"))
+
+```
+
+Conclusion {#conclusion}
+==========
+
+In the end, our return data is still likely not perfect, but is pretty comprehensive, and certainly the data visualization reflected in our [Red Flag App](https://luceyda.shinyapps.io/redflagapp/) should be close to an unbiased reflection. Most of the four million stock returns we collected did not cost an unreasonable amount (as long as not used for commercial purposes). In our next post, we will explore the life and death of companies since 1986 using some of the data we collected in this project.

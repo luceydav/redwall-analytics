@@ -1,0 +1,207 @@
+---
+title: When Yahoo Finance doesn't have de-listed tickers needed
+author: David Lucey
+date: '2021-08-19'
+slug: when-yahoo-finance-doesn-t-have-de-listed-tickers-needed
+categories: ["R", "Code-Oriented"]
+tags: ["XBRL", "quantmod", "data.table"]
+---
+
+
+
+<details>
+<p><summary> Click to see R set-up code </summary></p>
+<pre class="r"><code># Libraries
+if(!require(&quot;pacman&quot;)) {
+  install.packages(&quot;pacman&quot;)
+}
+pacman::p_load(
+  data.table
+  )
+
+# Set knitr params
+knitr::opts_chunk$set(
+  comment = NA,
+  fig.width = 12,
+  fig.height = 8,
+  out.width = &#39;100%&#39;
+)</code></pre>
+</details>
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>As we discussed in our last post <a href="https://redwallanalytics.com/2021/08/09/introducing-the-redwall-red-flag-analyzer-with-new-constructs-data/">Introducing the Redwall ‘Red Flag’ Explorer with New Constructs Data</a>, we were able to test the response of 125,000 quarterly and annual financial statements to incidence of “red flag” ratios, but some of the most interesting results may have been hidden in de-listed tickers, often not available to the default R <code>{quantmod}</code> pricing sources (Yahoo Finance and Alpha Vantage). As a result, 15-25% of financial statements in New Constructs the first five years of New Constructs’ data, could not be matched to return history, exposing our analysis to “survivor bias”. Redwall’s mission is multifaceted: to conduct research on topic of interest in available financial and government data, but also to explore and share how to best solve problems encountered while using R.</p>
+<p>We would love to see market sponsors make weekly or monthly prices available to the open source community, as has become almost expected in so many other areas where open data is used. Even though every closing price was once publicly disclosed in the newspaper, that doesn’t mean that those prices are available for analysis, and it takes a lot of work to collect them. One of the only options suggested online, was to go to the local library and look through the stacks, but this was not feasible for a personal project involving over 900 securities. It turns out that there are several providers of financial statement data for a price. Since many other R users will likely face this same problem, one objective of this post will be to lay out the options for others looking for older and de-listed securities.</p>
+</div>
+<div id="financial-data-apis-for-de-listed-securities" class="section level1">
+<h1>Financial Data API’s for De-Listed Securities</h1>
+<p>Just to make clear, this is not the <a href="https://daytradingz.com/yahoo-finance-api-alternatives/">first article</a> about what to do when Yahoo Finance fails. In our case, we looked at four providers, the first being <a href="https://sharadar.com">Sharadar</a>, as above mentioned. Sharadar had a substantial listing of 16,512 tickers, going back to 1986 and including ADRs, Canadian and US companies. We discovered that we could match the large majority of our still-missing tickers, but the cost for the level of access allowing the full history needed would be a full year’s access at their recently reduced price of $299 (through the Quandl API). We also looked at <a href="www.algoseek.com">Algoseek</a>, but their data only went back to January 2007, so that wouldn’t solve the problem. <a href="https://norgatedata.com">Norgate</a> offered access to de-listed securities back to 1990 for $346 under their 6-month “Platinum” plan option. Norgate also offered a free 3-week trial, but that only included 2 years of data, which would involve time to figure out the API and wouldn’t solve the problem, unless we went for the subscription. Lastly, there was <a href="https://eodhistoricaldata.com/list-of-stock-markets">EOD Historical Data</a>, which offered $20 per month for world prices going back 30+ years.</p>
+</div>
+<div id="finding-matching-prices" class="section level1">
+<h1>Finding Matching Prices</h1>
+<p>Sharadar’s comprehensive spreadsheet, offering certainty that needed prices would actually be available without having to download through the API (a helpful feature while deciding how to proceed). Given that this is only a personal project, we thought we would try EOD first to see if we could access the data we needed for only $20, though this forced us to invest time to get the API working from R without knowing if what we were looking for would even be there.</p>
+<p>EOD gave a <a href="https://eodhistoricaldata.com/financial-apis/r-language-example/">code example</a> for accessing the API, but we struggled at first to use it with the suggested default .csv format. The error messages were confusing, and sometimes unclear if the data we needed was not available (404) or if there was a problem with the API preventing the download. Customer support was very responsive, considering they are not charging a lot for it, and after some wheel spinning, helped us to understand that using JSON would work better. By adding “&amp;fmt=json” to the set-up string and parsing with <code>{jsonlite}</code> as in the code example below worked perfectly, and we were able to collect over 800 of our 930 missing tickers.</p>
+<p>As we were doing this, we also discovered other problems in our Yahoo Finance prices, so decided to collect the tickers we previously thought we would use from Yahoo. The <a href="https://eodhistoricaldata.com/pricing">All-World</a> package allows up to 100,000 calls per day, which was more than enough, and we would be able to expand beyond the US to 60 overseas exchanges. Unlike with Alpha Vantage, these were adjusted prices. All in all, EOD seemed to be perfect for our use-case.</p>
+<details>
+<p><summary> Click to see R code sample API call </summary></p>
+<pre class="r"><code># Tickers and API token
+api.token &lt;- &quot;OeAFFmMliFG5orCUuwAKQ8l4WWFQ67YX&quot;
+tickers &lt;- c(&quot;AAPL.US&quot;)
+ticker_list &lt;- list()
+
+# Loop to collect prices
+for ( ticker in tickers ) {
+  
+  # Set up API string
+  ticker.link &lt;-
+    paste(
+      &quot;http://nonsecure.eodhistoricaldata.com/api/eod/&quot;,
+      ticker,
+      &quot;?api_token=&quot;,
+      api.token,
+      &quot;&amp;period=w&amp;order=d&amp;fmt=json&amp;from=1997-01-01&quot;,
+      sep = &quot;&quot;
+    )
+  
+  # Call to API
+  ticker_prices &lt;- try(jsonlite::fromJSON(ticker.link))
+  
+  # Wait to avoid overloading API
+  Sys.sleep(2)
+  
+  # Append new ticker data to list
+  ticker_list &lt;-
+    append(ticker_list, list(ticker_prices))
+  
+}
+
+# Name list by ticker
+names(ticker_list) &lt;- tickers</code></pre>
+</details>
+<pre class="r"><code>ticker_list$AAPL.US[1:10,]</code></pre>
+<pre><code>         date    open     high    low  close adjusted_close    volume
+1  2021-08-23 148.310 150.8600 147.80 148.36       148.3600 166528933
+2  2021-08-16 148.535 151.6800 144.50 148.19       148.1900 429022231
+3  2021-08-09 146.200 149.4444 145.30 149.10       149.1000 299579344
+4  2021-08-02 146.360 148.0450 145.18 146.14       146.1400 284559336
+5  2021-07-26 148.270 149.8300 142.54 145.86       145.6418 423324004
+6  2021-07-19 143.750 148.7177 141.67 148.56       148.3378 441563672
+7  2021-07-12 146.210 150.0000 143.63 146.39       146.1710 504249353
+8  2021-07-06 140.070 145.6500 140.07 145.11       144.8929 418559704
+9  2021-06-28 133.410 140.0000 133.35 139.96       139.7506 321360121
+10 2021-06-21 130.300 134.6400 129.21 133.11       132.9109 354155886</code></pre>
+</div>
+<div id="some-thoughts-on-the-collected-data" class="section level1">
+<h1>Some thoughts on the collected data</h1>
+<p>We collected pricing data for an additional 400 tickers than with our original sources, so we are still missing price histories for about 500. Of these, only about 200 had 10 or more filings, so many of these were short-lived listings, and possibly not as relevant for our analysis. We also learned that in cases where the ticker had been used more than once, EOD price history would generally have the most recent, but not for the previous entity. For example, “DELL” went private in 2014 and was re-listed in 2016, so only data for the latter entity was available with EOD. In these cases, we were often able to use the Yahoo data.</p>
+<p>In addition, we learned that Yahoo sometimes gave surprising results. In the case if ticker “EOD” below, the reliability of the Yahoo data on the same dates during the early period, is shown to be very bad. Here we are showing for prices when there should be none, very small and unchanging prices in some periods, and then jumping all over the place when the history should have ended.</p>
+<details>
+<p><summary> Click to see R function used to generate output </summary></p>
+<pre class="r"><code>get_ticker &lt;- function(ticker) {
+  # Load prices for ticker from EOD and Yahoo
+  path &lt;- &quot;~/Desktop/David/Projects/new_constructs_targets/data/&quot;
+  eod &lt;-
+    fread(cmd = paste0(&quot;grep &quot;, ticker, &quot; &quot;, path, &quot;eod_weekly_prices.csv&quot;))
+  setnames(eod, c(&quot;ticker&quot;, &quot;date&quot;, &quot;adjusted.close&quot;))
+  yahoo &lt;-
+    fread(cmd = paste0(&quot;grep &quot;, ticker, &quot; &quot;, path, &quot;historical_prices/nc_complete_prices2.csv&quot;))
+  yahoo &lt;- yahoo[, c(1:2, 8)]
+  setnames(yahoo, c(&quot;ticker&quot;, &quot;date&quot;, &quot;adjusted.close&quot;))
+  
+  # Rbind, order by date and dcast for comparison
+  prices &lt;- list(eod, yahoo)
+  names(prices) &lt;- c(&quot;eod&quot;, &quot;yahoo&quot;)
+  prices &lt;-
+    rbindlist(prices, idcol = &quot;source&quot;)[order(date)]
+  
+  # Return
+  prices[
+    , dcast(
+      .SD, 
+      date ~ source,
+      fun = identity,
+      fill = NA_real_)]
+}</code></pre>
+</details>
+<pre class="r"><code>get_ticker(&quot;EDO&quot;)</code></pre>
+<pre><code>            date   eod yahoo
+   1: 1997-12-31 8.688    NA
+   2: 1998-01-02    NA  0.51
+   3: 1998-01-05 8.438  0.51
+   4: 1998-01-12 8.625  0.51
+   5: 1998-01-20 8.500  0.51
+  ---                       
+1217: 2021-04-12    NA  1.82
+1218: 2021-04-19    NA  1.82
+1219: 2021-04-26    NA  1.82
+1220: 2021-05-03    NA  1.82
+1221: 2021-05-10    NA  1.82</code></pre>
+<p>Here is another example of SKP illustrating the potential problems, considering our desire to find accurate return data after a given date. These price sequences would give a lot of cases of zero returns, and others with very positive or negative returns.</p>
+<pre><code>            date eod yahoo
+   1: 1998-01-02  NA 20018
+   2: 1998-01-05  NA 20018
+   3: 1998-01-12  NA 20018
+   4: 1998-01-20  NA 20018
+   5: 1998-01-26  NA 20018
+  ---                     
+1216: 2021-04-12  NA 52380
+1217: 2021-04-19  NA 52380
+1218: 2021-04-26  NA 52380
+1219: 2021-05-03  NA 52380
+1220: 2021-05-10  NA 52380</code></pre>
+<p>For this reason, we favored EOD prices, followed by Alpha Vantage when not available, and finally Yahoo Finance as the last resort, which meant the large majority were coming from EOD as shown in the table below.</p>
+<pre class="r"><code>path &lt;- &quot;~/Desktop/David/Projects/redwall-analytics/content/post/2021-08-19-when-yahoo-finance-doesn-t-have-de-listed-tickers-needed/&quot;
+source(paste0(path, &quot;prices_source_table.R&quot;))
+prices_source_table()</code></pre>
+<pre><code>   source       N
+1:    eod 3680589
+2:  yahoo  267814
+3:     av  406068</code></pre>
+<p>Now, we find that we are missing about 200 tickers out of the 5,500 we set out to match. Many of these were ending in “Q” (so were already on the pink sheets), are foreign or may have bad tickers. In any case, we have probably covered the bulk of the meaningful companies with our analysis.</p>
+<pre><code>  [1] &quot;AABA&quot;       &quot;AAMRQ&quot;      &quot;AANI&quot;       &quot;ABCWQ&quot;      &quot;ABII&quot;      
+  [6] &quot;ABKFQ&quot;      &quot;ABLSQ&quot;      &quot;ACHI&quot;       &quot;ACME_33987&quot; &quot;ACPIQ&quot;     
+ [11] &quot;ACTT&quot;       &quot;AEMI&quot;       &quot;AFR&quot;        &quot;AGCCQ&quot;      &quot;AHMMQ&quot;     
+ [16] &quot;AKRXQ&quot;      &quot;ALTV&quot;       &quot;AMOA&quot;       &quot;ANCCQ&quot;      &quot;ANLD&quot;      
+ [21] &quot;ANRZQ&quot;      &quot;ANSVQ&quot;      &quot;ANVGQ&quot;      &quot;APAC&quot;       &quot;APXSQ&quot;     
+ [26] &quot;ARDI&quot;       &quot;ARMP_1725&quot;  &quot;ASCL&quot;       &quot;ASYTQ&quot;      &quot;ATNY&quot;      
+ [31] &quot;ATPAQ&quot;      &quot;AWA&quot;        &quot;BBAO&quot;       &quot;BCKDY&quot;      &quot;BFCF&quot;      
+ [36] &quot;BHEL.BO&quot;    &quot;BKUNQ&quot;      &quot;BLGM&quot;       &quot;BOW&quot;        &quot;BRLC&quot;      
+ [41] &quot;BSBN&quot;       &quot;CAMD&quot;       &quot;CBCG&quot;       &quot;CBSS&quot;       &quot;CCOWQ&quot;     
+ [46] &quot;CDWC&quot;       &quot;CEMJQ&quot;      &quot;CHMT&quot;       &quot;CHZS_8434&quot;  &quot;CLK&quot;       
+ [51] &quot;CNVX&quot;       &quot;COHM&quot;       &quot;CPGVY&quot;      &quot;CRGIY&quot;      &quot;CRNM&quot;      
+ [56] &quot;CSKEQ&quot;      &quot;CTCI&quot;       &quot;CTGI&quot;       &quot;CTRA&quot;       &quot;CUNO&quot;      
+ [61] &quot;CZZ&quot;        &quot;DCGNQ&quot;      &quot;DDIC&quot;       &quot;DEU.F&quot;      &quot;DHI.KS&quot;    
+ [66] &quot;DIVX&quot;       &quot;DOLE&quot;       &quot;DRTE&quot;       &quot;EBHIQ&quot;      &quot;EGLSQ&quot;     
+ [71] &quot;EKDKQ&quot;      &quot;EMRG&quot;       &quot;ENMC&quot;       &quot;EPEXQ&quot;      &quot;ERPLQ&quot;     
+ [76] &quot;EZEM&quot;       &quot;FBNIQ&quot;      &quot;FCE.A&quot;      &quot;FCHDQ&quot;      &quot;FCSE&quot;      
+ [81] &quot;FFKY&quot;       &quot;FILE&quot;       &quot;FNBP&quot;       &quot;FSNM&quot;       &quot;FWMHQ&quot;     
+ [86] &quot;GCORE&quot;      &quot;GDPMQ&quot;      &quot;GDYS&quot;       &quot;GISX&quot;       &quot;GNKOQ&quot;     
+ [91] &quot;GVHR&quot;       &quot;HECL.F&quot;     &quot;HEVV&quot;       &quot;HOFF&quot;       &quot;HRVE&quot;      
+ [96] &quot;HSTN&quot;       &quot;HYDP&quot;       &quot;IBCPD&quot;      &quot;IION&quot;       &quot;IMNR&quot;      
+[101] &quot;INFS&quot;       &quot;ISOOE&quot;      &quot;ITWO&quot;       &quot;JHTXQ&quot;      &quot;JRCO&quot;      
+[106] &quot;JWLR&quot;       &quot;KNGGY&quot;      &quot;KVPHQ&quot;      &quot;LAWE&quot;       &quot;LCAV&quot;      
+[111] &quot;LEHMQ&quot;      &quot;LFGRQ&quot;      &quot;LGFTY&quot;      &quot;LINEQ&quot;      &quot;LNX&quot;       
+[116] &quot;LPHIQ&quot;      &quot;LPS&quot;        &quot;LQI&quot;        &quot;MCEL&quot;       &quot;MDRIQ_5781&quot;
+[121] &quot;MECAQ&quot;      &quot;MHRCQ&quot;      &quot;MILLQ&quot;      &quot;MKTS&quot;       &quot;MODT&quot;      
+[126] &quot;MSNW&quot;       &quot;MSSN&quot;       &quot;MTLQQ&quot;      &quot;MUSE&quot;       &quot;MYG&quot;       
+[131] &quot;NCOC&quot;       &quot;NHR&quot;        &quot;NMGA&quot;       &quot;NNDS&quot;       &quot;NRVHQ&quot;     
+[136] &quot;NUI&quot;        &quot;NVTP&quot;       &quot;NWACQ&quot;      &quot;NWEC&quot;       &quot;OLAB&quot;      
+[141] &quot;OO&quot;         &quot;OSCIQ&quot;      &quot;PENX&quot;       &quot;PILLQ&quot;      &quot;PMRY&quot;      
+[146] &quot;PRFS&quot;       &quot;PRLI&quot;       &quot;PRTLQ&quot;      &quot;PRXZ&quot;       &quot;QDHC&quot;      
+[151] &quot;QRCP&quot;       &quot;RCOCQ&quot;      &quot;RCRC&quot;       &quot;REVUQ&quot;      &quot;RGAA&quot;      
+[156] &quot;RGFC&quot;       &quot;RITA&quot;       &quot;RSTO&quot;       &quot;SBIT&quot;       &quot;SBLKE&quot;     
+[161] &quot;SEN.ETR&quot;    &quot;SEPR&quot;       &quot;SGGHU&quot;      &quot;SHRPQ&quot;      &quot;SHZ&quot;       
+[166] &quot;SKRRF&quot;      &quot;SMF&quot;        &quot;SPCBQ&quot;      &quot;SPNVD&quot;      &quot;SQAA&quot;      
+[171] &quot;SRNAE&quot;      &quot;SUZ.DEU&quot;    &quot;SVNT&quot;       &quot;SZ&quot;         &quot;TARRQ&quot;     
+[176] &quot;TCPTF&quot;      &quot;THQIQ&quot;      &quot;TLCR&quot;       &quot;TMG&quot;        &quot;TNSIQ&quot;     
+[181] &quot;TOBC&quot;       &quot;TORCQ&quot;      &quot;TRMS&quot;       &quot;TWLL&quot;       &quot;TWTRQ&quot;     
+[186] &quot;UNISQ&quot;      &quot;UPFC&quot;       &quot;USFC&quot;       &quot;USPI&quot;       &quot;UTA&quot;       
+[191] &quot;UVSLQ&quot;      &quot;VARI&quot;       &quot;VIONQ&quot;      &quot;VLCY&quot;       &quot;VRAIE&quot;     
+[196] &quot;VRLKQ&quot;      &quot;VRST&quot;       &quot;VSE&quot;        &quot;VTAI&quot;       &quot;VTRO&quot;      
+[201] &quot;WAVXQ&quot;      &quot;WC&quot;         &quot;WFTIQ_8616&quot; &quot;WGATQ&quot;      &quot;WG.L&quot;      
+[206] &quot;WGRD&quot;       &quot;WLS&quot;        &quot;WMANQ&quot;      &quot;WNNB&quot;       &quot;WPSL&quot;      
+[211] &quot;WWCA&quot;       &quot;XYBRQ&quot;      &quot;YAKC&quot;      </code></pre>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>In the end, our return data is still likely not perfect, but is pretty comprehensive, and certainly the data visualization reflected in our <a href="https://luceyda.shinyapps.io/redflagapp/">Red Flag App</a> should be close to an unbiased reflection. Most of the four million stock returns we collected did not cost an unreasonable amount (as long as not used for commercial purposes). In our next post, we will explore the life and death of companies since 1986 using some of the data we collected in this project.</p>
+</div>
