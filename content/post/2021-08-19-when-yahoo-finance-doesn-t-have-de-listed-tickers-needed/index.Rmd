@@ -41,7 +41,7 @@ We would love to see market sponsors make weekly or monthly prices available to 
 Financial Data API's for De-Listed Securities {#financial-data-apis-for-de-listed-securities}
 =============================================
 
-Just to make clear, this is not the [first article](https://daytradingz.com/yahoo-finance-api-alternatives/) about what to do when Yahoo Finance fails. In our case, we looked at four providers, the first being [Sharadar](https://sharadar.com), as above mentioned. Sharadar had a substantial listing of 16,512 tickers, going back to 1986 and including ADRs, Canadian and US companies. We discovered that we could match the large majority of our still-missing tickers, but the cost for the level of access allowing the full history needed would be a full year's access at their recently reduced price of \$299 (through the Quandl API). We also looked at [Algoseek](www.algoseek.com), but their data only went back to January 2007, so that wouldn't solve the problem. [Norgate](https://norgatedata.com) offered access to de-listed securities back to 1990 for \$346 under their 6-month "Platinum" plan option. Norgate also offered a free 3-week trial, but that only included 2 years of data, which would involve time to figure out the API and wouldn't solve the problem, unless we went for the subscription. Lastly, there was [EOD Historical Data](https://eodhistoricaldata.com/list-of-stock-markets), which offered \$20 per month for world prices going back 30+ years.
+Just to make clear, this is not the [first article](https://daytradingz.com/yahoo-finance-api-alternatives/) about what to do when Yahoo Finance fails. In our case, we looked at four providers, the first being [Sharadar](https://sharadar.com), as above mentioned. Sharadar had a substantial listing of 16,512 tickers, going back to 1986 and including ADRs, Canadian and US companies. We discovered that we could match the large majority of our still-missing tickers, but the cost for the level of access allowing the full history needed would be a full year's access at their recently reduced price of \$299 (through the Quandl API). We also looked at [Algoseek](www.algoseek.com), but their data only went back to January 2007, so that wouldn't solve the problem. [Norgate](https://norgatedata.com) offered access to de-listed securities back to 1990 for \$346 under their 6-month "Platinum" plan option. Norgate also offered a free 3-week trial, but that only included 2 years of data, which would involve time to figure out the API and wouldn't solve the problem, unless we went for the subscription. Lastly, there was [EOD Historical Data](https://eodhistoricaldata.com/r/?ref=9O7FIAJN) (Disclosure: after we wrote this post, we were offered a small credit for referrals to EOD via this link), which offered \$20 per month for world prices going back 30+ years.
 
 Finding Matching Prices {#finding-matching-prices}
 =======================
@@ -50,7 +50,7 @@ Sharadar's comprehensive spreadsheet, offering certainty that needed prices woul
 
 EOD gave a [code example](https://eodhistoricaldata.com/financial-apis/r-language-example/) for accessing the API, but we struggled at first to use it with the suggested default .csv format. The error messages were confusing, and sometimes unclear if the data we needed was not available (404) or if there was a problem with the API preventing the download. Customer support was very responsive, considering they are not charging a lot for it, and after some wheel spinning, helped us to understand that using JSON would work better. By adding "&fmt=json" to the set-up string and parsing with `{jsonlite}` as in the code example below worked perfectly, and we were able to collect over 800 of our 930 missing tickers.
 
-As we were doing this, we also discovered other problems in our Yahoo Finance prices, so decided to collect the tickers we previously thought we would use from Yahoo. The [All-World](https://eodhistoricaldata.com/pricing) package allows up to 100,000 calls per day, which was more than enough, and we would be able to expand beyond the US to 60 overseas exchanges. EOD was felt quite a bit faster than the traditional `{quantmod}`, even when we used `{BatchGetSymbols}` for collecting a lot of tickers. Unlike with Alpha Vantage, these were adjusted prices. All in all, EOD seemed to be perfect for our use-case.
+As we were doing this, we also discovered other problems in our Yahoo Finance prices, so decided to collect the tickers we previously thought we would use from Yahoo. The [All-World](https://eodhistoricaldata.com/r/?ref=9O7FIAJN) package allows up to 100,000 calls per day, which was more than enough, and we would be able to expand beyond the US to 60 overseas exchanges. EOD was felt quite a bit faster than the traditional `{quantmod}`, even when we used `{BatchGetSymbols}` for collecting a lot of tickers. Unlike with Alpha Vantage, these were adjusted prices. All in all, EOD seemed to be perfect for our use-case.
 
 <details>
 
@@ -140,13 +140,13 @@ get_ticker <- function(ticker) {
 </details>
 
 ```{r 'show-eod-prices', echo=TRUE, message=FALSE, warning=FALSE}
-get_ticker("EDO")
+get_ticker("EDO")[c(1:10)]
 ```
 
 Here is another example of SKP illustrating the potential problems, considering our desire to find accurate return data after a given date. These price sequences would give a lot of cases of zero returns, and others with very positive or negative returns.
 
 ```{r 'show-skp-prices', echo=TRUE, message=FALSE, warning=FALSE}
-get_ticker("SKP")
+get_ticker("SKP")[c(51:60)]
 ```
 
 For this reason, we favored EOD prices, followed by Alpha Vantage when not available, and finally Yahoo Finance as the last resort, which meant the large majority were coming from EOD as shown in the table below.

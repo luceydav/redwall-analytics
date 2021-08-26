@@ -34,13 +34,13 @@ knitr::opts_chunk$set(
 </div>
 <div id="financial-data-apis-for-de-listed-securities" class="section level1">
 <h1>Financial Data API’s for De-Listed Securities</h1>
-<p>Just to make clear, this is not the <a href="https://daytradingz.com/yahoo-finance-api-alternatives/">first article</a> about what to do when Yahoo Finance fails. In our case, we looked at four providers, the first being <a href="https://sharadar.com">Sharadar</a>, as above mentioned. Sharadar had a substantial listing of 16,512 tickers, going back to 1986 and including ADRs, Canadian and US companies. We discovered that we could match the large majority of our still-missing tickers, but the cost for the level of access allowing the full history needed would be a full year’s access at their recently reduced price of $299 (through the Quandl API). We also looked at <a href="www.algoseek.com">Algoseek</a>, but their data only went back to January 2007, so that wouldn’t solve the problem. <a href="https://norgatedata.com">Norgate</a> offered access to de-listed securities back to 1990 for $346 under their 6-month “Platinum” plan option. Norgate also offered a free 3-week trial, but that only included 2 years of data, which would involve time to figure out the API and wouldn’t solve the problem, unless we went for the subscription. Lastly, there was <a href="https://eodhistoricaldata.com/list-of-stock-markets">EOD Historical Data</a>, which offered $20 per month for world prices going back 30+ years.</p>
+<p>Just to make clear, this is not the <a href="https://daytradingz.com/yahoo-finance-api-alternatives/">first article</a> about what to do when Yahoo Finance fails. In our case, we looked at four providers, the first being <a href="https://sharadar.com">Sharadar</a>, as above mentioned. Sharadar had a substantial listing of 16,512 tickers, going back to 1986 and including ADRs, Canadian and US companies. We discovered that we could match the large majority of our still-missing tickers, but the cost for the level of access allowing the full history needed would be a full year’s access at their recently reduced price of $299 (through the Quandl API). We also looked at <a href="www.algoseek.com">Algoseek</a>, but their data only went back to January 2007, so that wouldn’t solve the problem. <a href="https://norgatedata.com">Norgate</a> offered access to de-listed securities back to 1990 for $346 under their 6-month “Platinum” plan option. Norgate also offered a free 3-week trial, but that only included 2 years of data, which would involve time to figure out the API and wouldn’t solve the problem, unless we went for the subscription. Lastly, there was <a href="https://eodhistoricaldata.com/r/?ref=9O7FIAJN">EOD Historical Data</a> (Disclosure: after we wrote this post, we were offered a small credit for referrals to EOD via this link), which offered $20 per month for world prices going back 30+ years.</p>
 </div>
 <div id="finding-matching-prices" class="section level1">
 <h1>Finding Matching Prices</h1>
 <p>Sharadar’s comprehensive spreadsheet, offering certainty that needed prices would actually be available without having to download through the API (a helpful feature while deciding how to proceed). Given that this is only a personal project, we thought we would try EOD first to see if we could access the data we needed for only $20, though this forced us to invest time to get the API working from R without knowing if what we were looking for would even be there.</p>
 <p>EOD gave a <a href="https://eodhistoricaldata.com/financial-apis/r-language-example/">code example</a> for accessing the API, but we struggled at first to use it with the suggested default .csv format. The error messages were confusing, and sometimes unclear if the data we needed was not available (404) or if there was a problem with the API preventing the download. Customer support was very responsive, considering they are not charging a lot for it, and after some wheel spinning, helped us to understand that using JSON would work better. By adding “&amp;fmt=json” to the set-up string and parsing with <code>{jsonlite}</code> as in the code example below worked perfectly, and we were able to collect over 800 of our 930 missing tickers.</p>
-<p>As we were doing this, we also discovered other problems in our Yahoo Finance prices, so decided to collect the tickers we previously thought we would use from Yahoo. The <a href="https://eodhistoricaldata.com/pricing">All-World</a> package allows up to 100,000 calls per day, which was more than enough, and we would be able to expand beyond the US to 60 overseas exchanges. EOD was felt quite a bit faster than the traditional <code>{quantmod}</code>, even when we used <code>{BatchGetSymbols}</code> for collecting a lot of tickers. Unlike with Alpha Vantage, these were adjusted prices. All in all, EOD seemed to be perfect for our use-case.</p>
+<p>As we were doing this, we also discovered other problems in our Yahoo Finance prices, so decided to collect the tickers we previously thought we would use from Yahoo. The <a href="https://eodhistoricaldata.com/r/?ref=9O7FIAJN">All-World</a> package allows up to 100,000 calls per day, which was more than enough, and we would be able to expand beyond the US to 60 overseas exchanges. EOD was felt quite a bit faster than the traditional <code>{quantmod}</code>, even when we used <code>{BatchGetSymbols}</code> for collecting a lot of tickers. Unlike with Alpha Vantage, these were adjusted prices. All in all, EOD seemed to be perfect for our use-case.</p>
 <details>
 <p><summary> Click to see R code sample API call </summary></p>
 <pre class="r"><code># Tickers and API token
@@ -122,33 +122,31 @@ names(ticker_list) &lt;- tickers</code></pre>
       fill = NA_real_)]
 }</code></pre>
 </details>
-<pre class="r"><code>get_ticker(&quot;EDO&quot;)</code></pre>
-<pre><code>            date   eod yahoo
-   1: 1997-12-31 8.688    NA
-   2: 1998-01-02    NA  0.51
-   3: 1998-01-05 8.438  0.51
-   4: 1998-01-12 8.625  0.51
-   5: 1998-01-20 8.500  0.51
-  ---                       
-1217: 2021-04-12    NA  1.82
-1218: 2021-04-19    NA  1.82
-1219: 2021-04-26    NA  1.82
-1220: 2021-05-03    NA  1.82
-1221: 2021-05-10    NA  1.82</code></pre>
+<pre class="r"><code>get_ticker(&quot;EDO&quot;)[c(1:10)]</code></pre>
+<pre><code>          date   eod yahoo
+ 1: 1997-12-31 8.688    NA
+ 2: 1998-01-02    NA  0.51
+ 3: 1998-01-05 8.438  0.51
+ 4: 1998-01-12 8.625  0.51
+ 5: 1998-01-20 8.500  0.51
+ 6: 1998-01-26 9.000  0.51
+ 7: 1998-02-02 9.500  0.51
+ 8: 1998-02-09 8.938  0.51
+ 9: 1998-02-17 9.000  0.51
+10: 1998-02-23 9.125  0.51</code></pre>
 <p>Here is another example of SKP illustrating the potential problems, considering our desire to find accurate return data after a given date. These price sequences would give a lot of cases of zero returns, and others with very positive or negative returns.</p>
-<pre class="r"><code>get_ticker(&quot;SKP&quot;)</code></pre>
-<pre><code>            date eod yahoo
-   1: 1998-01-02  NA 20018
-   2: 1998-01-05  NA 20018
-   3: 1998-01-12  NA 20018
-   4: 1998-01-20  NA 20018
-   5: 1998-01-26  NA 20018
-  ---                     
-1216: 2021-04-12  NA 52380
-1217: 2021-04-19  NA 52380
-1218: 2021-04-26  NA 52380
-1219: 2021-05-03  NA 52380
-1220: 2021-05-10  NA 52380</code></pre>
+<pre class="r"><code>get_ticker(&quot;SKP&quot;)[c(51:60)]</code></pre>
+<pre><code>          date    eod yahoo
+ 1: 1998-12-14     NA 20018
+ 2: 1998-12-21     NA 20018
+ 3: 1998-12-28     NA 20018
+ 4: 1999-01-04 28.875 20018
+ 5: 1999-01-11 28.500 20018
+ 6: 1999-01-19 28.625 20018
+ 7: 1999-01-25 29.688 20018
+ 8: 1999-02-01 29.063 20018
+ 9: 1999-02-08 29.125 20018
+10: 1999-02-16 29.625 20018</code></pre>
 <p>For this reason, we favored EOD prices, followed by Alpha Vantage when not available, and finally Yahoo Finance as the last resort, which meant the large majority were coming from EOD as shown in the table below.</p>
 <pre class="r"><code>path &lt;- &quot;~/Desktop/David/Projects/redwall-analytics/content/post/2021-08-19-when-yahoo-finance-doesn-t-have-de-listed-tickers-needed/&quot;
 source(paste0(path, &quot;prices_source_table.R&quot;))
