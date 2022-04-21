@@ -1,5 +1,5 @@
 ---
-title: Loading a large, messy csv using `{data.table}` fread with cli tools
+title: Loading a large, messy csv using data.table fread with cli tools
 author: R package build
 date: '2022-04-21'
 slug: loading-a-large-messy-csv-using-data-table-fread-with-cli-tools
