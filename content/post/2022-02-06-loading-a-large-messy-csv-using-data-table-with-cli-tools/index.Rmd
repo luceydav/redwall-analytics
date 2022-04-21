@@ -12,6 +12,10 @@ tags:
   - scrubcsv
 ---
 
+
+<details>
+
+<summary> Setup </summary>
 ```{r 'setup'}
 library(data.table)
 library(here)
@@ -19,6 +23,7 @@ library(glue)
 library(tictoc)
 setDTthreads(percent = 90)
 ```
+</details>
 
 ```{r 'paths', message=FALSE, warning=FALSE, include=FALSE}
 path_to_data <- "~/Desktop/David/Projects/uscompanies/data"
@@ -82,7 +87,7 @@ In "uscompanieslist_err.csv", `csvclean` adds two columns, one of which specifie
 
 <details>
 
-<summary> `{csvclean}` manual </summary>
+<summary> `{csvclean}` Bad Rows </summary>
 ```{r 'csvclean-err', echo=TRUE, message=FALSE, warning=FALSE}
 data <- 
   fread(here::here(path_to_data, "uscompanieslist_err.csv"), select = 1:2, nrows = 10)
