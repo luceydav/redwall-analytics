@@ -1,7 +1,7 @@
 ---
-title: Loading a large, messy csv using data.table fread with cli tools
+title: Loading a large, messy csv using `{data.table}` fread with cli tools
 author: R package build
-date: '2022-02-06'
+date: '2022-04-21'
 slug: loading-a-large-messy-csv-using-data-table-fread-with-cli-tools
 categories:
   - R
@@ -24,7 +24,9 @@ library(here)</code></pre>
 <pre class="r"><code>library(glue)</code></pre>
 <pre><code>## Warning: package &#39;glue&#39; was built under R version 4.1.2</code></pre>
 <pre class="r"><code>library(tictoc)
-setDTthreads(percent = 90)</code></pre>
+setDTthreads(percent = 90)
+path_to_data &lt;- &quot;~/Desktop/David/Projects/uscompanies/data&quot;
+path_to_original &lt;- here::here(path_to_data, &quot;uscompanieslist.csv&quot;)</code></pre>
 </details>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
@@ -51,7 +53,7 @@ try(fread(path_to_original))</code></pre>
 <p>Like many who were previously scared by the CLI, the first step was to get over the fear of the help manual, <code>cleancsv</code> shown below.</p>
 <details>
 <summary>
-csvclean manual
+<code>{csvclean}</code> Manual
 </summary>
 <pre class="bash"><code>csvclean -h</code></pre>
 <pre><code>## usage: csvclean [-h] [-d DELIMITER] [-t] [-q QUOTECHAR] [-u {0,1,2,3}] [-b]
@@ -119,7 +121,7 @@ system(command = glue::glue(&quot;csvclean {path_to_original}&quot;))</code></pr
 <p>In “uscompanieslist_err.csv”, <code>csvclean</code> adds two columns, one of which specifies the actual number of rows versus the number expected in each row. It also contains the line number of the original file where the problem was happening, which would have been nice to have earlier while we were hunting for bad rows. The cadence of our bad rows, which is every few thousand, can be seen and why our efforts at trying to load in chunks was problematic (chunks of a few thousand rows in 30 million).</p>
 <details>
 <summary>
-<code>{csvclean}</code> Bad Rows
+Load uscompanieslist_err.csv Metadata
 </summary>
 <pre class="r"><code>data &lt;- 
   fread(here::here(path_to_data, &quot;uscompanieslist_err.csv&quot;), select = 1:2, nrows = 10)
@@ -143,10 +145,10 @@ bad_csvkit_data &lt;-
   fread(cmd = glue::glue(
     &quot;rg &#39;22 columns&#39; { here::here(path_to_data, &#39;uscompanieslist_err.csv&#39;) } | xsv select 3-13,17,19,20-21,24&quot;))
 toc()</code></pre>
-<pre><code>## 63.485 sec elapsed</code></pre>
+<pre><code>## 44.183 sec elapsed</code></pre>
 <p>As shown above there are 1070764 in the data set, and column names are lost and have to be manually re-inserted. At first, we were worries that the columns would be badly formatted, mistakenly merging columns, but looking at random samples of rows, this was not the case. A faster alternative with <code>{scrubcsv}</code>. There are also several columns which are missing all data or almost all blank cells. We can also add NULL columns for the ones which are missing.</p>
 <summary>
-Add table names
+Add Table Names
 </summary>
 <pre class="r"><code># Column names
 data_names &lt;- c(
@@ -173,43 +175,48 @@ sample &lt;- bad_csvkit_data[sample(5)]</code></pre>
 <pre class="r"><code># Quick view of final data
 sample</code></pre>
 <pre><code>##              COMPANY_NAME SIC_CODE       SIC_DESCRIPTION              ADDRESS
-## 1:     Abel-hatzel, wendy     6411             Insurance          po box 1780
+## 1:        Ackman, carmela     8111             Attorneys 110 e 42nd st # 1401
 ## 2:     Abel-hatzel, wendy     6411             Insurance          po box 1780
 ## 3:        Ackman, carmela     8111             Attorneys 110 e 42nd st # 1401
-## 4:        Ackman, carmela     8111             Attorneys 110 e 42nd st # 1401
-## 5: Abdelbaki, zoheir a md     8011 PHYSICIANS &amp; SURGEONS  770 w high st # 370
+## 4: Abdelbaki, zoheir a md     8011 PHYSICIANS &amp; SURGEONS  770 w high st # 370
+## 5:     Abel-hatzel, wendy     6411             Insurance          po box 1780
 ##        CITY STATE   ZIP   COUNTY      PHONE FAX_NUMBER        WEBSITE
-## 1: COOS BAY    OR 97420     Coos 5412674124                          
+## 1: NEW YORK    NY 10017 New York 2122531560            ackmanziff.com
 ## 2: COOS BAY    OR 97420     Coos 5412674124                          
 ## 3: NEW YORK    NY 10017 New York 2122531560            ackmanziff.com
-## 4: NEW YORK    NY 10017 New York 2122531560            ackmanziff.com
-## 5:     Lima    OH 45801    Allen 4192264310                          
+## 4:     Lima    OH 45801    Allen 4192264310                          
+## 5: COOS BAY    OR 97420     Coos 5412674124                          
 ##    EMPLOYEE_RANGE    SALES_VOLUME_RANGE CONTACT_FIRSTNAME CONTACT_LASTNAME
-## 1:        1 to 10   $100,000 - $500,000        Wendy Abel           Hatzel
+## 1:        1 to 10   $100,000 - $500,000             Caryn           Effron
 ## 2:        1 to 10   $100,000 - $500,000           Harry D          Abel Jr
-## 3:        1 to 10   $100,000 - $500,000             Caryn           Effron
-## 4:        1 to 10   $100,000 - $500,000              Alan          Goodkin
-## 5:        1 to 10 $500,000 - $1,000,000           Shaheen            Abdel
+## 3:        1 to 10   $100,000 - $500,000              Alan          Goodkin
+## 4:        1 to 10 $500,000 - $1,000,000           Shaheen            Abdel
+## 5:        1 to 10   $100,000 - $500,000        Wendy Abel           Hatzel
 ##        CONTACT_TITLE
-## 1:   Insurance Agent
+## 1:   Senior Director
 ## 2:   Insurance Agent
-## 3:   Senior Director
-## 4: Managing Director
-## 5:           Manager</code></pre>
+## 3: Managing Director
+## 4:           Manager
+## 5:   Insurance Agent</code></pre>
 <p>As we mentioned above, <code>csvclean</code> took about an hour to run, but there are probably many other ways to accomplish our goal. Although we didn’t know the exact problem when we first tried <code>csvclean</code>, with hindsight, a better solution would have been <code>{scrubcsv}</code>, because it drops the rows with a differing number of columns, and it does so very quickly. One missing feature of <code>{scrubcsv}</code> is the lack of an output for the bad rows, so we had to capture these in the second line using the CLI <code>comm</code> command. In order not to fill up my disc further, these are not run here, but the total time to run both processes was just 5 minutes, and with a little cleaning, yields the same csv’s as <code>{csvkit}</code>, which took an hour.</p>
 <div class="figure">
 <img src="images/Screen%20Shot%202022-04-21%20at%2012.47.52%20PM-01.png" alt="" />
 <p class="caption">CLI to Replicate <code>{csvclean}</code> with <code>{scrubcsv}</code></p>
 </div>
-<p>Like the bad_csvkit_data, the output of bad_scrub_data still has a few rows with the wrong number of columns, but those are easily dropped with another run of <code>csvscrub</code> to remove all of the rows which do not have the predominant 22 columns, and using <code>{xsv}</code>, we also drop empty columns with <code>{xsv}</code> select.</p>
+<p>Like the bad_csvkit_data, the output of bad_scrub_data still has a few rows with the wrong number of columns, but those are easily dropped with another run of <code>csvscrub</code> (shown in code chunk below) to remove all of the rows which do not have the predominant 22 columns, and using <code>{xsv}</code>, we also drop empty columns with <code>{xsv}</code> select.</p>
+<details>
+<summary>
+Load bad_scrub_data
+</summary>
 <pre class="r"><code># Filter, select and load with fread
 bad_scrub_data &lt;- 
   fread(cmd = glue::glue(&quot;scrubcsv {path_to_data}/bad_scrub_data.csv | xsv select 1-11,15,17-19,22&quot;))
 
 # Use same names
-names(bad_scrub_data) &lt;- data_names
-  
-# Check if identical
+names(bad_scrub_data) &lt;- data_names</code></pre>
+</details>
+<p>We can see that the output of the bad rows from the two methods are the same..</p>
+<pre class="r"><code># Check if identical
 identical(bad_csvkit_data, bad_scrub_data)</code></pre>
 <pre><code>## [1] TRUE</code></pre>
 </div>
@@ -230,15 +237,15 @@ identical(bad_csvkit_data, bad_scrub_data)</code></pre>
 ## CITY,Greenwich,8710
 ## CITY,Fairfield,8624
 ## 
-## real 0m35.919s
-## user 0m47.926s
-## sys  0m6.462s</code></pre>
+## real 0m36.791s
+## user 0m47.933s
+## sys  0m6.504s</code></pre>
 <p>We can count the top 10 most states occurring in the data using <code>xsv frequency</code> and choosing the STATE column, which takes about a minute. The count seem roughly as expected, but a business in this data set can range from a sole proprietor to a multi-national. What we are really seeing is the number of locations which are a business.</p>
 <pre class="r"><code>tic()
 data &lt;- 
   fread(cmd = glue::glue(&#39;xsv select STATE {path_to_data}/scubbed_data.csv | xsv frequency&#39;))
 toc()</code></pre>
-<pre><code>## 36.223 sec elapsed</code></pre>
+<pre><code>## 35.626 sec elapsed</code></pre>
 <pre class="r"><code>data</code></pre>
 <pre><code>##     field value   count
 ##  1: STATE    CA 3605240
@@ -256,9 +263,9 @@ toc()</code></pre>
 <pre><code>## CSV error: record 24 (line: 25, byte: 4189): found record with 19 fields, but the previous record has 22 fields
 ## 26431218
 ## 
-## real 0m54.361s
-## user 1m16.291s
-## sys  0m56.222s</code></pre>
+## real 0m55.930s
+## user 1m16.065s
+## sys  0m59.011s</code></pre>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>

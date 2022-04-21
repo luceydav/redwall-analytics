@@ -1,7 +1,7 @@
 ---
-title: Loading a large, messy csv using data.table fread with cli tools
+title: Loading a large, messy csv using `{data.table}` fread with cli tools
 author: R package build
-date: '2022-02-06'
+date: '2022-04-21'
 slug: loading-a-large-messy-csv-using-data-table-fread-with-cli-tools
 categories:
   - R
@@ -22,13 +22,11 @@ library(here)
 library(glue)
 library(tictoc)
 setDTthreads(percent = 90)
-```
-</details>
-
-```{r 'paths', message=FALSE, warning=FALSE, include=FALSE}
 path_to_data <- "~/Desktop/David/Projects/uscompanies/data"
 path_to_original <- here::here(path_to_data, "uscompanieslist.csv")
 ```
+</details>
+
 
 # Introduction
 
@@ -62,7 +60,7 @@ Like many who were previously scared by the CLI, the first step was to get over 
 
 <details>
 
-<summary> csvclean manual </summary>
+<summary> `{csvclean}` Manual </summary>
 ```{bash 'csvclean-manual', echo=TRUE}
 csvclean -h
 ```
@@ -87,7 +85,7 @@ In "uscompanieslist_err.csv", `csvclean` adds two columns, one of which specifie
 
 <details>
 
-<summary> `{csvclean}` Bad Rows </summary>
+<summary> Load uscompanieslist_err.csv Metadata </summary>
 ```{r 'csvclean-err', echo=TRUE, message=FALSE, warning=FALSE}
 data <- 
   fread(here::here(path_to_data, "uscompanieslist_err.csv"), select = 1:2, nrows = 10)
@@ -110,7 +108,7 @@ toc()
 
 As shown above there are `r nrow(bad_csvkit_data)` in the data set, and column names are lost and have to be manually re-inserted. At first, we were worries that the columns would be badly formatted, mistakenly merging columns, but looking at random samples of rows, this was not the case. A faster alternative with `{scrubcsv}`. There are also several columns which are missing all data or almost all blank cells. We can also add NULL columns for the ones which are missing.
 
-<summary> Add table names </summary>
+<summary> Add Table Names </summary>
 ```{r 'table-names', echo=TRUE, message=FALSE, warning=FALSE}
 # Column names
 data_names <- c(
@@ -146,9 +144,12 @@ As we mentioned above, `csvclean` took about an hour to run, but there are proba
 
 ![CLI to Replicate `{csvclean}` with `{scrubcsv}`](images/Screen%20Shot%202022-04-21%20at%2012.47.52%20PM-01.png)
 
-Like the bad_csvkit_data, the output of bad_scrub_data still has a few rows with the wrong number of columns, but those are easily dropped with another run of `csvscrub` to remove all of the rows which do not have the predominant 22 columns, and using `{xsv}`, we also drop empty columns with `{xsv}` select.
+Like the bad_csvkit_data, the output of bad_scrub_data still has a few rows with the wrong number of columns, but those are easily dropped with another run of `csvscrub` (shown in code chunk below) to remove all of the rows which do not have the predominant 22 columns, and using `{xsv}`, we also drop empty columns with `{xsv}` select.
 
 
+<details>
+
+<summary> Load bad_scrub_data </summary>
 ```{r 'clean-scrub-data', echo=TRUE, message=FALSE, warning=FALSE}
 # Filter, select and load with fread
 bad_scrub_data <- 
@@ -156,7 +157,14 @@ bad_scrub_data <-
 
 # Use same names
 names(bad_scrub_data) <- data_names
-  
+
+```
+
+</details>
+
+We can see that the output of the bad rows from the two methods are the same..
+
+```{r reality-check, echo=TRUE}
 # Check if identical
 identical(bad_csvkit_data, bad_scrub_data)
 ```
