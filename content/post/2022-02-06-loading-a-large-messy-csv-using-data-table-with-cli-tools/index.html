@@ -1,0 +1,261 @@
+---
+title: Loading a large, messy csv using data.table fread with cli tools
+author: R package build
+date: '2022-02-06'
+slug: loading-a-large-messy-csv-using-data-table-fread-with-cli-tools
+categories:
+  - R
+tags:
+  - data.table
+  - csvkit
+  - xsv
+  - scrubcsv
+---
+
+
+
+<pre class="r"><code>library(data.table)
+library(here)</code></pre>
+<pre><code>## here() starts at /Users/davidlucey/Desktop/David/Projects/redwall-analytics</code></pre>
+<pre class="r"><code>library(glue)</code></pre>
+<pre><code>## Warning: package &#39;glue&#39; was built under R version 4.1.2</code></pre>
+<pre class="r"><code>library(tictoc)
+setDTthreads(percent = 90)</code></pre>
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>On a recent side project, we encountered a large (7GB) csv of 30+ million US business names and addresses, which couldn’t be loaded into R, because of corrupted records. While not widely discussed, we have known for some time that it was possible to pipe command line instructions into <code>{data.table}</code>’s <code>fread()</code> by using its “cmd” parameter. However, there were only a few snippets available about how to do this, and most of these were constrained to limited strategies using <code>awk</code>. There were a few times in the past that we used <code>awk</code>, and we sometimes even got it to work, though we often didn’t understand why. <code>awk</code> seems like a great tool, but is like learning an entirely new language.</p>
+<p>When we discovered Jeroen Janssens’ <a href="https://datascienceatthecommandline.com">Data Science at the Command Line</a> a few months ago, we realized there were a lot more possibilities for solving problems like this one. This book helped us to understand that the strategy of using <code>fread()</code>’s cmd capability might be expanded beyond <code>awk</code>. Unfortunately, the data set does not belong to us, so we cannot share it, but we will demonstrate the methods in case helpful for others.</p>
+</div>
+<div id="tools-and-setup" class="section level1">
+<h1>Tools and Setup</h1>
+<p>The specific tools we been learning are {<code>xsv}</code>, <code>{rg}</code> (ripgrep), <code>csvkit</code> and <code>scrubcsv</code>. The first two were developed by <a href="https://github.com/BurntSushi">BurntSushi</a> using Rust, <code>{csvkit}</code> is a Python package, and <code>{scrubcsv}</code> is another Rust package inspired by the first two. We quickly learned that this tool set is a lot easier to install on Mac than Windows (using WSL), because most can be installed with Homebrew, the Mac package manager. We were not able to figure out how to install <code>{xsv}</code> and <code>ripgrep</code> on WSL, but “brew install xsv” and “brew install ripgrep” easily installed the libraries on our Mac.</p>
+<p>Since we started our data journey about 5 years ago, managing Python installations has always been a challenge, and we will not discuss this here. Once Python is set up, the third is easy with “pip install csvkit”. Lastly, <code>{scrubcsv}</code> requires one step further, because there is no Homebrew formula, so first Rust and its package manager cargo had to be installed, which again can be accomplished with Homebrew following these <a href="https://www.chrisjmendez.com/2022/02/22/installing-multiple-versions-of-rust-on-your-mac-using-homebrew/">instructions</a>. Once installed, <code>{scrubcsv}</code> only requires “cargo install scrubcsv”.</p>
+<p>Of the tools, <code>{rg}</code> is grep on steroids, while <code>{xsv}</code> and <code>{csvkit}</code> have many similar capabilities to slice and dice a csv. Though <code>{xsv}</code> is a significantly faster, <code>{csvkit}</code> has a built in <code>cleancsv</code> capability which can be used to solve our problem. <code>{scrubcsv}</code> does only one thing, it drops rows with the wrong number of columns, and it does this very fast. This seems like a more limited solution, but in our case it turns out to be just the ticket.</p>
+</div>
+<div id="the-problem" class="section level1">
+<h1>The Problem</h1>
+<p>As shown below, when we try to load the data set, we get “Error in fread(”/Users/davidlucey/Desktop/David/Projects/uscompanies/data/uscompanieslist.csv”, : R character strings are limited to 2^31-1 bytes”. We were not the only ones who have encountered this cryptic error, but it seemed the main way to solve it as outlined in this SO post <a href="https://stackoverflow.com/questions/68075990/loading-csv-with-fread-stops-because-of-to-large-string" class="uri">https://stackoverflow.com/questions/68075990/loading-csv-with-fread-stops-because-of-to-large-string</a>, is to ask the owner to reformat it, which wasn’t an option.</p>
+<pre class="r"><code># Unsuccessful code
+try(fread(path_to_original))</code></pre>
+<pre><code>## Error in fread(path_to_original) : 
+##   R character strings are limited to 2^31-1 bytes</code></pre>
+<p>As the SO poster was asking, it would be nice to be able to instruct <code>fread()</code> to try each and skip the bad rows, but this is not possible (at least from what we have figured out so far). We didn’t know which or how many rows specifically were causing the problem. Since the data set was so large, finding the problem, rows felt like a needle in a haystack, and the usual solution of loading it all into memory and looking around wasn’t possible.</p>
+</div>
+<div id="using-csvclean" class="section level1">
+<h1>Using <code>csvclean</code></h1>
+<p>Like many who were previously scared by the CLI, the first step was to get over the fear of the help manual, <code>cleancsv</code> shown below.</p>
+<details>
+<summary>
+csvclean manual
+</summary>
+<pre class="bash"><code>csvclean -h</code></pre>
+<pre><code>## usage: csvclean [-h] [-d DELIMITER] [-t] [-q QUOTECHAR] [-u {0,1,2,3}] [-b]
+##                 [-p ESCAPECHAR] [-z FIELD_SIZE_LIMIT] [-e ENCODING] [-S] [-H]
+##                 [-K SKIP_LINES] [-v] [-l] [--zero] [-V] [-n]
+##                 [FILE]
+## 
+## Fix common errors in a CSV file.
+## 
+## positional arguments:
+##   FILE                  The CSV file to operate on. If omitted, will accept
+##                         input as piped data via STDIN.
+## 
+## optional arguments:
+##   -h, --help            show this help message and exit
+##   -d DELIMITER, --delimiter DELIMITER
+##                         Delimiting character of the input CSV file.
+##   -t, --tabs            Specify that the input CSV file is delimited with
+##                         tabs. Overrides &quot;-d&quot;.
+##   -q QUOTECHAR, --quotechar QUOTECHAR
+##                         Character used to quote strings in the input CSV file.
+##   -u {0,1,2,3}, --quoting {0,1,2,3}
+##                         Quoting style used in the input CSV file. 0 = Quote
+##                         Minimal, 1 = Quote All, 2 = Quote Non-numeric, 3 =
+##                         Quote None.
+##   -b, --no-doublequote  Whether or not double quotes are doubled in the input
+##                         CSV file.
+##   -p ESCAPECHAR, --escapechar ESCAPECHAR
+##                         Character used to escape the delimiter if --quoting 3
+##                         (&quot;Quote None&quot;) is specified and to escape the
+##                         QUOTECHAR if --no-doublequote is specified.
+##   -z FIELD_SIZE_LIMIT, --maxfieldsize FIELD_SIZE_LIMIT
+##                         Maximum length of a single field in the input CSV
+##                         file.
+##   -e ENCODING, --encoding ENCODING
+##                         Specify the encoding of the input CSV file.
+##   -S, --skipinitialspace
+##                         Ignore whitespace immediately following the delimiter.
+##   -H, --no-header-row   Specify that the input CSV file has no header row.
+##                         Will create default headers (a,b,c,...).
+##   -K SKIP_LINES, --skip-lines SKIP_LINES
+##                         Specify the number of initial lines to skip before the
+##                         header row (e.g. comments, copyright notices, empty
+##                         rows).
+##   -v, --verbose         Print detailed tracebacks when errors occur.
+##   -l, --linenumbers     Insert a column of line numbers at the front of the
+##                         output. Useful when piping to grep or as a simple
+##                         primary key.
+##   --zero                When interpreting or displaying column numbers, use
+##                         zero-based numbering instead of the default 1-based
+##                         numbering.
+##   -V, --version         Display version information and exit.
+##   -n, --dry-run         Do not create output files. Information about what
+##                         would have been done will be printed to STDERR.</code></pre>
+</details>
+<p>As we discovered is often the case with UNIX tools, there were not as many walk-through detailed examples of <code>{csvkit}</code> as with many R packages. We found this one particularly cryptic as it seemed unclear about its output, but in hindsight, the -n command mentions “output files” which are created. We were concerned that it might alter our data, so created a backup and ran against that.</p>
+<pre class="r"><code># Run previously to verify working, output on disc
+system(command = glue::glue(&quot;csvclean {path_to_original}&quot;))</code></pre>
+<p>After about an hour, the final output gives two new csv’s (“uscompanieslist_err.csv” and “uscompanieslist_out.csv”) by default, and leaves the original intact (uscompanieslist.csv). This is good, but means there is a need for a lot of disc space.</p>
+<pre><code>## [1] &quot;uscompanieslist_err.csv&quot; &quot;uscompanieslist_out.csv&quot;
+## [3] &quot;uscompanieslist.csv&quot;</code></pre>
+</div>
+<div id="bad-rows" class="section level1">
+<h1>Bad Rows</h1>
+<p>In “uscompanieslist_err.csv”, <code>csvclean</code> adds two columns, one of which specifies the actual number of rows versus the number expected in each row. It also contains the line number of the original file where the problem was happening, which would have been nice to have earlier while we were hunting for bad rows. The cadence of our bad rows, which is every few thousand, can be seen and why our efforts at trying to load in chunks was problematic (chunks of a few thousand rows in 30 million).</p>
+<details>
+<summary>
+<code>{csvclean}</code> manual
+</summary>
+<pre class="r"><code>data &lt;- 
+  fread(here::here(path_to_data, &quot;uscompanieslist_err.csv&quot;), select = 1:2, nrows = 10)
+data</code></pre>
+<pre><code>##     line_number                                   msg
+##  1:        5554 Expected 28 columns, found 22 columns
+##  2:        5593 Expected 28 columns, found 22 columns
+##  3:        5594 Expected 28 columns, found 22 columns
+##  4:        8150 Expected 28 columns, found 22 columns
+##  5:        8151 Expected 28 columns, found 22 columns
+##  6:        8152 Expected 28 columns, found 22 columns
+##  7:        8153 Expected 28 columns, found 22 columns
+##  8:        8154 Expected 28 columns, found 22 columns
+##  9:        8155 Expected 28 columns, found 22 columns
+## 10:        8156 Expected 28 columns, found 22 columns</code></pre>
+</details>
+<p>This file still contains rows with a differing number of columns, so still cannot be read by <code>fread()</code>. Here we use <code>{rg}</code> to filter out the remaining bad rows and <code>{xsv}</code> to drop the <code>csvclean</code>’s metadata columns, piped into <code>fread()</code>. In our case, most of the intact rows have 22 columns, instead of the expected 28, so we are guessing this data was somehow tacked on from another source. Although we use <code>{rg}</code> again here, we could have used <code>grep</code> and it probably wouldn’t have been much difference for 1 million rows, but it could also be done with any of the other tools or even with a traditional <code>grep</code>, also in about 10 seconds.</p>
+<pre class="r"><code>tic()
+# Load bad_csvkit_data
+bad_csvkit_data &lt;- 
+  fread(cmd = glue::glue(
+    &quot;rg &#39;22 columns&#39; { here::here(path_to_data, &#39;uscompanieslist_err.csv&#39;) } | xsv select 3-13,17,19,20-21,24&quot;))
+toc()</code></pre>
+<pre><code>## 52.458 sec elapsed</code></pre>
+<p>As shown above there are 1070764 in the data set, and column names are lost and have to be manually re-inserted. At first, we were worries that the columns would be badly formatted, mistakenly merging columns, but looking at random samples of rows, this was not the case. A faster alternative with <code>{scrubcsv}</code>. There are also several columns which are missing all data or almost all blank cells. We can also add NULL columns for the ones which are missing.</p>
+<summary>
+Add table names
+</summary>
+<pre class="r"><code># Column names
+data_names &lt;- c(
+    &quot;COMPANY_NAME&quot;,
+    &quot;SIC_CODE&quot;,
+    &quot;SIC_DESCRIPTION&quot;,
+    &quot;ADDRESS&quot;,
+    &quot;CITY&quot;,
+    &quot;STATE&quot;,
+    &quot;ZIP&quot;,
+    &quot;COUNTY&quot;,
+    &quot;PHONE&quot;,
+    &quot;FAX_NUMBER&quot;,
+    &quot;WEBSITE&quot;,
+    &quot;EMPLOYEE_RANGE&quot;,
+    &quot;SALES_VOLUME_RANGE&quot;,
+    &quot;CONTACT_FIRSTNAME&quot;,
+    &quot;CONTACT_LASTNAME&quot;,
+    &quot;CONTACT_TITLE&quot;
+  )
+names(bad_csvkit_data) &lt;- data_names
+sample &lt;- bad_csvkit_data[sample(5)]</code></pre>
+</details>
+<pre class="r"><code># Quick view of final data
+sample</code></pre>
+<pre><code>##              COMPANY_NAME SIC_CODE       SIC_DESCRIPTION              ADDRESS
+## 1:        Ackman, carmela     8111             Attorneys 110 e 42nd st # 1401
+## 2: Abdelbaki, zoheir a md     8011 PHYSICIANS &amp; SURGEONS  770 w high st # 370
+## 3:     Abel-hatzel, wendy     6411             Insurance          po box 1780
+## 4:        Ackman, carmela     8111             Attorneys 110 e 42nd st # 1401
+## 5:     Abel-hatzel, wendy     6411             Insurance          po box 1780
+##        CITY STATE   ZIP   COUNTY      PHONE FAX_NUMBER        WEBSITE
+## 1: NEW YORK    NY 10017 New York 2122531560            ackmanziff.com
+## 2:     Lima    OH 45801    Allen 4192264310                          
+## 3: COOS BAY    OR 97420     Coos 5412674124                          
+## 4: NEW YORK    NY 10017 New York 2122531560            ackmanziff.com
+## 5: COOS BAY    OR 97420     Coos 5412674124                          
+##    EMPLOYEE_RANGE    SALES_VOLUME_RANGE CONTACT_FIRSTNAME CONTACT_LASTNAME
+## 1:        1 to 10   $100,000 - $500,000              Alan          Goodkin
+## 2:        1 to 10 $500,000 - $1,000,000           Shaheen            Abdel
+## 3:        1 to 10   $100,000 - $500,000           Harry D          Abel Jr
+## 4:        1 to 10   $100,000 - $500,000             Caryn           Effron
+## 5:        1 to 10   $100,000 - $500,000        Wendy Abel           Hatzel
+##        CONTACT_TITLE
+## 1: Managing Director
+## 2:           Manager
+## 3:   Insurance Agent
+## 4:   Senior Director
+## 5:   Insurance Agent</code></pre>
+<p>As we mentioned above, <code>csvclean</code> took about an hour to run, but there are probably many other ways to accomplish our goal. Although we didn’t know the exact problem when we first tried <code>csvclean</code>, with hindsight, a better solution would have been <code>{scrubcsv}</code>, because it drops the rows with a differing number of columns, and it does so very quickly. One missing feature of <code>{scrubcsv}</code> is the lack of an output for the bad rows, so we had to capture these in the second line using the CLI <code>comm</code> command. In order not to fill up my disc further, these are not run here, but the total time to run both processes was just 5 minutes, and with a little cleaning, yields the same csv’s as <code>{csvkit}</code>, which took an hour.</p>
+<div class="figure">
+<img src="images/Screen%20Shot%202022-04-21%20at%2012.47.52%20PM-01.png" alt="" />
+<p class="caption">CLI to Replicate <code>{csvclean}</code> with <code>{scrubcsv}</code></p>
+</div>
+<p>Like the bad_csvkit_data, the output of bad_scrub_data still has a few rows with the wrong number of columns, but those are easily dropped with another run of <code>csvscrub</code> to remove all of the rows which do not have the predominant 22 columns, and using <code>{xsv}</code>, we also drop empty columns with <code>{xsv}</code> select.</p>
+<pre class="r"><code># Filter, select and load with fread
+bad_scrub_data &lt;- 
+  fread(cmd = glue::glue(&quot;scrubcsv {path_to_data}/bad_scrub_data.csv | xsv select 1-11,15,17-19,22&quot;))
+
+# Use same names
+names(bad_scrub_data) &lt;- data_names
+  
+# Check if identical
+identical(bad_csvkit_data, bad_scrub_data)</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+</div>
+<div id="further-explorations" class="section level1">
+<h1>Further Explorations</h1>
+<p>Here we show off a few tricks, with this trick scanning to locate Connecticut businesses from the 30 million rows in less than a minute. For example, we are able to stack the two data sets, filter the State of Connecticut and calculate the number of businesses by city. We would have liked to call the output from `fread()`, but in this case, the sub-processes from stacking the two tables seem to not be able to find the file paths from within R, so that is the first example of something which doesn’t work.</p>
+<pre class="bash"><code>time xsv cat rows &lt;(xsv select 1,5,6 ~/Desktop/David/Projects/uscompanies/data/scubbed_data.csv) &lt;(xsv select 1,5,6 ~/Desktop/David/Projects/uscompanies/data/bad_scrub_data.csv) | xsv search -s STATE &#39;CT&#39; | xsv frequency -s CITY</code></pre>
+<pre><code>## CSV error: record 24 (line: 25, byte: 4189): found record with 19 fields, but the previous record has 22 fields
+## field,value,count
+## CITY,Stamford,22620
+## CITY,Hartford,21278
+## CITY,Norwalk,15085
+## CITY,New Haven,14792
+## CITY,Bridgeport,12111
+## CITY,Danbury,10984
+## CITY,Milford,10770
+## CITY,Waterbury,9180
+## CITY,Greenwich,8710
+## CITY,Fairfield,8624
+## 
+## real 0m39.286s
+## user 0m48.980s
+## sys  0m7.023s</code></pre>
+<p>We can count the top 10 most states occurring in the data using <code>xsv frequency</code> and choosing the STATE column, which takes about a minute. The count seem roughly as expected, but a business in this data set can range from a sole proprietor to a multi-national. What we are really seeing is the number of locations which are a business.</p>
+<pre class="r"><code>tic()
+data &lt;- 
+  fread(cmd = glue::glue(&#39;xsv select STATE {path_to_data}/scubbed_data.csv | xsv frequency&#39;))
+toc()</code></pre>
+<pre><code>## 42.858 sec elapsed</code></pre>
+<pre class="r"><code>data</code></pre>
+<pre><code>##     field value   count
+##  1: STATE    CA 3605240
+##  2: STATE    TX 2584658
+##  3: STATE    FL 2468792
+##  4: STATE    NY 1972894
+##  5: STATE    PA 1227555
+##  6: STATE    IL 1221124
+##  7: STATE    MI  967717
+##  8: STATE    NC  945014
+##  9: STATE    NJ  930482
+## 10: STATE    VA  798290</code></pre>
+<p>For a grand finale, we thought it might be nice to find unique rows, but interestingly, we couldn’t find this as a built in capability in either <code>{xsv}</code> or <code>{csvkit}</code>, though both have requests to add it. The traditional sort | uniq would be pretty slow for such a large data set on our small computer, so we found another Rust library <code>{huniq}</code>. Now in the hang of it, there are so many resources available. It looks like if looked at by zip, it took about a minute to find out that there are 26 million unique businesses in the stacked data set, less than the full listed 31 million.</p>
+<pre class="bash"><code>time xsv cat rows &lt;(xsv select 1,7 ~/Desktop/David/Projects/uscompanies/data/scubbed_data.csv) &lt;(xsv select 1,7 ~/Desktop/David/Projects/uscompanies/data/bad_scrub_data.csv) | huniq | xsv count</code></pre>
+<pre><code>## CSV error: record 24 (line: 25, byte: 4189): found record with 19 fields, but the previous record has 22 fields
+## 26431218
+## 
+## real 0m58.172s
+## user 1m17.405s
+## sys  0m57.065s</code></pre>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>R is so often knocked for being slow, but views as wrapper of other tools like the Rust libraries, it might not be so true. <code>{xsv}</code>, <code>{rg}</code> and <code>{huniq}</code> were not as hard for us to understand as <code>awk</code> and surely perform a lot better. This exercise improved our confidence with the command line, and the tricks from Data Science at the Command Line. After a while referring to the man(ual) or help pages made, along with the usual Google search and Stack Overflow, we were able to figure out most challenges. Combined with <code>fread()</code>, it really starts to seem like a superpower at least with large, messy data sets. We are hoping that connecting the dots here will help others to solve similar problems.</p>
+</div>
