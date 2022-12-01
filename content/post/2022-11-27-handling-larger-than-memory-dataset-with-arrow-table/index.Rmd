@@ -1,5 +1,5 @@
 ---
-title: Handling larger than memory dataset with Arrow Table
+title: Handling larger than memory data with `{arrow}` and `{duckdb}` 
 author: David Lucey
 date: "2022-11-27"
 slug: setting-up-and-exploring-a-larger-than-memory-arrow-table

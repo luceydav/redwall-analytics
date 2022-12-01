@@ -1,5 +1,5 @@
 ---
-title: Handling larger than memory dataset with Arrow Table
+title: Handling larger than memory data with `{arrow}` and `{duckdb}` 
 author: David Lucey
 date: "2022-11-27"
 slug: setting-up-and-exploring-a-larger-than-memory-arrow-table
@@ -137,7 +137,7 @@ cleaned_arrow</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 48.321 sec elapsed</code></pre>
+<pre><code>## 48.196 sec elapsed</code></pre>
 <p>As an <code>{arrow}</code> table, the 7G of data takes up only 283kB of memory to be accessed via <code>{dplyr}</code> in RStudio</p>
 <pre class="r"><code>lobstr::obj_size(cleaned_arrow)</code></pre>
 <pre><code>## 283.62 kB</code></pre>
@@ -289,7 +289,7 @@ test_agg(full_data, agg_var=STATE)</code></pre>
 ##  9 NJ     730344
 ## 10 VA     617868</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 10.285 sec elapsed</code></pre>
+<pre><code>## 9.233 sec elapsed</code></pre>
 </div>
 <div id="query-evaluation" class="section level1">
 <h1>Query evaluation</h1>
