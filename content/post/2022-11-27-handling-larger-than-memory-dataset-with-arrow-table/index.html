@@ -85,7 +85,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)</code></pre>
 </details>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>It has been a while since <a href="https://redwallanalytics.com/2022/04/21/loading-a-large-messy-csv-using-data-table-fread-with-cli-tools/">loading Large, Messy CSV using {data.table} fread with CLI tools</a>, but there are recently developed tools, which we didn’t fully understand, to make the problem discussed in that post much more manageable. When we left off, we had used <code>scrubcsv</code> split our problematic csv into two parts, a clean 30 million-row, 28-column data set of US business addresses, and a separate problematic 1 million-rows with 22 or fewer columns. It was interesting to see what could be done on the CLI, but stacking the two significantly different subsets after splitting them seemed cumbersome considering varying column names and possibly types, when one would not fit in memory using R. The objective of this posting will be to explore how to load the two pieces of our address data into arrow tables, standardize variable types, stack and queries. One of the main themes of this blog all along is, how to become as agnostic as possible to data size, it feels like this moment may have arrived with <code>{arrow}</code> and <code>{duckdb}</code>.</p>
+<p>It has been a while since <a href="https://redwallanalytics.com/2022/04/21/loading-a-large-messy-csv-using-data-table-fread-with-cli-tools/">loading Large, Messy CSV using {data.table} fread with CLI tools</a>, but there are recently developed tools, which we didn’t fully understand at the time, to make the problem discussed in that post much more manageable. When we left off, we had used <code>scrubcsv</code> split our problematic csv into two parts, a clean 30 million-row, 28-column data set of US business addresses, and a separate problematic 1 million-rows with 22 or fewer columns. It was interesting to see what could be done on the CLI, but stacking the two significantly different subsets after splitting them seemed cumbersome considering varying column names and possibly types, when one would not fit in memory using R. The objective of this posting will be to explore how to load the two pieces of our address data into arrow tables, standardize variable types, stack and queries. One of the main themes of this blog all along is, how to become as agnostic as possible to data size, it feels like this moment may have arrived with <code>{arrow}</code> and <code>{duckdb}</code>.</p>
 </div>
 <div id="other-resources" class="section level1">
 <h1>Other Resources</h1>
@@ -137,7 +137,7 @@ cleaned_arrow</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 48.196 sec elapsed</code></pre>
+<pre><code>## 37.316 sec elapsed</code></pre>
 <p>As an <code>{arrow}</code> table, the 7G of data takes up only 283kB of memory to be accessed via <code>{dplyr}</code> in RStudio</p>
 <pre class="r"><code>lobstr::obj_size(cleaned_arrow)</code></pre>
 <pre><code>## 283.62 kB</code></pre>
@@ -289,7 +289,7 @@ test_agg(full_data, agg_var=STATE)</code></pre>
 ##  9 NJ     730344
 ## 10 VA     617868</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 9.233 sec elapsed</code></pre>
+<pre><code>## 9.045 sec elapsed</code></pre>
 </div>
 <div id="query-evaluation" class="section level1">
 <h1>Query evaluation</h1>
