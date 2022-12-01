@@ -49,3 +49,6 @@ rsconnect/
 
 # check said to add
 Thumbs.db
+
+# Hugo from check_site()
+.hugo_build.lock
