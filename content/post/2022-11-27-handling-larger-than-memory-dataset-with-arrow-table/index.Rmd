@@ -62,7 +62,7 @@ lobstr::obj_size(cleaned_arrow)
 ```
 
 
-# Loading the Bad Data
+# Loading and Preparing the Bad Data to Stack
 
 Next, we will attempt to also load the bad data into an arrow table, but will be unsuccessful (as shown), because there are still troublesome rows remaining, even after separating most of the good rows out, because some of the rows only have 19, while most have 22 columns.
 
@@ -78,8 +78,6 @@ cmd <- glue("scrubcsv { paste0(uscompany, 'bad_scrub_data.csv') }")
 bad_data <- fread(cmd= cmd)
 ```
 
-
-# Preparing bad_data to be bound to the larger clean dataset
 
 As mentioned previously, `scrubcsv` takes bad rows (ie: less than 22 columns in this case) and throws them out. It also doesn't import column names with the discarded rows, so these have to be manually added after the fact, and since the table scan will be a significantly different amount of rows, it seems reasonable to expect some types may vary. We threw out the names of columns which were missing from bad_data, and then mapped to the appropriate column names in cleaned_arrow so that we could stack.
 
@@ -97,7 +95,6 @@ names(bad_data) <-
     )]
 ```
 
-# Standardizing and Stacking the Tables
 
 For next part, we had quite a few false starts before we figured it out. `{arrow}` allows to bind rows, but column names have to match and have the same data types. If we wanted to be more precise, we might change some of the column types {arrow} chose for cleaned_arrow. For example, {arrow} chose Utf8 for the LON/LAT columns, which wasn't what we expected because they clearly seemed to be numeric. It is possible to convert data types in arrow tables, but it was not nearly as straightforward for us as doing it `{data.table}` before converting to the `{arrow}` table. 
 
@@ -130,7 +127,7 @@ full_data <- arrow::concat_tables(cleaned_arrow, bad_data_arrow)
 full_data
 ```
 
-# Test Query
+# Test Query and Benchmarking
 
 It is amazing to get around all of the memory problems so easily, just by converting to an `{arrow}` table, but it doesn't take long to then become greedy to for efficient data manipulation. To put it through the paces, we set up a test query to filter unique COMPANY_NAME on an aggregating variable (STATE or SIC_DESCRIPTION), count the number of occurrences, arrange in descending count order, filter the top 10 values (see hidden code below) and collect back into an R data.frame. STATE has only 51, but SIC_DESCRIPTION has 8,665 distinct values so should be a bigger lift to aggregate. We had heard by simply plugging in `{duckdb}` `to_duckdb()` into our `{dplyr}` chain, we might improve the performance of the query, so have included an option for that in our benchmark examples below. Below we show the query run once with just the `{arrow}` table (at around 10 seconds), which is substantially slower than the average of the same query, once we run it 100 times in our benchmarks.
 
@@ -168,7 +165,6 @@ test_agg(full_data, agg_var=STATE)
 toc()
 ```
 
-# Query evaluation 
 
 So here, we benchmark four queries, aggregating on STATE and SIC_DESCRIPTION with and without duckdb. The big surprise here was how big an impact `{duckdb}` had with so little effort, reducing query time by 55-60%. It also seemed to make the query run with much less variability, but will leave that to the experts to explain.
 

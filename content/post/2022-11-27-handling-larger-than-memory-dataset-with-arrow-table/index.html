@@ -137,12 +137,12 @@ cleaned_arrow</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 43.272 sec elapsed</code></pre>
+<pre><code>## 45.465 sec elapsed</code></pre>
 <pre class="r"><code>lobstr::obj_size(cleaned_arrow)</code></pre>
 <pre><code>## 283.62 kB</code></pre>
 </div>
-<div id="loading-the-bad-data" class="section level1">
-<h1>Loading the Bad Data</h1>
+<div id="loading-and-preparing-the-bad-data-to-stack" class="section level1">
+<h1>Loading and Preparing the Bad Data to Stack</h1>
 <p>Next, we will attempt to also load the bad data into an arrow table, but will be unsuccessful (as shown), because there are still troublesome rows remaining, even after separating most of the good rows out, because some of the rows only have 19, while most have 22 columns.</p>
 <pre class="r"><code>bad_csv &lt;- 
   try(arrow::read_csv_arrow(paste0(uscompany, &quot;bad_scrub_data.csv&quot;)))</code></pre>
@@ -151,9 +151,6 @@ cleaned_arrow</code></pre>
 <p>So, we will back to <code>scrubscv</code> and <code>{data.table}</code> <code>fread()</code>, piping the command line function into <code>fread()</code>. We can see that the 1 million rows with the retained 22 columns takes about a second to load, with an additional 5,598 rows thrown out by <code>scrubcsv</code> for having non-standard columns. For this amount of data, it is hard to think of a better option!</p>
 <pre class="r"><code>cmd &lt;- glue(&quot;scrubcsv { paste0(uscompany, &#39;bad_scrub_data.csv&#39;) }&quot;)
 bad_data &lt;- fread(cmd= cmd)</code></pre>
-</div>
-<div id="preparing-bad_data-to-be-bound-to-the-larger-clean-dataset" class="section level1">
-<h1>Preparing bad_data to be bound to the larger clean dataset</h1>
 <p>As mentioned previously, <code>scrubcsv</code> takes bad rows (ie: less than 22 columns in this case) and throws them out. It also doesn’t import column names with the discarded rows, so these have to be manually added after the fact, and since the table scan will be a significantly different amount of rows, it seems reasonable to expect some types may vary. We threw out the names of columns which were missing from bad_data, and then mapped to the appropriate column names in cleaned_arrow so that we could stack.</p>
 <pre class="r"><code>table_names &lt;- names(cleaned_arrow)
 names(bad_data) &lt;-
@@ -166,9 +163,6 @@ names(bad_data) &lt;-
       &quot;NAICS_NUMBER&quot;,
       &quot;INDUSTRY&quot;
     )]</code></pre>
-</div>
-<div id="standardizing-and-stacking-the-tables" class="section level1">
-<h1>Standardizing and Stacking the Tables</h1>
 <p>For next part, we had quite a few false starts before we figured it out. <code>{arrow}</code> allows to bind rows, but column names have to match and have the same data types. If we wanted to be more precise, we might change some of the column types {arrow} chose for cleaned_arrow. For example, {arrow} chose Utf8 for the LON/LAT columns, which wasn’t what we expected because they clearly seemed to be numeric. It is possible to convert data types in arrow tables, but it was not nearly as straightforward for us as doing it <code>{data.table}</code> before converting to the <code>{arrow}</code> table.</p>
 <pre class="r"><code># Convert integers, character and numeric to align with arrow types in cleaned_arrow
 convert_ints &lt;- 
@@ -244,8 +238,8 @@ full_data</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 </div>
-<div id="test-query" class="section level1">
-<h1>Test Query</h1>
+<div id="test-query-and-benchmarking" class="section level1">
+<h1>Test Query and Benchmarking</h1>
 <p>It is amazing to get around all of the memory problems so easily, just by converting to an <code>{arrow}</code> table, but it doesn’t take long to then become greedy to for efficient data manipulation. To put it through the paces, we set up a test query to filter unique COMPANY_NAME on an aggregating variable (STATE or SIC_DESCRIPTION), count the number of occurrences, arrange in descending count order, filter the top 10 values (see hidden code below) and collect back into an R data.frame. STATE has only 51, but SIC_DESCRIPTION has 8,665 distinct values so should be a bigger lift to aggregate. We had heard by simply plugging in <code>{duckdb}</code> <code>to_duckdb()</code> into our <code>{dplyr}</code> chain, we might improve the performance of the query, so have included an option for that in our benchmark examples below. Below we show the query run once with just the <code>{arrow}</code> table (at around 10 seconds), which is substantially slower than the average of the same query, once we run it 100 times in our benchmarks.</p>
 <details>
 <summary>
@@ -288,10 +282,7 @@ test_agg(full_data, agg_var=STATE)</code></pre>
 ##  9 NJ     730344
 ## 10 VA     617868</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 8.996 sec elapsed</code></pre>
-</div>
-<div id="query-evaluation" class="section level1">
-<h1>Query evaluation</h1>
+<pre><code>## 10.468 sec elapsed</code></pre>
 <p>So here, we benchmark four queries, aggregating on STATE and SIC_DESCRIPTION with and without duckdb. The big surprise here was how big an impact <code>{duckdb}</code> had with so little effort, reducing query time by 55-60%. It also seemed to make the query run with much less variability, but will leave that to the experts to explain.</p>
 <details>
 <summary>
