@@ -1,5 +1,5 @@
 ---
-title: Handling larger than memory data with `{arrow}` and `{duckdb}` 
+title: Handling larger than memory data with {arrow} and {duckdb}
 author: David Lucey
 date: "2022-11-27"
 slug: setting-up-and-exploring-a-larger-than-memory-arrow-table
@@ -138,7 +138,7 @@ cleaned_arrow</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 49.068 sec elapsed</code></pre>
+<pre><code>## 46.476 sec elapsed</code></pre>
 <pre class="r"><code>lobstr::obj_size(cleaned_arrow)</code></pre>
 <pre><code>## 283.62 kB</code></pre>
 </div>
@@ -288,7 +288,7 @@ test_agg(full_data, agg_var=STATE)</code></pre>
 ##  9 NJ     730344
 ## 10 VA     617868</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 10.11 sec elapsed</code></pre>
+<pre><code>## 9.507 sec elapsed</code></pre>
 <p>So here, we benchmark four queries, aggregating on STATE and SIC_DESCRIPTION with and without duckdb. The big surprise here was how big an impact <code>{duckdb}</code> had with so little effort, reducing query time by 55-60%. It also seemed to make the query run with much less variability, but will leave that to the experts to explain.</p>
 <details>
 <summary>
@@ -296,9 +296,9 @@ See code
 </summary>
 <pre class="r"><code># Microbenchmark on 100 iterations
 mbm &lt;- microbenchmark::microbenchmark(
-  &quot;state&quot; = 
+  &quot;state_arrow&quot; = 
     test_agg(full_data, agg_var = STATE),
-  &quot;sic&quot; = 
+  &quot;sic_arrow&quot; = 
     test_agg(full_data, agg_var = SIC_DESCRIPTION),
   &quot;state_duck&quot; = 
     test_agg(full_data, agg_var = STATE, duck=TRUE),
@@ -307,11 +307,11 @@ mbm &lt;- microbenchmark::microbenchmark(
 )
 mbm</code></pre>
 <pre><code>## Unit: seconds
-##        expr      min       lq     mean   median       uq       max neval  cld
-##       state 6.056958 6.286558 6.523313 6.466869 6.644930  8.180928   100   c 
-##         sic 8.182955 8.462961 8.887354 8.731248 9.126058 10.829854   100    d
-##  state_duck 2.631874 2.780492 2.952274 2.868356 3.022069  4.122147   100 a   
-##    sic_duck 3.187233 3.409475 4.021427 3.623329 4.506526  6.469794   100  b</code></pre>
+##         expr      min       lq     mean   median       uq       max neval  cld
+##  state_arrow 6.039366 6.207929 6.411865 6.332908 6.527128  7.861368   100   c 
+##    sic_arrow 8.025354 8.423692 8.827753 8.684798 9.171409 10.714919   100    d
+##   state_duck 2.610817 2.703065 2.875179 2.800053 2.930623  3.848137   100 a   
+##     sic_duck 3.275613 3.376994 3.812775 3.474520 3.824492  6.103654   100  b</code></pre>
 </details>
 <pre><code>## Coordinate system already present. Adding new coordinate system, which will
 ## replace the existing one.</code></pre>

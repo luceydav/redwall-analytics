@@ -1,5 +1,5 @@
 ---
-title: Handling larger than memory data with `{arrow}` and `{duckdb}` 
+title: Handling larger than memory data with {arrow} and {duckdb}
 author: David Lucey
 date: "2022-11-27"
 slug: setting-up-and-exploring-a-larger-than-memory-arrow-table
@@ -181,9 +181,9 @@ So here, we benchmark four queries, aggregating on STATE and SIC_DESCRIPTION wit
 ```{r 'microbenchmark', cache=TRUE}
 # Microbenchmark on 100 iterations
 mbm <- microbenchmark::microbenchmark(
-  "state" = 
+  "state_arrow" = 
     test_agg(full_data, agg_var = STATE),
-  "sic" = 
+  "sic_arrow" = 
     test_agg(full_data, agg_var = SIC_DESCRIPTION),
   "state_duck" = 
     test_agg(full_data, agg_var = STATE, duck=TRUE),
