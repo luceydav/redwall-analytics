@@ -138,7 +138,7 @@ cleaned_arrow</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 43.198 sec elapsed</code></pre>
+<pre><code>## 46.911 sec elapsed</code></pre>
 <pre class="r"><code>lobstr::obj_size(cleaned_arrow)</code></pre>
 <pre><code>## 283.62 kB</code></pre>
 </div>
@@ -288,7 +288,7 @@ test_agg(full_data, agg_var=STATE)</code></pre>
 ##  9 NJ     730344
 ## 10 VA     617868</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 9.445 sec elapsed</code></pre>
+<pre><code>## 10.399 sec elapsed</code></pre>
 <p>So here, we benchmark four queries, aggregating on STATE and SIC_DESCRIPTION with and without duckdb. The big surprise here was how big an impact <code>{duckdb}</code> had with so little effort, reducing query time by 55-60%. It also seemed to make the query run with much less variability, but will leave that to the experts to explain.</p>
 <details>
 <summary>
@@ -341,5 +341,5 @@ p &lt;- ggplot2::ggplot(mbm1,
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>Based on this analysis, <code>{arrow}</code> offers a big jump in flexibility around the kind of analysis which can be conducted, seamlessly with the same work flow, from a small machine. The ease with which one line of code, <code>{duckdb}</code> significantly reduced query time, justifying for us a lot of the raving on Twitter. Possibly more excitement about <code>{arrow}</code> and the way it dovetails with everything RStudio has already created may warranted. We haven’t shown here, but also saved the data as parquet, and ran queries against it in the <code>{duckdb}</code> CLI with <code>read_parquet()</code>, and got the sense that responses were even faster (despite whatever ingestion time was needed), but maybe that may be for a future post. We cannot express enough gratitude to RStudio, and to all the people who have developed <code>{arrow}</code> and <code>{duckdb}</code> at this breakneck speed</p>
+<p>Based on this analysis, <code>{arrow}</code> offers a big jump in flexibility around the kind of analysis which can be conducted, seamlessly with the same work flow, from a small machine. The ease with which one line of code (without fiddling with any parameters), <code>{duckdb}</code> significantly reduced query time, justifying for us a lot of the raving on Twitter. Possibly more excitement about <code>{arrow}</code> and the way it dovetails with everything RStudio has already created may warranted. We haven’t shown here, but also saved the data as parquet, and ran queries against it in the <code>{duckdb}</code> CLI with <code>read_parquet()</code>, and got the sense that responses were even faster (despite whatever ingestion time was needed), but maybe that may be for a future post. We cannot express enough gratitude to RStudio, and to all the people who have developed <code>{arrow}</code> and <code>{duckdb}</code> at this breakneck speed</p>
 </div>
