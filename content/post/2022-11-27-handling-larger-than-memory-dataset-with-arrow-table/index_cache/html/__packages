@@ -8,3 +8,6 @@ ggplot2
 dplyr
 ggfortify
 microbenchmark
+scales
+bit
+bit64
