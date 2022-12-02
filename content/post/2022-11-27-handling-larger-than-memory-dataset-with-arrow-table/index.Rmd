@@ -31,7 +31,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 # Introduction
 
-It has been a while since [loading Large, Messy CSV using {data.table} fread with CLI tools](https://redwallanalytics.com/2022/04/21/loading-a-large-messy-csv-using-data-table-fread-with-cli-tools/), but there are recently developed tools, which we didn't fully understand at the time, to make the problem discussed in that post much more manageable. When we left off, we had used `scrubcsv` split our problematic csv into two parts, a clean 30 million-row, 28-column data set of US business addresses, and a separate problematic 1 million-rows with 22 or fewer columns. It was interesting to see what could be done on the CLI, but stacking the two significantly different subsets after splitting them seemed cumbersome considering varying column names and possibly types, when one would not fit in memory using R. The objective of this posting will be to explore how to load the two pieces of our address data into arrow tables, standardize variable types, stack and queries. One of the main themes of this blog all along is, how to become as agnostic as possible to data size, it feels like this moment may have arrived with `{arrow}` and `{duckdb}`.
+It has been a while since [loading Large, Messy CSV using {data.table} fread with CLI tools](https://redwallanalytics.com/2022/04/21/loading-a-large-messy-csv-using-data-table-fread-with-cli-tools/), but there are fast developing tools, which we didn't fully understand at the time, which make the problem discussed much more manageable. When we left off, we had used `scrubcsv` split our problematic csv into two parts, a clean 30 million-row, 28-column data set of US business addresses, and a separate 1 million-rows with 22 or fewer columns. It was interesting to see what could be done on the CLI, but stacking the two significantly different subsets seemed cumbersome, considering varying column names and types, when one would not fit in memory. The objective of this posting will be to explore how to load the two pieces of our address data into arrow tables, standardize variable types, stack and queries. One of the main themes of this blog all along has been, how to become as agnostic as possible to data size, it feels like this moment may have arrived with `{arrow}` and `{duckdb}`.
 
 # Other Resources
 
@@ -46,7 +46,7 @@ We usually try to give credit to commentators who have made our learning possibl
 
 # Loading an `{arrow}` Table
 
-First, we load the larger 30 million row clean data set, which has 28 columns with `{arrow}`'s `read_csv_arrow()`, setting as_data_frame equal FALSE. In the previous post, we were using a 2015 iMac with 8G of RAM, and for this, we will use our new MacBook Air m1 with 16G of RAM. When we ran the same function on the older iMac taking the data as data.frame, this took almost 10 minutes, but on the new machine, it took about 1 minute (so the time savings here with the new machine are about 90%). We also tried to load this as a data.frame with `{data.table}` `fread()`, but gave up after about 15 minutes. Here, we will actually choose the option to take the input as an `{arrow}` table, and load time takes about 45 seconds. In the context of a 7G data set and this machine, `{data.table}` doesn't seem like a viable solution compared to `{arrow}`, much as we love it.
+First, we load the larger 30 million row clean data set, which has 28 columns with `{arrow}`'s `read_csv_arrow()`. In the previous post, we were using a 2015 iMac with 8G of RAM, and now, our new MacBook Air m1 with 16G of RAM. When we ran the same function on the older iMac taking the data instead as data.frame, the same data took almost 10 minutes to load, but on the new machine, it took about 1 minute (so the time savings are about 90% from the m1). We also tried to load on the m1 as a data.table with `fread()`, but gave up after about 15 minutes. Here, we will actually choose the option to take the input as an `{arrow}` table (setting as_data_frame = FALSE), which reduces  load time takes a little further to 45 seconds. As an `{arrow}` table, the 7G of data takes up only 283kB of memory to be accessed via `{dplyr}` in RStudio. In the context of this size of data and machine, `{data.table}` doesn't seem like a viable solution compared to `{arrow}` either as a data.frame or an `{arrow}` table, much as we love it.
 
 ```{r 'cleaned-csv'}
 tic()
@@ -57,8 +57,6 @@ toc()
 ```
 
 
-As an `{arrow}` table, the 7G of data takes up only 283kB of memory to be accessed via `{dplyr}` in RStudio
-
 ```{r}
 lobstr::obj_size(cleaned_arrow)
 ```
@@ -66,7 +64,7 @@ lobstr::obj_size(cleaned_arrow)
 
 # Loading the Bad Data
 
-Next, we will attempt to also load the bad data into an arrow table, but will be unsuccessful, because there are additional troublesome rows even after separating most of the good rows out, because some of the rows only have 19, while most have 22 columns.
+Next, we will attempt to also load the bad data into an arrow table, but will be unsuccessful (as shown), because there are still troublesome rows remaining, even after separating most of the good rows out, because some of the rows only have 19, while most have 22 columns.
 
 ```{r 'bad-csv'}
 bad_csv <- 
@@ -83,7 +81,7 @@ bad_data <- fread(cmd= cmd)
 
 # Preparing bad_data to be bound to the larger clean dataset
 
-As mentioned previously, `scrubcsv` takes bad rows (ie: less than 22 columns) and throws them out. It also doesn't import column names with the discarded rows, so these have to be added after the fact, and since the table scan will be a significantly different amount of rows, it seems reasonable to expect some types may vary. We threw out the names of columns which were not in bad_data, and then mapped the appropriate column names from cleaned_arrow to bad_data.
+As mentioned previously, `scrubcsv` takes bad rows (ie: less than 22 columns in this case) and throws them out. It also doesn't import column names with the discarded rows, so these have to be manually added after the fact, and since the table scan will be a significantly different amount of rows, it seems reasonable to expect some types may vary. We threw out the names of columns which were missing from bad_data, and then mapped to the appropriate column names in cleaned_arrow so that we could stack.
 
 ```{r 'bad-data-names'}
 table_names <- names(cleaned_arrow)
@@ -99,9 +97,9 @@ names(bad_data) <-
     )]
 ```
 
-# Stacking the Tables
+# Standardizing and Stacking the Tables
 
-For next part, we had quite a few false starts before we figured it out. `{arrow}` allows to bind rows, but obviously column names have to match, and columns must have the same data types. If we wanted to be more precise, we might change some of the column types {arrow} chose for cleaned_arrow. For example, {arrow} chose Utf8 for the LON/LAT columns, which wasn't what we expected. It is possible to convert data types in arrow tables, but it was not nearly as clean and straightforward as doing it in the R data.table before converting to the `{arrow}` table. After a little study, we learned that by mapping R integer types to `{arrow}` int64, character to Utf8 and numeric to double, everything worked.
+For next part, we had quite a few false starts before we figured it out. `{arrow}` allows to bind rows, but column names have to match and have the same data types. If we wanted to be more precise, we might change some of the column types {arrow} chose for cleaned_arrow. For example, {arrow} chose Utf8 for the LON/LAT columns, which wasn't what we expected because they clearly seemed to be numeric. It is possible to convert data types in arrow tables, but it was not nearly as straightforward for us as doing it `{data.table}` before converting to the `{arrow}` table. 
 
 ```{r 'fix-data-types'}
 # Convert integers, character and numeric to align with arrow types in cleaned_arrow
@@ -114,7 +112,7 @@ bad_data[, (convert_utf8) := lapply(.SD, as.character), .SDcols = convert_utf8]
 bad_data[, SALES_VOLUME := as.numeric(SALES_VOLUME)]
 ```
 
-To convert from `{data.table}` to `{arrow}` takes only an instant, so again timing is not shown.
+After some false starts, we learned that by mapping R integer types to `{arrow}` int64, character to Utf8 and numeric to double, everything worked, and the conversion from `{data.table}` to `{arrow}` takes only an instant, so again timing is not shown.
 
 ```{r 'bad-data-arrow'}
 # Convert to arrow table
@@ -134,7 +132,7 @@ full_data
 
 # Test Query
 
-It is amazing to get around the memory problems so easily with `{arrow}`, but it doesn't take long to then become greedy to for efficient data manipulation. To put it through the paces, we set up a test query to filter unique COMPANY_NAME on an aggregating variable (STATE or SIC_DESCRIPTION), count the number of occurrences, arrange in descending count order, filter the top 10 values (see hidden code below) and collect back into an R data.frame. STATE has only 51, but SIC_DESCRIPTION has 8,665 distinct values so should be a bigger lift to aggregate. We had heard by simply plugging in `{duckdb}` `to_duckdb()` into our `{dplyr}` chain, we might improve the performance of the query, so have included an option for that in our benchmark examples below. Below we show the query run once with just the `{arrow}` table (at around 10 seconds), which is substantially slower than the average of the same query, once we run it 100 times in our benchmarks.
+It is amazing to get around all of the memory problems so easily, just by converting to an `{arrow}` table, but it doesn't take long to then become greedy to for efficient data manipulation. To put it through the paces, we set up a test query to filter unique COMPANY_NAME on an aggregating variable (STATE or SIC_DESCRIPTION), count the number of occurrences, arrange in descending count order, filter the top 10 values (see hidden code below) and collect back into an R data.frame. STATE has only 51, but SIC_DESCRIPTION has 8,665 distinct values so should be a bigger lift to aggregate. We had heard by simply plugging in `{duckdb}` `to_duckdb()` into our `{dplyr}` chain, we might improve the performance of the query, so have included an option for that in our benchmark examples below. Below we show the query run once with just the `{arrow}` table (at around 10 seconds), which is substantially slower than the average of the same query, once we run it 100 times in our benchmarks.
 
 <details>
 
@@ -222,7 +220,6 @@ p <- ggplot2::ggplot(mbm1,
 
 ```{r 'plot-time', echo=FALSE}
 p
-
 ```
 
 

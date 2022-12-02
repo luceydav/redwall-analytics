@@ -85,7 +85,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)</code></pre>
 </details>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>It has been a while since <a href="https://redwallanalytics.com/2022/04/21/loading-a-large-messy-csv-using-data-table-fread-with-cli-tools/">loading Large, Messy CSV using {data.table} fread with CLI tools</a>, but there are recently developed tools, which we didn’t fully understand at the time, to make the problem discussed in that post much more manageable. When we left off, we had used <code>scrubcsv</code> split our problematic csv into two parts, a clean 30 million-row, 28-column data set of US business addresses, and a separate problematic 1 million-rows with 22 or fewer columns. It was interesting to see what could be done on the CLI, but stacking the two significantly different subsets after splitting them seemed cumbersome considering varying column names and possibly types, when one would not fit in memory using R. The objective of this posting will be to explore how to load the two pieces of our address data into arrow tables, standardize variable types, stack and queries. One of the main themes of this blog all along is, how to become as agnostic as possible to data size, it feels like this moment may have arrived with <code>{arrow}</code> and <code>{duckdb}</code>.</p>
+<p>It has been a while since <a href="https://redwallanalytics.com/2022/04/21/loading-a-large-messy-csv-using-data-table-fread-with-cli-tools/">loading Large, Messy CSV using {data.table} fread with CLI tools</a>, but there are fast developing tools, which we didn’t fully understand at the time, which make the problem discussed much more manageable. When we left off, we had used <code>scrubcsv</code> split our problematic csv into two parts, a clean 30 million-row, 28-column data set of US business addresses, and a separate 1 million-rows with 22 or fewer columns. It was interesting to see what could be done on the CLI, but stacking the two significantly different subsets seemed cumbersome, considering varying column names and types, when one would not fit in memory. The objective of this posting will be to explore how to load the two pieces of our address data into arrow tables, standardize variable types, stack and queries. One of the main themes of this blog all along has been, how to become as agnostic as possible to data size, it feels like this moment may have arrived with <code>{arrow}</code> and <code>{duckdb}</code>.</p>
 </div>
 <div id="other-resources" class="section level1">
 <h1>Other Resources</h1>
@@ -101,7 +101,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)</code></pre>
 </div>
 <div id="loading-an-arrow-table" class="section level1">
 <h1>Loading an <code>{arrow}</code> Table</h1>
-<p>First, we load the larger 30 million row clean data set, which has 28 columns with <code>{arrow}</code>’s <code>read_csv_arrow()</code>, setting as_data_frame equal FALSE. In the previous post, we were using a 2015 iMac with 8G of RAM, and for this, we will use our new MacBook Air m1 with 16G of RAM. When we ran the same function on the older iMac taking the data as data.frame, this took almost 10 minutes, but on the new machine, it took about 1 minute (so the time savings here with the new machine are about 90%). We also tried to load this as a data.frame with <code>{data.table}</code> <code>fread()</code>, but gave up after about 15 minutes. Here, we will actually choose the option to take the input as an <code>{arrow}</code> table, and load time takes about 45 seconds. In the context of a 7G data set and this machine, <code>{data.table}</code> doesn’t seem like a viable solution compared to <code>{arrow}</code>, much as we love it.</p>
+<p>First, we load the larger 30 million row clean data set, which has 28 columns with <code>{arrow}</code>’s <code>read_csv_arrow()</code>. In the previous post, we were using a 2015 iMac with 8G of RAM, and now, our new MacBook Air m1 with 16G of RAM. When we ran the same function on the older iMac taking the data instead as data.frame, the same data took almost 10 minutes to load, but on the new machine, it took about 1 minute (so the time savings are about 90% from the m1). We also tried to load on the m1 as a data.table with <code>fread()</code>, but gave up after about 15 minutes. Here, we will actually choose the option to take the input as an <code>{arrow}</code> table (setting as_data_frame = FALSE), which reduces load time takes a little further to 45 seconds. As an <code>{arrow}</code> table, the 7G of data takes up only 283kB of memory to be accessed via <code>{dplyr}</code> in RStudio. In the context of this size of data and machine, <code>{data.table}</code> doesn’t seem like a viable solution compared to <code>{arrow}</code> either as a data.frame or an <code>{arrow}</code> table, much as we love it.</p>
 <pre class="r"><code>tic()
 cleaned_arrow &lt;- 
   arrow::read_csv_arrow(paste0(uscompany, &quot;scrubbed.csv&quot;), as_data_frame = FALSE)
@@ -137,14 +137,13 @@ cleaned_arrow</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 37.316 sec elapsed</code></pre>
-<p>As an <code>{arrow}</code> table, the 7G of data takes up only 283kB of memory to be accessed via <code>{dplyr}</code> in RStudio</p>
+<pre><code>## 43.272 sec elapsed</code></pre>
 <pre class="r"><code>lobstr::obj_size(cleaned_arrow)</code></pre>
 <pre><code>## 283.62 kB</code></pre>
 </div>
 <div id="loading-the-bad-data" class="section level1">
 <h1>Loading the Bad Data</h1>
-<p>Next, we will attempt to also load the bad data into an arrow table, but will be unsuccessful, because there are additional troublesome rows even after separating most of the good rows out, because some of the rows only have 19, while most have 22 columns.</p>
+<p>Next, we will attempt to also load the bad data into an arrow table, but will be unsuccessful (as shown), because there are still troublesome rows remaining, even after separating most of the good rows out, because some of the rows only have 19, while most have 22 columns.</p>
 <pre class="r"><code>bad_csv &lt;- 
   try(arrow::read_csv_arrow(paste0(uscompany, &quot;bad_scrub_data.csv&quot;)))</code></pre>
 <pre><code>## Error in (function (file, delim = &quot;,&quot;, quote = &quot;\&quot;&quot;, escape_double = TRUE,  : 
@@ -155,7 +154,7 @@ bad_data &lt;- fread(cmd= cmd)</code></pre>
 </div>
 <div id="preparing-bad_data-to-be-bound-to-the-larger-clean-dataset" class="section level1">
 <h1>Preparing bad_data to be bound to the larger clean dataset</h1>
-<p>As mentioned previously, <code>scrubcsv</code> takes bad rows (ie: less than 22 columns) and throws them out. It also doesn’t import column names with the discarded rows, so these have to be added after the fact, and since the table scan will be a significantly different amount of rows, it seems reasonable to expect some types may vary. We threw out the names of columns which were not in bad_data, and then mapped the appropriate column names from cleaned_arrow to bad_data.</p>
+<p>As mentioned previously, <code>scrubcsv</code> takes bad rows (ie: less than 22 columns in this case) and throws them out. It also doesn’t import column names with the discarded rows, so these have to be manually added after the fact, and since the table scan will be a significantly different amount of rows, it seems reasonable to expect some types may vary. We threw out the names of columns which were missing from bad_data, and then mapped to the appropriate column names in cleaned_arrow so that we could stack.</p>
 <pre class="r"><code>table_names &lt;- names(cleaned_arrow)
 names(bad_data) &lt;-
   table_names[
@@ -168,9 +167,9 @@ names(bad_data) &lt;-
       &quot;INDUSTRY&quot;
     )]</code></pre>
 </div>
-<div id="stacking-the-tables" class="section level1">
-<h1>Stacking the Tables</h1>
-<p>For next part, we had quite a few false starts before we figured it out. <code>{arrow}</code> allows to bind rows, but obviously column names have to match, and columns must have the same data types. If we wanted to be more precise, we might change some of the column types {arrow} chose for cleaned_arrow. For example, {arrow} chose Utf8 for the LON/LAT columns, which wasn’t what we expected. It is possible to convert data types in arrow tables, but it was not nearly as clean and straightforward as doing it in the R data.table before converting to the <code>{arrow}</code> table. After a little study, we learned that by mapping R integer types to <code>{arrow}</code> int64, character to Utf8 and numeric to double, everything worked.</p>
+<div id="standardizing-and-stacking-the-tables" class="section level1">
+<h1>Standardizing and Stacking the Tables</h1>
+<p>For next part, we had quite a few false starts before we figured it out. <code>{arrow}</code> allows to bind rows, but column names have to match and have the same data types. If we wanted to be more precise, we might change some of the column types {arrow} chose for cleaned_arrow. For example, {arrow} chose Utf8 for the LON/LAT columns, which wasn’t what we expected because they clearly seemed to be numeric. It is possible to convert data types in arrow tables, but it was not nearly as straightforward for us as doing it <code>{data.table}</code> before converting to the <code>{arrow}</code> table.</p>
 <pre class="r"><code># Convert integers, character and numeric to align with arrow types in cleaned_arrow
 convert_ints &lt;- 
   c(&quot;SIC_CODE&quot;, &quot;ZIP&quot;, &quot;TOTAL_EMPLOYEES&quot;)
@@ -179,7 +178,7 @@ convert_utf8 &lt;-
   c(&quot;CONTACT_FULLNAME&quot;, &quot;CONTACT_GENDER&quot;, &quot;LONGITUDE&quot;, &quot;LATITUDE&quot;)
 bad_data[, (convert_utf8) := lapply(.SD, as.character), .SDcols = convert_utf8]
 bad_data[, SALES_VOLUME := as.numeric(SALES_VOLUME)]</code></pre>
-<p>To convert from <code>{data.table}</code> to <code>{arrow}</code> takes only an instant, so again timing is not shown.</p>
+<p>After some false starts, we learned that by mapping R integer types to <code>{arrow}</code> int64, character to Utf8 and numeric to double, everything worked, and the conversion from <code>{data.table}</code> to <code>{arrow}</code> takes only an instant, so again timing is not shown.</p>
 <pre class="r"><code># Convert to arrow table
 bad_data_arrow &lt;- 
   arrow::as_arrow_table(bad_data)
@@ -247,7 +246,7 @@ full_data</code></pre>
 </div>
 <div id="test-query" class="section level1">
 <h1>Test Query</h1>
-<p>It is amazing to get around the memory problems so easily with <code>{arrow}</code>, but it doesn’t take long to then become greedy to for efficient data manipulation. To put it through the paces, we set up a test query to filter unique COMPANY_NAME on an aggregating variable (STATE or SIC_DESCRIPTION), count the number of occurrences, arrange in descending count order, filter the top 10 values (see hidden code below) and collect back into an R data.frame. STATE has only 51, but SIC_DESCRIPTION has 8,665 distinct values so should be a bigger lift to aggregate. We had heard by simply plugging in <code>{duckdb}</code> <code>to_duckdb()</code> into our <code>{dplyr}</code> chain, we might improve the performance of the query, so have included an option for that in our benchmark examples below. Below we show the query run once with just the <code>{arrow}</code> table (at around 10 seconds), which is substantially slower than the average of the same query, once we run it 100 times in our benchmarks.</p>
+<p>It is amazing to get around all of the memory problems so easily, just by converting to an <code>{arrow}</code> table, but it doesn’t take long to then become greedy to for efficient data manipulation. To put it through the paces, we set up a test query to filter unique COMPANY_NAME on an aggregating variable (STATE or SIC_DESCRIPTION), count the number of occurrences, arrange in descending count order, filter the top 10 values (see hidden code below) and collect back into an R data.frame. STATE has only 51, but SIC_DESCRIPTION has 8,665 distinct values so should be a bigger lift to aggregate. We had heard by simply plugging in <code>{duckdb}</code> <code>to_duckdb()</code> into our <code>{dplyr}</code> chain, we might improve the performance of the query, so have included an option for that in our benchmark examples below. Below we show the query run once with just the <code>{arrow}</code> table (at around 10 seconds), which is substantially slower than the average of the same query, once we run it 100 times in our benchmarks.</p>
 <details>
 <summary>
 See code
@@ -289,7 +288,7 @@ test_agg(full_data, agg_var=STATE)</code></pre>
 ##  9 NJ     730344
 ## 10 VA     617868</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 9.045 sec elapsed</code></pre>
+<pre><code>## 8.996 sec elapsed</code></pre>
 </div>
 <div id="query-evaluation" class="section level1">
 <h1>Query evaluation</h1>
