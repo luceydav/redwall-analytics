@@ -138,7 +138,7 @@ cleaned_arrow</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 46.476 sec elapsed</code></pre>
+<pre><code>## 43.198 sec elapsed</code></pre>
 <pre class="r"><code>lobstr::obj_size(cleaned_arrow)</code></pre>
 <pre><code>## 283.62 kB</code></pre>
 </div>
@@ -149,7 +149,7 @@ cleaned_arrow</code></pre>
   try(arrow::read_csv_arrow(paste0(uscompany, &quot;bad_scrub_data.csv&quot;)))</code></pre>
 <pre><code>## Error in (function (file, delim = &quot;,&quot;, quote = &quot;\&quot;&quot;, escape_double = TRUE,  : 
 ##   Invalid: CSV parse error: Expected 22 columns, got 19: &quot;Ahlstrom, aaron&quot;,6282,FINANCIAL ADVISORY SERVICES,753 ameriprise financial ctr,Minneapolis,MN,5 ...</code></pre>
-<p>So, we will back to <code>scrubscv</code> and <code>{data.table}</code>, piping the command line function into <code>fread()</code>. We can see that the 1 million rows with the retained 22 columns takes about a second to load, with an additional 5,598 rows thrown out by <code>scrubcsv</code> for having non-standard columns. For this amount of data, it is hard to think of a better option!</p>
+<p>So, we go back to <code>scrubscv</code> and <code>{data.table}</code>, piping the command line function into <code>fread()</code>, and 1 million rows with the retained 22 columns takes about a second to load, throwing out 5,598 rows thrown out for having a non-standard number of columns. For this amount of data, it is hard to think of a better option!</p>
 <pre class="r"><code>cmd &lt;- glue(&quot;scrubcsv { paste0(uscompany, &#39;bad_scrub_data.csv&#39;) }&quot;)
 bad_data &lt;- fread(cmd= cmd)</code></pre>
 <p>As mentioned previously, <code>scrubcsv</code> takes bad rows (ie: less than 22 columns in this case) and throws them out. It also doesn’t import column names with the discarded rows, so these have to be manually added after the fact, and since the table scan will be a significantly different amount of rows, it seems reasonable to expect some types may vary. We threw out the names of columns which were missing from bad_data, and then mapped to the appropriate column names in cleaned_arrow so that we could stack.</p>
@@ -177,7 +177,7 @@ bad_data[
   , (convert_utf8) := lapply(.SD, as.character)
   , .SDcols = convert_utf8]
 bad_data[, SALES_VOLUME := as.numeric(SALES_VOLUME)]</code></pre>
-<p>After some false starts, we learned that by mapping R integer types to <code>{arrow}</code> int64, character to Utf8 and numeric to double, everything worked, and the conversion from <code>{data.table}</code> to <code>{arrow}</code> takes only an instant, so again timing is not shown.</p>
+<p>After trial and error, we learned that by mapping R integer types to <code>{arrow}</code> int64, character to Utf8 and numeric to double, everything worked, and the conversion from <code>{data.table}</code> to <code>{arrow}</code> takes only an instant, so again timing is not shown.</p>
 <pre class="r"><code># Convert to arrow table
 bad_data_arrow &lt;- 
   arrow::as_arrow_table(bad_data)
@@ -288,7 +288,7 @@ test_agg(full_data, agg_var=STATE)</code></pre>
 ##  9 NJ     730344
 ## 10 VA     617868</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 9.507 sec elapsed</code></pre>
+<pre><code>## 9.445 sec elapsed</code></pre>
 <p>So here, we benchmark four queries, aggregating on STATE and SIC_DESCRIPTION with and without duckdb. The big surprise here was how big an impact <code>{duckdb}</code> had with so little effort, reducing query time by 55-60%. It also seemed to make the query run with much less variability, but will leave that to the experts to explain.</p>
 <details>
 <summary>

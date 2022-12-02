@@ -73,7 +73,7 @@ bad_csv <-
   try(arrow::read_csv_arrow(paste0(uscompany, "bad_scrub_data.csv")))
 ```
 
-So, we will back to `scrubscv` and `{data.table}`, piping the command line function into `fread()`. We can see that the 1 million rows with the retained 22 columns takes about a second to load, with an additional 5,598 rows thrown out by `scrubcsv` for having non-standard columns. For this amount of data, it is hard to think of a better option!
+So, we go back to `scrubscv` and `{data.table}`, piping the command line function into `fread()`, and 1 million rows with the retained 22 columns takes about a second to load, throwing out 5,598 rows thrown out for having a non-standard number of columns. For this amount of data, it is hard to think of a better option!
 
 ```{r 'bad-data'}
 cmd <- glue("scrubcsv { paste0(uscompany, 'bad_scrub_data.csv') }")
@@ -115,7 +115,7 @@ bad_data[
 bad_data[, SALES_VOLUME := as.numeric(SALES_VOLUME)]
 ```
 
-After some false starts, we learned that by mapping R integer types to `{arrow}` int64, character to Utf8 and numeric to double, everything worked, and the conversion from `{data.table}` to `{arrow}` takes only an instant, so again timing is not shown.
+After trial and error, we learned that by mapping R integer types to `{arrow}` int64, character to Utf8 and numeric to double, everything worked, and the conversion from `{data.table}` to `{arrow}` takes only an instant, so again timing is not shown.
 
 ```{r 'bad-data-arrow'}
 # Convert to arrow table
