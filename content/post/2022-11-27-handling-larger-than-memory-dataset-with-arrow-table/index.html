@@ -102,7 +102,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)</code></pre>
 </div>
 <div id="loading-an-arrow-table" class="section level1">
 <h1>Loading an <code>{arrow}</code> Table</h1>
-<p>First, we load the larger 30 million row clean data set, which has 28 columns with <code>{arrow}</code>’s <code>read_csv_arrow()</code>. In the previous post, we were using a 2015 iMac with 8G of RAM, and now, our new MacBook Air m1 with 16G of RAM. When we ran the same function on the older iMac taking the data instead as data.frame, the same data took almost 10 minutes to load, but on the new machine, it took about 1 minute (so the time savings are about 90% from the m1). We also tried to load on the m1 as a data.table with <code>fread()</code>, but gave up after about 15 minutes. Here, we will actually choose the option to take the input as an <code>{arrow}</code> table (setting as_data_frame = FALSE), which reduces load time takes a little further to 45 seconds. As an <code>{arrow}</code> table, the 7G of data takes up only 283kB of memory to be accessed via <code>{dplyr}</code> in RStudio. In the context of this size of data and machine, <code>{data.table}</code> doesn’t seem like a viable solution compared to <code>{arrow}</code>, either as a data.frame or an <code>{arrow}</code> table, much as we love it.</p>
+<p>First, we load the larger 30 million row clean data set, which has 28 columns with <code>{arrow}</code>’s <code>read_csv_arrow()</code>. In the previous post, we were using a 2015 iMac with 8G of RAM, and now, our new MacBook Air m1 with 16G of RAM. When we ran the same function on the older iMac taking the data instead as data.frame, the same data took almost 10 minutes to load, but on the new machine, it took about 1 minute (so the time savings are about 90% from the m1). We also tried to load on the m1 as a data.table with <code>fread()</code>, but gave up after about 15 minutes. Here, we will actually choose the option to take the input as an <code>{arrow}</code> table (setting as_data_frame = FALSE), which reduces load time a little further to 45 seconds. As an <code>{arrow}</code> table, the 7G of data takes up only 283kB of memory to be accessed via <code>{dplyr}</code> in RStudio. In the context of this size of data and machine, <code>{data.table}</code> doesn’t seem like a viable solution compared to <code>{arrow}</code>, either as a data.frame or an <code>{arrow}</code> table, much as we love it.</p>
 <pre class="r"><code>tic()
 cleaned_arrow &lt;- 
   arrow::read_csv_arrow(paste0(uscompany, &quot;scrubbed.csv&quot;), as_data_frame = FALSE)
@@ -138,7 +138,7 @@ cleaned_arrow</code></pre>
 ## $NAICS_NUMBER &lt;int64&gt;
 ## $INDUSTRY &lt;string&gt;</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 46.911 sec elapsed</code></pre>
+<pre><code>## 45.386 sec elapsed</code></pre>
 <pre class="r"><code>lobstr::obj_size(cleaned_arrow)</code></pre>
 <pre><code>## 283.62 kB</code></pre>
 </div>
@@ -149,7 +149,7 @@ cleaned_arrow</code></pre>
   try(arrow::read_csv_arrow(paste0(uscompany, &quot;bad_scrub_data.csv&quot;)))</code></pre>
 <pre><code>## Error in (function (file, delim = &quot;,&quot;, quote = &quot;\&quot;&quot;, escape_double = TRUE,  : 
 ##   Invalid: CSV parse error: Expected 22 columns, got 19: &quot;Ahlstrom, aaron&quot;,6282,FINANCIAL ADVISORY SERVICES,753 ameriprise financial ctr,Minneapolis,MN,5 ...</code></pre>
-<p>So, we go back to <code>scrubscv</code> and <code>{data.table}</code>, piping the command line function into <code>fread()</code>, and 1 million rows with the retained 22 columns takes about a second to load, throwing out 5,598 rows thrown out for having a non-standard number of columns. For this amount of data, it is hard to think of a better option!</p>
+<p>So, we go back to <code>scrubscv</code> and <code>{data.table}</code>, piping the command line function into <code>fread()</code>, and 1 million rows with the retained 22 columns takes about a second to load, throwing out 5,598 rows for having a non-standard number of columns. For this amount of data, it is hard to think of a better option!</p>
 <pre class="r"><code>cmd &lt;- glue(&quot;scrubcsv { paste0(uscompany, &#39;bad_scrub_data.csv&#39;) }&quot;)
 bad_data &lt;- fread(cmd= cmd)</code></pre>
 <p>As mentioned previously, <code>scrubcsv</code> takes bad rows (ie: less than 22 columns in this case) and throws them out. It also doesn’t import column names with the discarded rows, so these have to be manually added after the fact, and since the table scan will be a significantly different amount of rows, it seems reasonable to expect some types may vary. We threw out the names of columns which were missing from bad_data, and then mapped to the appropriate column names in cleaned_arrow so that we could stack.</p>
@@ -288,7 +288,7 @@ test_agg(full_data, agg_var=STATE)</code></pre>
 ##  9 NJ     730344
 ## 10 VA     617868</code></pre>
 <pre class="r"><code>toc()</code></pre>
-<pre><code>## 10.399 sec elapsed</code></pre>
+<pre><code>## 9.198 sec elapsed</code></pre>
 <p>So here, we benchmark four queries, aggregating on STATE and SIC_DESCRIPTION with and without duckdb. The big surprise here was how big an impact <code>{duckdb}</code> had with so little effort, reducing query time by 55-60%. It also seemed to make the query run with much less variability, but will leave that to the experts to explain.</p>
 <details>
 <summary>
