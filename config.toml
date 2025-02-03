@@ -37,8 +37,8 @@ disqusShortname = "www-redwallanalytics-com"
     weight = 4
     
     [[menu.main]]
-    name = "Twitter"
-    url = "https://twitter.com/lucey_david"
+    name = "Blue Sky"
+    url = "https://bsky.app/profile/luceydav.bsky.social"
     weight = 5
     
     [[menu.main]]
@@ -50,7 +50,7 @@ disqusShortname = "www-redwallanalytics-com"
     description = ""
 
     # options for highlight.js (version, additional languages, and theme)
-    highlightjsVersion = "9.11.0"
+    highlightjsVersion = "10.24.1"
     highlightjsCDN = "//cdn.bootcss.com"
     highlightjsLang = ["r", "yaml"]
     highlightjsTheme = "github"
