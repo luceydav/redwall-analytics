@@ -12,6 +12,7 @@ project:
     - "fonts/**"
     - "images/**"
     - "img/**"
+    - "post/**"
   post-render: ./cleanup.sh
 
 website:
