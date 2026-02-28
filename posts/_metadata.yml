@@ -1,0 +1,27 @@
+# Shared options for all posts
+freeze: true
+
+# Default author
+author: "David Lucey"
+
+# Date format
+date-format: "YYYY-MM-DD"
+
+# Enable banner style title blocks
+title-block-banner: true
+
+# Table of contents
+toc: true
+toc-depth: 3
+
+# Knitr options - don't evaluate code by default (posts are pre-rendered)
+execute:
+  eval: false
+  echo: true
+  warning: false
+  message: false
+
+# HTML format
+format:
+  html:
+    css: ../../styles.css

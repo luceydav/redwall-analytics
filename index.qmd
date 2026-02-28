@@ -1,0 +1,12 @@
+---
+title: "Redwall Analytics"
+listing:
+  contents: posts
+  sort: "date desc"
+  type: default
+  categories: true
+  feed: true
+  fields: [date, title, categories, description]
+page-layout: full
+title-block-banner: false
+---

@@ -1,0 +1,49 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "*.qmd"
+    - "posts/**/*.qmd"
+    - "posts/**/*.md"
+  resources:
+    - "rmarkdown-libs/**"
+    - "css/**"
+    - "js/**"
+    - "fonts/**"
+    - "images/**"
+    - "img/**"
+  post-render: ./cleanup.sh
+
+website:
+  title: "Redwall Analytics"
+  favicon: static/images/redwall.png
+  google-analytics: "UA-177379740-1"
+  
+  navbar:
+    left:
+      - text: "Redwall Analytics"
+        href: index.qmd
+    right:
+      - text: "About"
+        href: about.qmd
+      - text: "Contact"
+        href: contact.qmd
+      - icon: linkedin
+        href: "https://linkedin.com/in/david-lucey-cfa-cpa-mba-msba"
+        aria-label: LinkedIn
+      - icon: cloud
+        href: "https://bsky.app/profile/luceydav.bsky.social"
+        aria-label: Blue Sky
+      - icon: github
+        href: "https://github.com/luceydav"
+        aria-label: GitHub
+
+  page-footer:
+    left: "© Redwall Analytics LLC 2018–2025"
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    highlight-style: github
+    toc: true

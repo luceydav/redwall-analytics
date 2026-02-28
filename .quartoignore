@@ -1,0 +1,13 @@
+# Hugo/blogdown files to exclude from Quarto output
+content/**
+public/**
+blogdown/**
+themes/**
+resources/**
+layouts/**
+static/**
+index.Rmd
+config.toml
+*.Rproj
+.Rprofile
+.Rhistory

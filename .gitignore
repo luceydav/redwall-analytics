@@ -40,6 +40,13 @@ rsconnect/
 /public/
 /resources/
 
+# Quarto output directory (built by Netlify)
+/_site/
+
+# Quarto freeze cache (track this in git for reproducibility)
+# /_freeze/
+
+
 # secret key in .Renviron
 .Renviron
 .Rproj.user
@@ -52,3 +59,5 @@ Thumbs.db
 
 # Hugo from check_site()
 .hugo_build.lock
+/.quarto/
+**/*.quarto_ipynb
