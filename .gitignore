@@ -61,3 +61,6 @@ Thumbs.db
 .hugo_build.lock
 /.quarto/
 **/*.quarto_ipynb
+
+# Leftover content/ directory (Hugo source, archived to archive/hugo-source branch)
+/content/

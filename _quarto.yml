@@ -30,11 +30,11 @@ website:
       - text: "Contact"
         href: contact.qmd
       - icon: linkedin
-        href: "https://linkedin.com/in/david-lucey-cfa-cpa-mba-msba"
+        href: "https://linkedin.com/in/david-lucey-cfa-mba-msba"
         aria-label: LinkedIn
       - icon: cloud
         href: "https://bsky.app/profile/luceydav.bsky.social"
-        aria-label: Blue Sky
+        aria-label: BlueSky
       - icon: github
         href: "https://github.com/luceydav"
         aria-label: GitHub
