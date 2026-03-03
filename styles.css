@@ -18,6 +18,12 @@ body {
   margin-bottom: 1.5rem;
 }
 
+/* Constrain embedded iframes to content column */
+iframe {
+  max-width: 100%;
+  display: block;
+}
+
 /* Footer */
 .nav-footer {
   border-top: 1px solid #e5e5e5;

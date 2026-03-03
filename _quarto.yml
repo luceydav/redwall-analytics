@@ -13,10 +13,10 @@ project:
     - "images/**"
     - "img/**"
     - "post/**"
-  post-render: ./cleanup.sh
 
 website:
   title: "Redwall Analytics"
+  site-url: "https://redwallanalytics.com"
   favicon: static/images/redwall.png
   google-analytics: "UA-177379740-1"
   
