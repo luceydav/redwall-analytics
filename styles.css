@@ -1,0 +1,41 @@
+/* Redwall Analytics - Quarto site styles */
+
+body {
+  font-family: "Source Serif Pro", Georgia, serif;
+}
+
+.navbar-brand {
+  font-weight: bold;
+}
+
+/* Blog listing */
+.quarto-listing-default .list-description {
+  color: #555;
+}
+
+/* Post pages */
+.quarto-title-block {
+  margin-bottom: 1.5rem;
+}
+
+/* Constrain embedded iframes to content column */
+iframe {
+  max-width: 100%;
+  width: 100%;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Override inline width= attributes on iframes (Shiny apps, etc.) */
+p > iframe,
+div > iframe {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Footer */
+.nav-footer {
+  border-top: 1px solid #e5e5e5;
+  font-size: 0.85rem;
+  color: #666;
+}

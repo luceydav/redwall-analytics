@@ -1,14 +1,15 @@
 [build]
-command = "hugo"
-publish = "public"
-[build.environment]
-HUGO_VERSION = "0.111.0"
+command = "quarto render && cp -r static/post _site/post && cp -r static/rmarkdown-libs _site/rmarkdown-libs && cp -r static/images _site/images && cp -r static/img _site/img"
+publish = "_site"
 
-[context]
+[build.environment]
+QUARTO_VERSION = "1.8.27"
+
+[[plugins]]
+package = "netlify-plugin-quarto"
+
 [context.branch-deploy]
-command = "hugo -b $DEPLOY_PRIME_URL --buildFuture --buildDrafts"
+command = "quarto render && cp -r static/post _site/post && cp -r static/rmarkdown-libs _site/rmarkdown-libs"
+
 [context.deploy-preview]
-command = "hugo -b $DEPLOY_PRIME_URL --buildFuture --buildDrafts"
-[context.production]
-[context.production.environment]
-HUGO_ENV = "production"
+command = "quarto render && cp -r static/post _site/post && cp -r static/rmarkdown-libs _site/rmarkdown-libs"

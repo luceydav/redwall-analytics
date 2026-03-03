@@ -1,0 +1,13 @@
+data.table
+glue
+arrow
+DBI
+duckdb
+tictoc
+ggplot2
+dplyr
+ggfortify
+microbenchmark
+scales
+bit
+bit64

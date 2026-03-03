@@ -52,3 +52,11 @@ Thumbs.db
 
 # Hugo from check_site()
 .hugo_build.lock
+/.quarto/
+**/*.quarto_ipynb
+
+# Quarto output directory
+/_site/
+
+# macOS Finder duplicate
+posts/2025-11-09-recipe-for-investment-policy-statement-with-perplexity 2/
