@@ -14,6 +14,8 @@ website:
   google-analytics: "UA-177379740-1"
 
   navbar:
+    logo: static/images/redwall.png
+    logo-alt: "Redwall Analytics"
     left:
       - text: "Redwall Analytics"
         href: index.qmd

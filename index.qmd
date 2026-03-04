@@ -4,9 +4,11 @@ listing:
   contents: posts
   sort: "date desc"
   type: default
-  categories: true
+  categories: false
+  sort-ui: false
+  filter-ui: false
   feed: true
-  fields: [date, title, categories, description]
-page-layout: full
+  fields: [date, title]
+page-layout: article
 title-block-banner: false
 ---

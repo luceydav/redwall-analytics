@@ -1,31 +1,125 @@
 /* Redwall Analytics - Quarto site styles */
+/* Matches original Hugo Lithium theme aesthetics */
 
+/* ── Google Fonts (Merriweather body + Lato headings) ── */
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap');
+
+/* ── Base typography ── */
 body {
-  font-family: "Source Serif Pro", Georgia, serif;
+  font-family: 'Merriweather', Georgia, serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  color: #333;
+}
+
+h1, h2, h3, h4, h5, h6,
+.navbar, .navbar-brand,
+.quarto-title,
+.listing-title,
+.nav-link,
+.menu-text {
+  font-family: 'Lato', sans-serif;
+}
+
+/* ── Article body text size and spacing ── */
+.page-layout-article .column-body,
+.page-layout-article #quarto-document-content {
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+/* ── Distinctive green link highlight (original Lithium theme) ── */
+#quarto-document-content a:not(.nav-link):not(.quarto-navigation-tool):not(.btn):not([class*="quarto-"]),
+.article-content a {
+  color: #222;
+  text-decoration: none;
+  border-bottom: 2px solid #CBF8DF;
+  box-shadow: inset 0 -4px 0 #CBF8DF;
+  background: transparent;
+  transition: background 150ms ease;
+}
+
+#quarto-document-content a:hover:not(.nav-link):not(.quarto-navigation-tool):not(.btn):not([class*="quarto-"]),
+.article-content a:hover {
+  background: #CBF8DF;
+}
+
+/* ── Navbar ── */
+.navbar {
+  background-color: #f5f5f5 !important;
+  border-bottom: 1px solid #eaeaea;
 }
 
 .navbar-brand {
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
-/* Blog listing */
-.quarto-listing-default .list-description {
-  color: #555;
+.navbar .nav-link {
+  color: #111 !important;
+  font-size: 0.95rem;
 }
 
-/* Post pages */
+/* ── Post title block ── */
 .quarto-title-block {
   margin-bottom: 1.5rem;
 }
 
-/* Constrain images to content column, override inline width/height styles */
+.quarto-title {
+  font-size: 2rem;
+  line-height: 1.3;
+  color: #222;
+}
+
+/* ── Post metadata (date, author) ── */
+.quarto-title-meta {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+/* ── Code blocks ── */
+pre {
+  font-size: 0.85rem;
+  border-radius: 3px;
+}
+
+/* ── Blog listing ── */
+.quarto-listing-default .list-title a {
+  font-family: 'Lato', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #222;
+  text-decoration: none;
+  border-bottom: 1px solid #ddd;
+  box-shadow: none;
+  background: none;
+}
+
+.quarto-listing-default .list-title a:hover {
+  border-bottom-color: #222;
+  background: none;
+}
+
+.quarto-listing-default .listing-date {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.quarto-listing-default .list-description {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+/* ── Images: constrain to column, override inline width/height ── */
 img {
   max-width: 100% !important;
   height: auto !important;
   display: block;
 }
 
-/* Constrain embedded iframes to content column */
+/* ── iframes: constrain to column ── */
 iframe {
   max-width: 100%;
   width: 100%;
@@ -33,16 +127,16 @@ iframe {
   margin: 0 auto;
 }
 
-/* Override inline width= attributes on iframes (Shiny apps, etc.) */
 p > iframe,
 div > iframe {
   max-width: 100% !important;
   width: 100% !important;
 }
 
-/* Footer */
+/* ── Footer ── */
 .nav-footer {
   border-top: 1px solid #e5e5e5;
   font-size: 0.85rem;
+  font-family: 'Lato', sans-serif;
   color: #666;
 }
