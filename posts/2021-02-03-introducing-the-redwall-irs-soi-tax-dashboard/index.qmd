@@ -9,7 +9,7 @@ aliases:
 ---
 
 ```{=html}
-<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+<script src="index_files/header-attrs/header-attrs.js"></script>
 
 
 <p><a href="https://luceyda.shinyapps.io/irs_dash/"><img src="/img/irs_dash.png" alt="IRS Tax Dashboard Summary" /></a></p>

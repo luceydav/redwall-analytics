@@ -9,19 +9,19 @@ aliases:
 ---
 
 ```{=html}
-<script src="{{< blogdown/postref >}}index_files/htmlwidgets/htmlwidgets.js"></script>
-<script src="{{< blogdown/postref >}}index_files/plotly-binding/plotly.js"></script>
-<script src="{{< blogdown/postref >}}index_files/typedarray/typedarray.min.js"></script>
-<script src="{{< blogdown/postref >}}index_files/jquery/jquery.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/crosstalk/css/crosstalk.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/crosstalk/js/crosstalk.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/plotly-main/plotly-latest.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/datatables-binding/datatables.js"></script>
-<link href="{{< blogdown/postref >}}index_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
-<link href="{{< blogdown/postref >}}index_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/dt-core/js/jquery.dataTables.min.js"></script>
+<script src="index_files/htmlwidgets/htmlwidgets.js"></script>
+<script src="index_files/plotly-binding/plotly.js"></script>
+<script src="index_files/typedarray/typedarray.min.js"></script>
+<script src="index_files/jquery/jquery.min.js"></script>
+<link href="index_files/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="index_files/crosstalk/js/crosstalk.min.js"></script>
+<link href="index_files/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="index_files/plotly-main/plotly-latest.min.js"></script>
+<link href="index_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+<script src="index_files/datatables-binding/datatables.js"></script>
+<link href="index_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="index_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="index_files/dt-core/js/jquery.dataTables.min.js"></script>
 
 
 <p><em>NOTE: The read time for this post is overstated because of the formatting of the code. There are about 4,400 words, so read time should be closer to 15 minutes.</em></p>

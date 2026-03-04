@@ -315,7 +315,7 @@ mbm</code></pre>
 </details>
 <pre><code>## Coordinate system already present. Adding new coordinate system, which will
 ## replace the existing one.</code></pre>
-<p><img src="{{< blogdown/postref >}}index_files/figure-html/mbm-autoplot-1.png" width="672" /></p>
+<p><img src="index_files/figure-html/mbm-autoplot-1.png" width="672" /></p>
 <p>When we were playing around, it seemed like the first time we ran a query was slower than after a few times. It seems like there might be a cost to moving over to duckdb, but we didn’t know how that would work. Looking at the time series of the queries, it looks like the first query was often slower, and then have big spikes in volatility after a while. Possibly not surprising, the larger group aggregation (SIC_DESCRIPTION) was more volatile, but it seems clear that <code>{duckdb}</code> makes query time more consistent.</p>
 <details>
 <summary>
@@ -337,7 +337,7 @@ p &lt;- ggplot2::ggplot(mbm1,
   labs(x = &quot;Trial&quot;,
        y = &quot;Time [seconds]&quot;)</code></pre>
 </details>
-<p><img src="{{< blogdown/postref >}}index_files/figure-html/plot-time-1.png" width="672" /></p>
+<p><img src="index_files/figure-html/plot-time-1.png" width="672" /></p>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>

@@ -16,20 +16,20 @@ aliases:
 ---
 
 ```{=html}
-<link href="{{< blogdown/postref >}}index_files/htmltools-fill/fill.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/htmlwidgets/htmlwidgets.js"></script>
-<link href="{{< blogdown/postref >}}index_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/datatables-binding/datatables.js"></script>
-<script src="{{< blogdown/postref >}}index_files/jquery/jquery-3.6.0.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
-<link href="{{< blogdown/postref >}}index_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/dt-core/js/jquery.dataTables.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/crosstalk/css/crosstalk.min.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/crosstalk/js/crosstalk.min.js"></script>
-<script src="{{< blogdown/postref >}}index_files/plotly-binding/plotly.js"></script>
-<script src="{{< blogdown/postref >}}index_files/typedarray/typedarray.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/plotly-main/plotly-latest.min.js"></script>
+<link href="index_files/htmltools-fill/fill.css" rel="stylesheet" />
+<script src="index_files/htmlwidgets/htmlwidgets.js"></script>
+<link href="index_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+<script src="index_files/datatables-binding/datatables.js"></script>
+<script src="index_files/jquery/jquery-3.6.0.min.js"></script>
+<link href="index_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="index_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="index_files/dt-core/js/jquery.dataTables.min.js"></script>
+<link href="index_files/crosstalk/css/crosstalk.min.css" rel="stylesheet" />
+<script src="index_files/crosstalk/js/crosstalk.min.js"></script>
+<script src="index_files/plotly-binding/plotly.js"></script>
+<script src="index_files/typedarray/typedarray.min.js"></script>
+<link href="index_files/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="index_files/plotly-main/plotly-latest.min.js"></script>
 
 
 <div class="float">

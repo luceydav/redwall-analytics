@@ -9,19 +9,19 @@ aliases:
 ---
 
 ```{=html}
-<script src="{{< blogdown/postref >}}index_files/htmlwidgets/htmlwidgets.js"></script>
-<script src="{{< blogdown/postref >}}index_files/jquery/jquery.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/datatables-binding/datatables.js"></script>
-<link href="{{< blogdown/postref >}}index_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
-<link href="{{< blogdown/postref >}}index_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/dt-core/js/jquery.dataTables.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/crosstalk/css/crosstalk.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/crosstalk/js/crosstalk.min.js"></script>
-<script src="{{< blogdown/postref >}}index_files/plotly-binding/plotly.js"></script>
-<script src="{{< blogdown/postref >}}index_files/typedarray/typedarray.min.js"></script>
-<link href="{{< blogdown/postref >}}index_files/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
-<script src="{{< blogdown/postref >}}index_files/plotly-main/plotly-latest.min.js"></script>
+<script src="index_files/htmlwidgets/htmlwidgets.js"></script>
+<script src="index_files/jquery/jquery.min.js"></script>
+<link href="index_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+<script src="index_files/datatables-binding/datatables.js"></script>
+<link href="index_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="index_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="index_files/dt-core/js/jquery.dataTables.min.js"></script>
+<link href="index_files/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="index_files/crosstalk/js/crosstalk.min.js"></script>
+<script src="index_files/plotly-binding/plotly.js"></script>
+<script src="index_files/typedarray/typedarray.min.js"></script>
+<link href="index_files/plotly-htmlwidgets-css/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="index_files/plotly-main/plotly-latest.min.js"></script>
 
 
 <details>
@@ -95,7 +95,7 @@ p &lt;-
          caption = &quot;Source: Lots of places&quot;) +
     theme_bw(base_size = 22)</code></pre>
 </details>
-<p><img src="{{< blogdown/postref >}}index_files/figure-html/cp-wages-plot-1.png" width="100%" /></p>
+<p><img src="index_files/figure-html/cp-wages-plot-1.png" width="100%" /></p>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>The rise in monopoly power particularly in big technology, but possibly, more broadly across the economy and stock market has been a growing topic of conversation in recent years. <a href="https://www.theatlantic.com/ideas/archive/2020/07/pandemic-making-monopolies-worse/614644/">America’s Monopoly Problem Goes Way Beyond the Tech Giants</a> by David Doyen, and <a href="https://www.sparklinecapital.com/post/monopolies-are-distorting-the-stock-market">Monopolies Are Distorting the Stock Market</a>, by Kai Wu of Sparkline Capital, one of our favorite data-driven bloggers, are good examples of this thinking. In addition to data on industry concentration, Wu draws the link to discussions over stagnating real wages, and sustained higher profit margins of companies since 1980 in the chart above, which we have seen referenced frequently in the last few years.</p>
@@ -382,7 +382,7 @@ p &lt;-
 # Modify legend title
 p$labels$colour &lt;- p$labels$fill &lt;- &quot;Period&quot;</code></pre>
 </details>
-<p><img src="{{< blogdown/postref >}}index_files/figure-html/plot-survival-periods-1.png" width="100%" /></p>
+<p><img src="index_files/figure-html/plot-survival-periods-1.png" width="100%" /></p>
 </div>
 <div id="thoughts-on-survival-rates-by-period" class="section level1">
 <h1>Thoughts on Survival Rates by Period</h1>
