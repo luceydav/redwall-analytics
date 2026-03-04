@@ -18,6 +18,13 @@ body {
   margin-bottom: 1.5rem;
 }
 
+/* Constrain images to content column, override inline width/height styles */
+img {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+}
+
 /* Constrain embedded iframes to content column */
 iframe {
   max-width: 100%;
