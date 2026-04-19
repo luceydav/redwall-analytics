@@ -1,5 +1,5 @@
 ---
-title: "Redwall Analytics"
+title: "Posts"
 listing:
   contents: posts
   sort: "date desc"

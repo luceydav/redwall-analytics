@@ -41,7 +41,7 @@ h1, h2, h3, h4, h5, h6,
 
 #quarto-document-content a:hover:not(.nav-link):not(.quarto-navigation-tool):not(.btn):not([class*="quarto-"]),
 .article-content a:hover {
-  background: #CBF8DF;
+  background: transparent;
 }
 
 /* ── Navbar ── */
