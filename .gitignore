@@ -57,6 +57,7 @@ Thumbs.db
 
 # Quarto output directory
 /_site/
+/node_modules/
 
 # macOS Finder duplicate
 posts/2025-11-09-recipe-for-investment-policy-statement-with-perplexity 2/
