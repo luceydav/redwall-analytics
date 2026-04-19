@@ -1,15 +1,7 @@
-# Hugo artifacts - exclude from Quarto scanning/rendering
+# Exclude non-rendered project files and asset sources
 public/
-themes/
-layouts/
-blogdown/
-resources/
 static/
-content/
-config.toml
-cleanup.sh
 build.sh
-index.Rmd
 
 # macOS Finder duplicate (space in name, cannot delete without sudo)
 posts/2025-11-09-recipe-for-investment-policy-statement-with-perplexity 2/

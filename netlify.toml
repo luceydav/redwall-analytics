@@ -1,5 +1,5 @@
 [build]
-command = "quarto render && cp -r static/post _site/post && cp -r static/rmarkdown-libs _site/rmarkdown-libs && cp -r static/images _site/images && cp -r static/img _site/img"
+command = "bash ./build.sh"
 publish = "_site"
 
 [build.environment]
@@ -9,7 +9,7 @@ QUARTO_VERSION = "1.8.27"
 package = "netlify-plugin-quarto"
 
 [context.branch-deploy]
-command = "quarto render && cp -r static/post _site/post && cp -r static/rmarkdown-libs _site/rmarkdown-libs"
+command = "bash ./build.sh"
 
 [context.deploy-preview]
-command = "quarto render && cp -r static/post _site/post && cp -r static/rmarkdown-libs _site/rmarkdown-libs"
+command = "bash ./build.sh"
