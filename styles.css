@@ -28,20 +28,23 @@ h1, h2, h3, h4, h5, h6,
   line-height: 1.8;
 }
 
-/* ── Distinctive green link highlight (original Lithium theme) ── */
+/* ── Content links ── */
 #quarto-document-content a:not(.nav-link):not(.quarto-navigation-tool):not(.btn):not([class*="quarto-"]),
 .article-content a {
-  color: #222;
-  text-decoration: none;
-  border-bottom: 2px solid #CBF8DF;
-  box-shadow: inset 0 -4px 0 #CBF8DF;
-  background: transparent;
-  transition: background 150ms ease;
+  color: #1f4b99;
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.14em;
+  border-bottom: none;
+  box-shadow: none;
+  background: none;
+  transition: color 150ms ease;
 }
 
 #quarto-document-content a:hover:not(.nav-link):not(.quarto-navigation-tool):not(.btn):not([class*="quarto-"]),
 .article-content a:hover {
-  background: transparent;
+  color: #16386f;
+  background: none;
 }
 
 /* ── Navbar ── */

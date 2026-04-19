@@ -17,7 +17,7 @@ website:
     logo: static/images/redwall.png
     logo-alt: "Redwall Analytics"
     left:
-      - text: "Redwall Analytics"
+      - text: "Posts"
         href: index.qmd
     right:
       - text: "About"
