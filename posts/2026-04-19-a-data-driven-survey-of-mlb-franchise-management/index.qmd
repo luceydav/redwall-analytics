@@ -40,16 +40,15 @@ The published chart code is available in the source repository:
 
 For the standalone presentation version of this work, see [mlbfranchiseanalysis.netlify.app][site].
 
-## Eight things the data reveals
+## Seven things the data reveals
 
-1. Pipeline edge has two parts: rookie quality and rookie roster share, and only a few clubs truly do both.
-2. Developing talent and exporting it before free agency pays twice because it absorbs both development and replacement costs.
-3. Dead money, salary paid to zero-WAR players, is a tax that hits small markets hardest.
+1. Pipeline edge has two parts -- rookie quality and rookie roster share -- and only a few clubs truly do both.
+2. Developing talent and exporting it before free agency pays twice: it absorbs both development and replacement costs.
+3. Dead money -- salary paid to zero-WAR players -- is a tax that hits small markets hardest.
 4. Teams that overpay veteran free agents and let homegrown talent walk are paying twice.
 5. Payroll mattered over the period (`r = 0.77`, `R^2 ~= 0.60`), but the modern period may be different.
 6. Injury luck is real and powerful: some franchises were penalized for decisions they did not make.
-7. Making the playoffs efficiently is one problem; going deep in October is another.
-8. Champions usually score well across several dimensions, but they do not all win the same way.
+7. Champions usually score well across several dimensions, but they do not all win the same way.
 
 ## Framework
 
@@ -62,9 +61,9 @@ WAR (Wins Above Replacement) is the common currency of baseball value. It measur
 The chain to franchise success outlined in this project is straightforward:
 
 1. Develop rookies into pre-free-agency contributors and fill real roster share internally.
-2. Retain the best pre-free-agency talent before they reach the open market.
-3. Allocate payroll wisely through efficient free-agent signings and low dead money.
-4. Win the trade market for future stars.
+2. Win the trade market for future stars before they reach free agency.
+3. Retain the best pre-free-agency talent and allocate payroll wisely with efficient free-agent signings.
+4. Avoid dead money from long-term mistakes.
 5. Survive injury luck, the confounder that cannot be fully controlled.
 6. Turn payroll into playoff trips.
 7. Carry enough health and depth to go deep in October.
@@ -83,7 +82,17 @@ This act separates two ideas that often get mashed together: how good homegrown 
 
 Code: [playoff_efficiency.R][playoff-efficiency]
 
-## Act 2: Keeping stars and paying for performance
+## Act 2: Who wins the trade market for future stars?
+
+*Future stars = players with at least two post-trade MLB seasons who were moved before free agency. Net losers rarely recover without elite draft luck.*
+
+![](images/trade_scores.png){fig-alt="Quadrant scatter showing average WAR received versus average WAR given away in trades."}
+
+Trades are where clubs either extend the pipeline or cut it off at the knees. Pipeline builders tend to outperform free-agent-only franchises because they replenish value before it reaches full market price.
+
+Code: [trade_scores.R][trade-scores]
+
+## Act 3: Keeping stars and paying for performance
 
 *X-axis reversed: right = efficient free-agent spending (lower dollars per WAR). Cracking both free-agent efficiency and homegrown retention is rare.*
 
@@ -93,7 +102,7 @@ This is the two-way allocation problem. Good franchises do not just develop star
 
 Code: [talent_allocation.R][talent-allocation]
 
-## Act 3: Dead money -- the self-inflicted tax on bad contracts
+## Act 4: Dead money -- the self-inflicted tax on bad contracts
 
 *Dead money = salary of at least $1M paid to players who produced zero or negative WAR. Large markets absorb it. Small markets get crippled by it.*
 
@@ -102,16 +111,6 @@ Code: [talent_allocation.R][talent-allocation]
 Dead money is not just a bad contract metric. It is a budget elasticity metric. The same miss hurts everyone, but it hurts low-payroll franchises far more because one failed long-term deal can swallow a huge share of the roster budget.
 
 Code: [dead_money.R][dead-money]
-
-## Act 4: Who wins the trade market for future stars?
-
-*Future stars = players with at least two post-trade MLB seasons who were moved before free agency. Net losers rarely recover without elite draft luck.*
-
-![](images/trade_scores.png){fig-alt="Quadrant scatter showing average WAR received versus average WAR given away in trades."}
-
-Trades are where clubs either extend the pipeline or cut it off at the knees. Pipeline builders tend to outperform free-agent-only franchises because they replenish value before it reaches full market price.
-
-Code: [trade_scores.R][trade-scores]
 
 ## Act 5: The great confounder -- injury luck
 
