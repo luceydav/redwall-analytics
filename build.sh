@@ -3,6 +3,14 @@
 # Renders the Quarto site and copies legacy static assets needed by old posts.
 set -euo pipefail
 
+temp_dir=""
+cleanup() {
+  if [ -n "${temp_dir}" ] && [ -d "${temp_dir}" ]; then
+    rm -rf "${temp_dir}"
+  fi
+}
+trap cleanup EXIT
+
 ensure_quarto() {
   if command -v quarto >/dev/null 2>&1; then
     return
@@ -33,7 +41,6 @@ ensure_quarto() {
 
   archive_url="https://github.com/quarto-dev/quarto-cli/releases/download/v${version}/quarto-${version}-${platform}.tar.gz"
   temp_dir="$(mktemp -d)"
-  trap 'rm -rf "${temp_dir}"' EXIT
 
   echo "==> Installing Quarto ${version} for ${platform}..."
   curl -fsSL "${archive_url}" -o "${temp_dir}/quarto.tar.gz"
