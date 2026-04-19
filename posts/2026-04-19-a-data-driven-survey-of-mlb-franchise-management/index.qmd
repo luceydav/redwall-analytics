@@ -17,16 +17,16 @@ aliases:
 ---
 
 ::: {.callout-note}
-This article brings the MLB franchise analysis onto the main Redwall Analytics site using the published narrative and chart assets from the standalone [MLB franchise analysis microsite][site]. The full reproducible pipeline still lives in the companion [GitHub repository][repo], where the charts are generated from `lahmanTools`, DuckDB, and supporting baseball data.
+This article brings the MLB franchise analysis onto the main Redwall Analytics site using the published narrative and chart assets from the standalone [MLB franchise analysis microsite][site]. The full reproducible pipeline still lives in the companion [GitHub repository][repo], where the charts are generated from [`lahmanTools`][lahman], DuckDB, and supporting baseball data.
 :::
 
 ## Using `{lahmanTools}` and the MotherDuck MCP with GitHub Copilot CLI to put analysis on steroids
 
-The `lahmanTools` package was created to fill in some of the gaps in the already outstanding [Lahman baseball database](https://sabr.org/lahman-database/), such as WAR and recent salary data, to allow a more complete analysis of franchise management over the period since 1985, where the data is most complete.
+The [`lahmanTools`][lahman] package was created to fill in some of the gaps in the already outstanding [Lahman baseball database](https://sabr.org/lahman-database/), such as WAR and recent salary data, to allow a more complete analysis of franchise management over the period since 1985, where the data is most complete.
 
 The work spans four distinct eras: Early FA (1985-1993), Pre-Moneyball (1994-2002), Moneyball (2003-2011), and Big Data (2012-2025), so future analysis drilling into specific eras may look quite different. The project is structured around a narrative arc of eight acts, each revealing a different dimension of franchise management and its impact on playoff achievement. The final act synthesizes those dimensions into a scorecard that ranks franchises across several management categories.
 
-GitHub Copilot CLI played a major role in building `lahmanTools`, its DuckDB database, and the charting and Quarto scaffolding used for this project. The ideas, however, were driven by a Mets fan who has learned painfully what management should not do if it wants to win championships.
+GitHub Copilot CLI played a major role in building [`lahmanTools`][lahman], its DuckDB database, and the charting and Quarto scaffolding used for this project. The ideas, however, were driven by a Mets fan who has learned painfully what management should not do if it wants to win championships.
 
 ## Code and reproducibility
 
